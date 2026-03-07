@@ -1,0 +1,4 @@
+ALTER TABLE users
+ADD COLUMN google_id VARCHAR(255) NULL,
+ADD COLUMN reset_token VARCHAR(255) NULL,
+ADD COLUMN reset_token_expire DATETIME NULL;
