@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 
 export default function GoogleSuccess() {
   const [searchParams] = useSearchParams();
@@ -10,7 +10,7 @@ export default function GoogleSuccess() {
 
     if (token) {
       localStorage.setItem("token", token);
-      navigate("/");
+      navigate("/home");
     } else {
       navigate("/login");
     }

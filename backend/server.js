@@ -7,20 +7,26 @@ require("dotenv").config();
 
 const db = require("./src/config/db");
 const authRoutes = require("./src/routes/auth.routes");
+const homeRoutes = require("./src/routes/home.routes");
 
 const app = express();
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-app.use(session({
-  secret: "iems_secret_key",
-  resave: false,
-  saveUninitialized: false
-}));
+app.use(
+  session({
+    secret: "iems_secret_key",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -30,7 +36,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -67,7 +73,7 @@ passport.use(
                     name,
                     email,
                     google_id: googleId,
-                    role: "USER"
+                    role: "USER",
                   });
                 }
               );
@@ -89,6 +95,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/home", homeRoutes);
 
 app.listen(5000, () => {
   console.log("Server running on port 5000");

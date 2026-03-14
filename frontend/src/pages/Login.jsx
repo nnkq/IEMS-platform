@@ -22,10 +22,12 @@ export default function Login() {
 
     try {
       const res = await loginUser(form);
+
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
+
       setMessage("Đăng nhập thành công");
-      setTimeout(() => navigate("/"), 1000);
+      navigate("/home");
     } catch (error) {
       setMessage(error.response?.data?.message || "Đăng nhập thất bại");
     }
@@ -57,7 +59,12 @@ export default function Login() {
         />
 
         <button type="submit">Đăng nhập</button>
-        <button type="button" className="google-btn" onClick={handleGoogleLogin}>
+
+        <button
+          type="button"
+          className="google-btn"
+          onClick={handleGoogleLogin}
+        >
           Đăng nhập bằng Google
         </button>
 
@@ -66,6 +73,7 @@ export default function Login() {
         <p>
           <Link to="/forgot-password">Quên mật khẩu?</Link>
         </p>
+
         <p>
           Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
         </p>
