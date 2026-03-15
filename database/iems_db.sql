@@ -1,3 +1,5 @@
+DROP DATABASE iems_db;
+CREATE DATABASE iems_db;
 USE iems_db;
 
 CREATE TABLE users (

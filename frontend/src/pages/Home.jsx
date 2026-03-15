@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Home.css";
 import { getHomeDashboard, searchHome } from "../api/homeApi";
-
+import { createRepairRequest } from "../api/repairApi";
 const pageMeta = {
   home: {
     title: "Trang chủ",
@@ -105,6 +105,36 @@ function getAiReply(text) {
 }
 
 export default function Home() {
+  const submitRepairRequest = async () => {
+    try {
+
+      if (!issueTitle || !description) {
+        alert("Vui lòng nhập tiêu đề và mô tả lỗi");
+        return;
+      }
+
+      const payload = {
+        device_id: 1, // tạm thời test
+        title: issueTitle,
+        description: description,
+        budget: budget,
+        location: address
+      };
+
+      console.log("payload:", payload);
+
+      const res = await createRepairRequest(payload);
+
+      alert("Tạo yêu cầu sửa chữa thành công!");
+
+      resetForm();
+      setActivePage("tracking");
+
+    } catch (error) {
+      console.error("Create request error:", error);
+      alert("Không thể tạo yêu cầu sửa chữa");
+    }
+  };
   const [activePage, setActivePage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -828,7 +858,11 @@ export default function Home() {
                       </div>
 
                       <div className="hero-actions mt-22">
-                        <button className="btn btn-primary" type="button">
+                        <button
+                          className="btn btn-primary"
+                          type="button"
+                          onClick={submitRepairRequest}
+                        >
                           Gửi yêu cầu
                         </button>
                         <button className="btn btn-secondary" type="button" onClick={resetForm}>

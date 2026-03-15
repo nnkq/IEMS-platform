@@ -6,10 +6,14 @@ const GoogleStrategy = require("passport-google-oauth20").Strategy;
 require("dotenv").config();
 
 const db = require("./src/config/db");
+
 const authRoutes = require("./src/routes/auth.routes");
 const homeRoutes = require("./src/routes/home.routes");
+const repairRoutes = require("./src/routes/repairRequest.routes");
 
 const app = express();
+
+/* ---------------- CORS ---------------- */
 
 app.use(
   cors({
@@ -18,7 +22,11 @@ app.use(
   })
 );
 
+/* ---------------- JSON ---------------- */
+
 app.use(express.json());
+
+/* ---------------- SESSION ---------------- */
 
 app.use(
   session({
@@ -27,6 +35,8 @@ app.use(
     saveUninitialized: false,
   })
 );
+
+/* ---------------- PASSPORT ---------------- */
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -90,13 +100,20 @@ passport.use(
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
+/* ---------------- ROUTES ---------------- */
+
 app.get("/", (req, res) => {
   res.send("IEMS API Running");
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/home", homeRoutes);
+app.use("/api", repairRoutes);
 
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
+/* ---------------- SERVER ---------------- */
+
+const PORT = 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
