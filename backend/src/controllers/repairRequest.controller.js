@@ -2,15 +2,9 @@ const db = require("../config/db");
 
 exports.createRepairRequest = (req, res) => {
 
+  const user_id = req.user.id;
+
   const { device_id, title, description, budget, location } = req.body;
-
-  if (!device_id || !title || !description) {
-    return res.status(400).json({
-      message: "Missing required fields"
-    });
-  }
-
-  const user_id = 1; // test user
 
   const sql = `
     INSERT INTO repair_requests
@@ -24,10 +18,8 @@ exports.createRepairRequest = (req, res) => {
     (err, result) => {
 
       if (err) {
-        console.error("Create repair request error:", err);
-        return res.status(500).json({
-          message: "Database error"
-        });
+        console.error("Create request error:", err);
+        return res.status(500).json({ message: "Database error" });
       }
 
       res.status(201).json({

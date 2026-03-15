@@ -3,39 +3,53 @@ const db = require("../config/db");
 
 const protect = (req, res, next) => {
   try {
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Không có token" });
+      return res.status(401).json({
+        message: "Unauthorized - Token missing"
+      });
     }
 
     const token = authHeader.split(" ")[1];
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    db.query(
-      "SELECT id, name, email, role FROM users WHERE id = ?",
-      [decoded.id],
-      (err, results) => {
-        if (err) {
-          return res.status(500).json({ message: "Lỗi server", err });
-        }
+    const sql = "SELECT id, name, email, role FROM users WHERE id = ?";
 
-        if (results.length === 0) {
-          return res.status(401).json({ message: "Người dùng không tồn tại" });
-        }
+    db.query(sql, [decoded.id], (err, results) => {
 
-        req.user = results[0];
-        next();
+      if (err) {
+        console.error("Auth DB error:", err);
+        return res.status(500).json({
+          message: "Database error"
+        });
       }
-    );
-  } catch (error) {
-    return res.status(401).json({
-      message: "Token không hợp lệ",
-      error: error.message,
+
+      if (results.length === 0) {
+        return res.status(401).json({
+          message: "User not found"
+        });
+      }
+
+      // gắn user vào request
+      req.user = results[0];
+
+      next();
     });
+
+  } catch (error) {
+
+    console.error("JWT error:", error);
+
+    return res.status(401).json({
+      message: "Invalid token"
+    });
+
   }
 };
 
 module.exports = {
-  protect,
+  protect
 };
