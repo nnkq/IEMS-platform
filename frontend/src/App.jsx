@@ -6,6 +6,7 @@ import ResetPassword from "./pages/ResetPassword";
 import GoogleSuccess from "./pages/GoogleSuccess";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
+import StoreDashboard from "./pages/StoreDashboard"; // <-- Mình đã thêm import ở đây
 import "./App.css";
 
 function PrivateRoute({ children }) {
@@ -37,6 +38,16 @@ function App() {
         element={
           <PrivateRoute>
             <Profile />
+          </PrivateRoute>
+        }
+      />
+
+      {/* <-- Mình đã thêm Route bảo vệ cho Store ở đây --> */}
+      <Route
+        path="/store"
+        element={
+          <PrivateRoute>
+            <StoreDashboard />
           </PrivateRoute>
         }
       />

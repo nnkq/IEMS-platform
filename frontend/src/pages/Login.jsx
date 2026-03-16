@@ -23,11 +23,24 @@ export default function Login() {
     try {
       const res = await loginUser(form);
 
+      // Lưu token và thông tin user vào localStorage
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
 
       setMessage("Đăng nhập thành công");
-      navigate("/home");
+
+      // Lấy role từ dữ liệu API trả về
+      const userRole = res.data.user.role; 
+
+      // Ép kiểu về chữ thường để so sánh (khắc phục lỗi 'STORE' vs 'store')
+      if (userRole?.toLowerCase() === "store") {
+        navigate("/store"); // Chuyển đến trang quản lý của Store
+      } else if (userRole?.toLowerCase() === "admin") {
+        navigate("/admin"); // Chuẩn bị sẵn cho trang Admin
+      } else {
+        navigate("/home");  // Mặc định là User bình thường
+      }
+
     } catch (error) {
       setMessage(error.response?.data?.message || "Đăng nhập thất bại");
     }

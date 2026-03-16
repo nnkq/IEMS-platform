@@ -188,8 +188,32 @@ const googleSuccess = (req, res) => {
     return res.status(401).json({ message: "Google login thất bại" });
   }
 
-  const token = generateToken(req.user);
-  res.redirect(`http://localhost:5173/google-success?token=${token}`);
+  // Đề phòng thư viện Passport không lấy role, ta chọc thẳng vào DB tìm email cho chắc cú!
+  db.query("SELECT * FROM users WHERE email = ?", [req.user.email], (err, results) => {
+    if (err || results.length === 0) {
+      return res.redirect(`http://localhost:5173/login?error=true`);
+    }
+
+    // Lấy thông tin user chuẩn 100% từ Database (lúc này chắc chắn có role)
+    const dbUser = results[0];
+    
+    // Tạo token dựa trên dbUser
+    const token = generateToken(dbUser);
+
+    // Tạo object chứa thông tin cần thiết
+    const userData = {
+      id: dbUser.id,
+      name: dbUser.name,
+      email: dbUser.email,
+      role: dbUser.role // Bây giờ chắc chắn 100% nó sẽ mang giá trị "STORE"
+    };
+
+    // Mã hóa object này thành một chuỗi an toàn để đưa lên URL
+    const encodedUser = encodeURIComponent(JSON.stringify(userData));
+
+    // Bắn sang Frontend
+    res.redirect(`http://localhost:5173/google-success?token=${token}&user=${encodedUser}`);
+  });
 };
 
 const googleFailure = (req, res) => {
