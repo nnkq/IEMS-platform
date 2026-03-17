@@ -10,11 +10,11 @@ const db = require("./src/config/db");
 const authRoutes = require("./src/routes/auth.routes");
 const homeRoutes = require("./src/routes/home.routes");
 const repairRoutes = require("./src/routes/repairRequest.routes");
-
+const mapRoutes = require("./src/routes/map.routes");
 const app = express();
 
 /* ---------------- CORS ---------------- */
-
+app.use("/api/map", mapRoutes);
 app.use(
   cors({
     origin: "http://localhost:5173",
