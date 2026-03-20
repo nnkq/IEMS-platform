@@ -43,6 +43,7 @@ INSERT INTO service_categories (name) VALUES
 ('Tablet'),
 ('Smart Device');
 
+SET SQL_SAFE_UPDATES = 0;
 -- 🔥 5. UPDATE devices → map category_id
 UPDATE devices SET category_id = 1 WHERE category = 'Phone';
 UPDATE devices SET category_id = 2 WHERE category = 'Laptop';
