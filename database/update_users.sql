@@ -2,7 +2,7 @@ ALTER TABLE users
 ADD COLUMN google_id VARCHAR(255) NULL,
 ADD COLUMN reset_token VARCHAR(255) NULL,
 ADD COLUMN reset_token_expire DATETIME NULL;
-
+-- up data base
 -- 🔥 ADD COLUMNS (repair_requests)
 ALTER TABLE repair_requests
 ADD phone VARCHAR(20),
