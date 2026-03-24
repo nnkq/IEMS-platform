@@ -12,6 +12,7 @@ const homeRoutes = require("./src/routes/home.routes");
 const repairRoutes = require("./src/routes/repairRequest.routes");
 const storeRoutes = require("./src/routes/storeRoutes"); 
 const productRoutes = require("./src/routes/productRoutes");
+const mapRoutes = require("./src/routes/map.routes");
 
 const app = express();
 
@@ -89,6 +90,7 @@ app.use("/api/home", homeRoutes);
 app.use("/api", repairRoutes);
 app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/map", mapRoutes);
 
 /* ---------------- SERVER ---------------- */
 const PORT = 5000;

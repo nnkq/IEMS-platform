@@ -107,23 +107,43 @@ function getAiReply(text) {
 export default function Home() {
   const submitRepairRequest = async () => {
     try {
-
       if (!issueTitle || !description) {
         alert("Vui lòng nhập tiêu đề và mô tả lỗi");
         return;
       }
 
+      if (!userLocation.lat || !userLocation.lng) {
+        alert("Vui lòng bấm 'Lấy vị trí hiện tại' trước");
+        return;
+      }
+
       const payload = {
-        device_id: 1, // tạm thời test
+        device_id: 1,
+
+        // basic
         title: issueTitle,
         description: description,
         budget: budget,
-        location: address
-      };
 
+        // 🔥 map
+        location: address,
+        latitude: userLocation.lat,
+        longitude: userLocation.lng,
+
+        // 🔥 thêm đầy đủ
+        phone: phone,
+        desired_date: desiredDate,
+        service_mode: serviceMode,
+
+        device_type: deviceType,
+        brand: brand,
+        model: model,
+
+        symptoms: symptoms.join(", "),
+      };
       console.log("payload:", payload);
 
-      const res = await createRepairRequest(payload);
+      await createRepairRequest(payload);
 
       alert("Tạo yêu cầu sửa chữa thành công!");
 
@@ -142,6 +162,11 @@ export default function Home() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
 
+  const [userLocation, setUserLocation] = useState({
+    lat: null,
+    lng: null,
+  });
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [searchResult, setSearchResult] = useState({
     repairRequests: [],
@@ -288,7 +313,100 @@ export default function Home() {
     setServiceMode("Mang đến cửa hàng");
     setSymptoms(["Màn hình", "Cảm ứng"]);
   };
+  const getCurrentLocation = () => {
+    if (loadingLocation) return;
 
+    if (!navigator.geolocation) {
+      alert("Trình duyệt không hỗ trợ GPS");
+      return;
+    }
+
+    setLoadingLocation(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        console.log("LAT:", lat);
+        console.log("LNG:", lng);
+
+        // 🔥 lưu tọa độ
+        setUserLocation({ lat, lng });
+
+        try {
+          // ✅ API chính (ổn hơn nominatim)
+          const res = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=vi`
+          );
+
+          const data = await res.json();
+
+          console.log("Geo data:", data);
+
+          // 👉 build địa chỉ đẹp hơn
+          let addressText = [
+            data.locality,
+            data.principalSubdivision,
+            data.countryName,
+          ]
+            .filter(Boolean)
+            .join(", ");
+
+          // ❗ fallback nếu API trả thiếu
+          if (!addressText) {
+            addressText = `${lat}, ${lng}`;
+          }
+
+          // 🔥 set vào input
+          setAddress(addressText);
+
+          alert("Đã lấy vị trí thành công!");
+        } catch (err) {
+          console.error("Lỗi API địa chỉ:", err);
+
+          // ❗ fallback luôn về tọa độ
+          setAddress(`${lat}, ${lng}`);
+
+          alert("Lấy được vị trí nhưng không xác định được địa chỉ");
+        }
+
+        setLoadingLocation(false);
+      },
+      (err) => {
+        console.error("GPS error:", err);
+
+        if (err.code === 1) {
+          alert("Bạn chưa cho phép truy cập vị trí");
+        } else if (err.code === 2) {
+          alert("Không xác định được vị trí");
+        } else {
+          alert("Lỗi GPS");
+        }
+
+        setLoadingLocation(false);
+      },
+      {
+        enableHighAccuracy: true, // 🔥 tăng độ chính xác
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+  const fetchNearbyStores = async () => {
+    if (!userLocation.lat) return;
+
+    const res = await fetch("http://localhost:5000/api/map/stores/nearby", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userLocation),
+    });
+
+    const data = await res.json();
+    console.log("Stores gần:", data);
+  };
   return (
     <div className="iems-root">
       <div
@@ -854,6 +972,14 @@ export default function Home() {
                             placeholder="Dùng khi pickup hoặc kiểm tra tận nơi"
                             onChange={(e) => setAddress(e.target.value)}
                           />
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={getCurrentLocation}
+                            disabled={loadingLocation}
+                          >
+                            {loadingLocation ? "Đang lấy vị trí..." : "📍 Lấy vị trí hiện tại"}
+                          </button>
                         </div>
                       </div>
 
