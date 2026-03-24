@@ -1,29 +1,74 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function StoreDashboard() {
-  const [activeTab, setActiveTab] = useState("Yêu cầu");
+  const [activeTab, setActiveTab] = useState("Hồ sơ");
 
   // ==========================================
-  // 1. STATE: THÔNG TIN HỒ SƠ
+  // 1. STATE & API: THÔNG TIN HỒ SƠ & SẢN PHẨM
   // ==========================================
   const [storeInfo, setStoreInfo] = useState({
-    storeName: "Tuấn Mobile & PC", phone: "0901 234 567", address: "123 Nguyễn Văn Linh, Đà Nẵng",
-    description: "Chuyên sửa chữa Laptop, PC và Điện thoại lấy liền. Uy tín, chất lượng.",
-    openTime: "08:00", closeTime: "20:00"
+    storeName: "", phone: "", address: "", description: "", openTime: "", closeTime: ""
   });
+  const [products, setProducts] = useState([]);
+
+  // Tự động tải dữ liệu từ DB lên
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem("user"));
+    if (userData && userData.id) {
+      // Tải Hồ sơ
+      fetch(`http://localhost:5000/api/stores/profile/${userData.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data) {
+            setStoreInfo({
+              storeName: data.store_name || "", phone: data.phone || "", address: data.address || "",
+              description: data.description || "", openTime: data.open_time || "", closeTime: data.close_time || ""
+            });
+          }
+        })
+        .catch((err) => console.error("Lỗi tải hồ sơ:", err));
+
+      // Tải Sản phẩm
+      fetch(`http://localhost:5000/api/products/${userData.id}`)
+        .then((res) => res.json())
+        .then((data) => setProducts(data))
+        .catch((err) => console.error("Lỗi tải sản phẩm:", err));
+    }
+  }, []);
+
   const handleInputChange = (e) => setStoreInfo({ ...storeInfo, [e.target.name]: e.target.value });
-  const handleSaveProfile = (e) => { e.preventDefault(); alert("✅ Đã lưu thông tin hồ sơ!"); };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    const userData = JSON.parse(localStorage.getItem("user"));
+    if (!userData || !userData.id) return alert("Lỗi: Không tìm thấy ID tài khoản!");
+
+    try {
+      const response = await fetch("http://localhost:5000/api/stores/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData.id, storeName: storeInfo.storeName, phone: storeInfo.phone,
+          address: storeInfo.address, description: storeInfo.description, openTime: storeInfo.openTime, closeTime: storeInfo.closeTime
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) alert("✅ Đã lưu thông tin hồ sơ cửa hàng thành công!");
+      else alert("❌ Lỗi từ Database: " + (data.error || "Không rõ nguyên nhân"));
+    } catch (error) {
+      alert("❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!");
+    }
+  };
 
   // ==========================================
   // 2. STATE: QUẢN LÝ YÊU CẦU & TIẾN ĐỘ
   // ==========================================
-  // Đã bổ sung thêm dữ liệu (budget, date, method, phone, address) cho form chi tiết
   const [requests, setRequests] = useState([
     { 
       id: 1, customer: "Nguyễn Văn A", device: "Laptop Dell XPS", issue: "Màn hình bị sọc", status: "PENDING",
       detail: { 
         deviceType: "Laptop", brand: "Dell", model: "Dell XPS 15 9500", title: "Màn hình sọc xanh và cảm ứng chậm", 
-        categories: ["Màn hình", "Cảm ứng"], description: "Máy đang dùng bình thường thì tự nhiên xuất hiện sọc ngang màu xanh, thỉnh thoảng cảm ứng bị đơ không vuốt được. Chưa rớt nước hay va đập gì.",
+        categories: ["Màn hình", "Cảm ứng"], description: "Máy đang dùng bình thường thì tự nhiên xuất hiện sọc ngang.",
         receiveMethod: "Mang đến cửa hàng", budget: "1.500.000", desiredDate: "20/03/2026", phone: "0912345678", address: "Tự mang tới cửa hàng"
       }
     },
@@ -31,7 +76,7 @@ export default function StoreDashboard() {
       id: 2, customer: "Trần Thị B", device: "iPhone 13 Pro", issue: "Pin chai", status: "PENDING",
       detail: { 
         deviceType: "Điện thoại", brand: "Apple", model: "iPhone 13 Pro 256GB", title: "Pin tụt nhanh, máy nóng", 
-        categories: ["Pin", "Tản nhiệt"], description: "Sạc đầy 100% dùng được cỡ 2 tiếng là hết pin. Máy chơi game rất nóng ở phần lưng.",
+        categories: ["Pin", "Tản nhiệt"], description: "Sạc đầy 100% dùng được cỡ 2 tiếng là hết pin.",
         receiveMethod: "Nhận tận nơi", budget: "800.000", desiredDate: "18/03/2026", phone: "0987654321", address: "45 Lê Duẩn, Hải Châu, Đà Nẵng"
       }
     },
@@ -39,8 +84,8 @@ export default function StoreDashboard() {
       id: 3, customer: "Lê Văn C", device: "MacBook Air M1", issue: "Cài lại MacOS", status: "IN_PROGRESS",
       detail: { 
         deviceType: "Laptop", brand: "Apple", model: "MacBook Air M1 2020", title: "Cần cài lại MacOS trắng", 
-        categories: ["Nguồn"], description: "Máy bị dính mã độc tống tiền, cần format toàn bộ ổ cứng và cài lại hệ điều hành mới nhất.",
-        receiveMethod: "Kiểm tra tại chỗ", budget: "300.000", desiredDate: "17/03/2026", phone: "0905112233", address: "Quán Cafe The Cup, 100 Nguyễn Văn Thoại"
+        categories: ["Nguồn"], description: "Máy bị dính mã độc tống tiền, cần format toàn bộ.",
+        receiveMethod: "Kiểm tra tại chỗ", budget: "300.000", desiredDate: "17/03/2026", phone: "0905112233", address: "Quán Cafe The Cup"
       }
     },
   ]);
@@ -66,26 +111,63 @@ export default function StoreDashboard() {
   };
 
   // ==========================================
-  // 3. STATE: QUẢN LÝ SẢN PHẨM & DỊCH VỤ
+  // 3. API: THÊM / XÓA SẢN PHẨM DỊCH VỤ
   // ==========================================
-  const [products, setProducts] = useState([
-    { id: 1, name: "Thay màn hình iPhone 13 Pro Max", type: "Dịch vụ", price: "2.500.000đ", image: "https://images.unsplash.com/photo-1512054502232-10a0a035d672?auto=format&fit=crop&w=100&q=80" },
-    { id: 2, name: "Bàn phím cơ Logitech G Pro", type: "Linh kiện", price: "1.850.000đ", image: "https://images.unsplash.com/photo-1595225476474-87563907a212?auto=format&fit=crop&w=100&q=80" }
-  ]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: "", type: "Dịch vụ", price: "", image: "" });
 
-  const handleAddProduct = (e) => {
-    e.preventDefault();
-    if (!newProduct.name || !newProduct.price) return alert("Vui lòng nhập Tên và Giá!");
-    setProducts([{ id: Date.now(), ...newProduct }, ...products]);
-    setNewProduct({ name: "", type: "Dịch vụ", price: "", image: "" });
-    setShowAddForm(false);
-    alert("✅ Đã thêm mặt hàng mới!");
+  // Xử lý khi user chọn file ảnh từ máy tính
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewProduct({ ...newProduct, image: reader.result }); // Lưu ảnh dưới dạng mã Base64
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleDeleteProduct = (id) => {
-    if (window.confirm("Bạn có chắc muốn xóa mặt hàng này khỏi cửa hàng?")) setProducts(products.filter(p => p.id !== id));
+  const handleAddProduct = async (e) => {
+    e.preventDefault();
+    const userData = JSON.parse(localStorage.getItem("user"));
+    if (!userData || !userData.id) return alert("Lỗi đăng nhập!");
+    if (!newProduct.name || !newProduct.price) return alert("Vui lòng nhập Tên và Giá!");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: userData.id, ...newProduct })
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        setProducts([{ id: data.id, ...newProduct }, ...products]);
+        setNewProduct({ name: "", type: "Dịch vụ", price: "", image: "" });
+        setShowAddForm(false);
+        alert("✅ Đã thêm mặt hàng mới!");
+      } else {
+        alert("❌ Lỗi Database: " + data.error);
+      }
+    } catch (err) {
+      alert("❌ Lỗi kết nối mạng!");
+    }
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (window.confirm("Bạn có chắc muốn xóa mặt hàng này khỏi cửa hàng?")) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/products/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          setProducts(products.filter(p => p.id !== id));
+        } else {
+          alert("❌ Có lỗi xảy ra khi xóa.");
+        }
+      } catch (err) {
+        alert("❌ Lỗi kết nối mạng!");
+      }
+    }
   };
 
   // ==========================================
@@ -101,17 +183,15 @@ export default function StoreDashboard() {
 
   const CheckIcon = ({ color = "#10b981" }) => <svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke={color} style={{ width: "16px", height: "16px", marginRight: "8px", flexShrink: 0, marginTop: "2px" }}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>;
 
-  // Style chung cho các ô input thường
   const inputStyle = {
     width: "100%", padding: "12px", borderRadius: "8px", 
-    border: "1px solid #fbcfe8", backgroundColor: "#fdf2f8", 
+    border: "1px solid #cbd5e1", backgroundColor: "#ffffff", 
     color: "#0f172a", outline: "none", fontSize: "15px", boxSizing: "border-box"
   };
 
-  // Style cho các ô input trong Modal (giống hình của bạn)
   const detailInputStyle = {
     width: "100%", padding: "14px", borderRadius: "12px", 
-    border: "1px solid #cbd5e1", backgroundColor: "white", 
+    border: "1px solid #cbd5e1", backgroundColor: "#f8fafc", 
     color: "#334155", outline: "none", fontSize: "15px", boxSizing: "border-box", marginTop: "8px"
   };
 
@@ -161,12 +241,12 @@ export default function StoreDashboard() {
             <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
               <div style={{ width: "320px", backgroundColor: "white", borderRadius: "16px", padding: "32px 24px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
                 <div style={{ width: "100px", height: "100px", backgroundColor: "#3b82f6", color: "white", borderRadius: "50%", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "36px", fontWeight: "bold", margin: "0 auto 20px auto", boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)" }}>TM</div>
-                <h2 style={{ margin: "0 0 8px 0", color: "#0f172a", fontSize: "20px" }}>{storeInfo.storeName}</h2>
+                <h2 style={{ margin: "0 0 8px 0", color: "#0f172a", fontSize: "20px" }}>{storeInfo.storeName || "Tên cửa hàng"}</h2>
                 <p style={{ margin: "0 0 4px 0", color: "#64748b", fontSize: "14px" }}>Cửa hàng đối tác IEMS</p>
                 <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "13px" }}>Tham gia từ 2026</p>
                 <div style={{ textAlign: "left", borderTop: "1px solid #e2e8f0", paddingTop: "20px" }}>
                   <p style={{ margin: "0 0 4px 0", fontWeight: "bold", color: "#0f172a", fontSize: "14px" }}>Số điện thoại hotline</p>
-                  <p style={{ margin: 0, color: "#64748b", fontSize: "14px" }}>{storeInfo.phone}</p>
+                  <p style={{ margin: 0, color: "#64748b", fontSize: "14px" }}>{storeInfo.phone || "Đang cập nhật"}</p>
                 </div>
               </div>
               <div style={{ flex: 1, backgroundColor: "white", borderRadius: "16px", padding: "32px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
@@ -286,7 +366,7 @@ export default function StoreDashboard() {
           </div>
         )}
 
-        {/* TAB 5: SẢN PHẨM */}
+        {/* TAB 5: SẢN PHẨM (MỚI: Có NÚT CHỌN ẢNH TỪ MÁY TÍNH) */}
         {activeTab === "Sản phẩm" && (
           <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "32px" }}>
@@ -302,8 +382,16 @@ export default function StoreDashboard() {
                     <div style={{ flex: 1 }}><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Phân loại</label><select value={newProduct.type} onChange={(e) => setNewProduct({...newProduct, type: e.target.value})} style={inputStyle}><option>Dịch vụ</option><option>Linh kiện</option><option>Phụ kiện</option></select></div>
                     <div style={{ flex: 1 }}><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Giá tiền</label><input type="text" placeholder="VD: 500.000đ" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: e.target.value})} style={inputStyle} /></div>
                   </div>
+                  
+                  {/* PHẦN CHỌN ẢNH ĐƯỢC NÂNG CẤP */}
                   <div style={{ display: "flex", gap: "16px", alignItems: "flex-end" }}>
-                    <div style={{ flex: 1 }}><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Link Ảnh Minh Họa (Tùy chọn)</label><input type="text" placeholder="Dán link ảnh vào đây..." value={newProduct.image} onChange={(e) => setNewProduct({...newProduct, image: e.target.value})} style={inputStyle} /></div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Link hoặc File ảnh minh họa (Tùy chọn)</label>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input type="text" placeholder="Dán link ảnh vào đây..." value={newProduct.image} onChange={(e) => setNewProduct({...newProduct, image: e.target.value})} style={{...inputStyle, flex: 1}} />
+                        <input type="file" accept="image/*" onChange={handleImageUpload} style={{ width: "120px", fontSize: "13px", padding: "9px", borderRadius: "8px", border: "1px solid #cbd5e1", cursor: "pointer", backgroundColor: "#f8fafc", color: "#475569" }} title="Hoặc tải ảnh từ máy tính" />
+                      </div>
+                    </div>
                     <button type="submit" style={{ backgroundColor: "#10b981", color: "white", border: "none", padding: "12px 32px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", height: "42px" }}>Lưu lại</button>
                   </div>
                 </form>
@@ -337,119 +425,46 @@ export default function StoreDashboard() {
       {selectedRequest && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
           <div style={{ backgroundColor: "white", borderRadius: "16px", width: "100%", maxWidth: "600px", padding: "32px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", maxHeight: "90vh", overflowY: "auto" }}>
-            
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid #e2e8f0" }}>
               <h2 style={{ margin: 0, color: "#0f172a", fontSize: "20px", fontWeight: "bold" }}>Chi tiết yêu cầu sửa chữa</h2>
               <button onClick={() => setSelectedRequest(null)} style={{ background: "transparent", border: "none", fontSize: "24px", color: "#64748b", cursor: "pointer", padding: "0 8px" }}>&times;</button>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              {/* Dòng 1: Loại thiết bị + Thương hiệu */}
               <div style={{ display: "flex", gap: "20px" }}>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Loại thiết bị</label>
-                  <select disabled style={{...detailInputStyle, backgroundColor: "#f8fafc", color: "#64748b", cursor: "not-allowed"}}>
-                    <option>{selectedRequest.detail.deviceType}</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Thương hiệu</label>
-                  <select disabled style={{...detailInputStyle, backgroundColor: "#f8fafc", color: "#64748b", cursor: "not-allowed"}}>
-                    <option>{selectedRequest.detail.brand}</option>
-                  </select>
-                </div>
+                <div style={{ flex: 1 }}><label style={labelStyle}>Loại thiết bị</label><select disabled style={{...detailInputStyle, backgroundColor: "#f8fafc", color: "#64748b", cursor: "not-allowed"}}><option>{selectedRequest.detail.deviceType}</option></select></div>
+                <div style={{ flex: 1 }}><label style={labelStyle}>Thương hiệu</label><select disabled style={{...detailInputStyle, backgroundColor: "#f8fafc", color: "#64748b", cursor: "not-allowed"}}><option>{selectedRequest.detail.brand}</option></select></div>
               </div>
-
-              {/* Dòng 2: Model */}
-              <div>
-                <label style={labelStyle}>Model / dòng máy</label>
-                <input type="text" readOnly value={selectedRequest.detail.model} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} />
-              </div>
-
-              {/* Dòng 3: Tiêu đề vấn đề */}
-              <div>
-                <label style={labelStyle}>Tiêu đề vấn đề</label>
-                <input type="text" readOnly value={selectedRequest.detail.title} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} />
-              </div>
-
-              {/* Dòng 4: Nhóm lỗi liên quan (Tags) */}
+              <div><label style={labelStyle}>Model / dòng máy</label><input type="text" readOnly value={selectedRequest.detail.model} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
+              <div><label style={labelStyle}>Tiêu đề vấn đề</label><input type="text" readOnly value={selectedRequest.detail.title} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
               <div>
                 <label style={{...labelStyle, marginBottom: "8px"}}>Nhóm lỗi liên quan</label>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   {["Màn hình", "Cảm ứng", "Pin", "Camera", "Nguồn", "Tản nhiệt"].map((tag) => {
                     const isActive = selectedRequest.detail.categories.includes(tag);
-                    return (
-                      <span key={tag} style={{ 
-                        padding: "8px 16px", borderRadius: "20px", fontSize: "14px", fontWeight: "600",
-                        backgroundColor: isActive ? "#3b82f6" : "white",
-                        color: isActive ? "white" : "#475569",
-                        border: isActive ? "1px solid #3b82f6" : "1px solid #cbd5e1"
-                      }}>
-                        {tag}
-                      </span>
-                    );
+                    return (<span key={tag} style={{ padding: "8px 16px", borderRadius: "20px", fontSize: "14px", fontWeight: "600", backgroundColor: isActive ? "#3b82f6" : "white", color: isActive ? "white" : "#475569", border: isActive ? "1px solid #3b82f6" : "1px solid #cbd5e1" }}>{tag}</span>);
                   })}
                 </div>
               </div>
-
-              {/* Dòng 5: Mô tả chi tiết */}
-              <div>
-                <label style={labelStyle}>Mô tả chi tiết</label>
-                <textarea readOnly value={selectedRequest.detail.description} rows="3" style={{...detailInputStyle, backgroundColor: "#f8fafc", resize: "none"}} />
-              </div>
-
-              {/* ======================================================== */}
-              {/* PHẦN MỚI THÊM: HÌNH THỨC, NGÂN SÁCH, NGÀY, SĐT, ĐỊA CHỈ */}
-              {/* ======================================================== */}
+              <div><label style={labelStyle}>Mô tả chi tiết</label><textarea readOnly value={selectedRequest.detail.description} rows="3" style={{...detailInputStyle, backgroundColor: "#f8fafc", resize: "none"}} /></div>
               <div style={{ height: "1px", backgroundColor: "#e2e8f0", margin: "4px 0" }}></div>
-
-              {/* Dòng 6: Hình thức tiếp nhận */}
               <div>
                 <label style={{...labelStyle, marginBottom: "12px"}}>Hình thức tiếp nhận</label>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   {["Mang đến cửa hàng", "Nhận tận nơi", "Kiểm tra tại chỗ"].map((method) => {
                     const isActive = selectedRequest.detail.receiveMethod === method;
-                    return (
-                      <span key={method} style={{ 
-                        padding: "10px 18px", borderRadius: "25px", fontSize: "14px", fontWeight: "600",
-                        backgroundColor: isActive ? "#2563eb" : "white",
-                        color: isActive ? "white" : "#475569",
-                        border: isActive ? "none" : "1px solid #cbd5e1",
-                        boxShadow: isActive ? "0 4px 10px rgba(37, 99, 235, 0.3)" : "none"
-                      }}>
-                        {method}
-                      </span>
-                    );
+                    return (<span key={method} style={{ padding: "10px 18px", borderRadius: "25px", fontSize: "14px", fontWeight: "600", backgroundColor: isActive ? "#2563eb" : "white", color: isActive ? "white" : "#475569", border: isActive ? "none" : "1px solid #cbd5e1", boxShadow: isActive ? "0 4px 10px rgba(37, 99, 235, 0.3)" : "none" }}>{method}</span>);
                   })}
                 </div>
               </div>
-
-              {/* Dòng 7: Ngân sách & Ngày mong muốn */}
               <div style={{ display: "flex", gap: "20px" }}>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Ngân sách dự kiến</label>
-                  <input type="text" readOnly value={selectedRequest.detail.budget} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Ngày mong muốn</label>
-                  <input type="text" readOnly value={selectedRequest.detail.desiredDate} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} />
-                </div>
+                <div style={{ flex: 1 }}><label style={labelStyle}>Ngân sách dự kiến</label><input type="text" readOnly value={selectedRequest.detail.budget} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
+                <div style={{ flex: 1 }}><label style={labelStyle}>Ngày mong muốn</label><input type="text" readOnly value={selectedRequest.detail.desiredDate} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
               </div>
-
-              {/* Dòng 8: SĐT & Địa chỉ */}
               <div style={{ display: "flex", gap: "20px" }}>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Số điện thoại liên hệ</label>
-                  <input type="text" readOnly value={selectedRequest.detail.phone} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>Địa chỉ nhận máy</label>
-                  <input type="text" readOnly value={selectedRequest.detail.address} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} />
-                </div>
+                <div style={{ flex: 1 }}><label style={labelStyle}>Số điện thoại liên hệ</label><input type="text" readOnly value={selectedRequest.detail.phone} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
+                <div style={{ flex: 1 }}><label style={labelStyle}>Địa chỉ nhận máy</label><input type="text" readOnly value={selectedRequest.detail.address} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
               </div>
             </div>
-
-            {/* Nút Hành động */}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", paddingTop: "20px", borderTop: "1px solid #e2e8f0" }}>
               <button onClick={() => setSelectedRequest(null)} style={{ padding: "10px 20px", backgroundColor: "white", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Đóng</button>
               <button onClick={() => handleReject(selectedRequest.id)} style={{ padding: "10px 20px", backgroundColor: "white", color: "#ef4444", border: "1px solid #fca5a5", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Từ chối đơn</button>
@@ -458,7 +473,6 @@ export default function StoreDashboard() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

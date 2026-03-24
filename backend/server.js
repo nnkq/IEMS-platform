@@ -10,11 +10,12 @@ const db = require("./src/config/db");
 const authRoutes = require("./src/routes/auth.routes");
 const homeRoutes = require("./src/routes/home.routes");
 const repairRoutes = require("./src/routes/repairRequest.routes");
+const storeRoutes = require("./src/routes/storeRoutes"); 
+const productRoutes = require("./src/routes/productRoutes");
 
 const app = express();
 
 /* ---------------- CORS ---------------- */
-
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -22,12 +23,12 @@ app.use(
   })
 );
 
-/* ---------------- JSON ---------------- */
-
-app.use(express.json());
+/* ---------------- TĂNG GIỚI HẠN NHẬN DỮ LIỆU (FIX LỖI ẢNH TO) ---------------- */
+// Nới rộng giới hạn lên 50MB để chứa vừa chuỗi Base64 của ảnh
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 /* ---------------- SESSION ---------------- */
-
 app.use(
   session({
     secret: "iems_secret_key",
@@ -37,7 +38,6 @@ app.use(
 );
 
 /* ---------------- PASSPORT ---------------- */
-
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -54,42 +54,21 @@ passport.use(
         const name = profile.displayName;
         const email = profile.emails?.[0]?.value || null;
 
-        db.query(
-          "SELECT * FROM users WHERE email = ? OR google_id = ?",
-          [email, googleId],
-          (err, results) => {
-            if (err) return done(err);
-
-            if (results.length > 0) {
-              const user = results[0];
-
-              db.query(
-                "UPDATE users SET google_id = ? WHERE id = ?",
-                [googleId, user.id],
-                (updateErr) => {
-                  if (updateErr) return done(updateErr);
-                  return done(null, { ...user, google_id: googleId });
-                }
-              );
-            } else {
-              db.query(
-                "INSERT INTO users (name, email, google_id, role) VALUES (?, ?, ?, ?)",
-                [name, email, googleId, "USER"],
-                (insertErr, result) => {
-                  if (insertErr) return done(insertErr);
-
-                  return done(null, {
-                    id: result.insertId,
-                    name,
-                    email,
-                    google_id: googleId,
-                    role: "USER",
-                  });
-                }
-              );
-            }
+        db.query("SELECT * FROM users WHERE email = ? OR google_id = ?", [email, googleId], (err, results) => {
+          if (err) return done(err);
+          if (results.length > 0) {
+            const user = results[0];
+            db.query("UPDATE users SET google_id = ? WHERE id = ?", [googleId, user.id], (updateErr) => {
+              if (updateErr) return done(updateErr);
+              return done(null, { ...user, google_id: googleId });
+            });
+          } else {
+            db.query("INSERT INTO users (name, email, google_id, role) VALUES (?, ?, ?, ?)", [name, email, googleId, "USER"], (insertErr, result) => {
+              if (insertErr) return done(insertErr);
+              return done(null, { id: result.insertId, name, email, google_id: googleId, role: "USER" });
+            });
           }
-        );
+        });
       } catch (error) {
         done(error, null);
       }
@@ -101,7 +80,6 @@ passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
 /* ---------------- ROUTES ---------------- */
-
 app.get("/", (req, res) => {
   res.send("IEMS API Running");
 });
@@ -109,11 +87,11 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/home", homeRoutes);
 app.use("/api", repairRoutes);
+app.use("/api/stores", storeRoutes);
+app.use("/api/products", productRoutes);
 
 /* ---------------- SERVER ---------------- */
-
 const PORT = 5000;
-
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
