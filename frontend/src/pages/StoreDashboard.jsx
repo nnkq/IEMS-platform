@@ -10,7 +10,51 @@ export default function StoreDashboard() {
     storeName: "", phone: "", address: "", description: "", openTime: "", closeTime: ""
   });
   const [products, setProducts] = useState([]);
+  // quang thêm lấy vị trí 
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [storeLocation, setStoreLocation] = useState({ lat: null, lng: null });
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Trình duyệt không hỗ trợ định vị.");
+      return;
+    }
 
+    setLoadingLocation(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        setStoreLocation({ lat, lng });
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+          );
+          const data = await res.json();
+
+          setStoreInfo((prev) => ({
+            ...prev,
+            address: data?.display_name || `${lat}, ${lng}`,
+          }));
+        } catch (err) {
+          setStoreInfo((prev) => ({
+            ...prev,
+            address: `${lat}, ${lng}`,
+          }));
+        } finally {
+          setLoadingLocation(false);
+        }
+      },
+      (error) => {
+        setLoadingLocation(false);
+        alert("Không lấy được vị trí hiện tại.");
+        console.error(error);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
   // Tự động tải dữ liệu từ DB lên
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("user"));
@@ -21,8 +65,16 @@ export default function StoreDashboard() {
         .then((data) => {
           if (data) {
             setStoreInfo({
-              storeName: data.store_name || "", phone: data.phone || "", address: data.address || "",
-              description: data.description || "", openTime: data.open_time || "", closeTime: data.close_time || ""
+              storeName: data.store_name || "",
+              phone: data.phone || "",
+              address: data.address || "",
+              description: data.description || "",
+              openTime: data.open_time || "",
+              closeTime: data.close_time || ""
+            });
+            setStoreLocation({
+              lat: data.latitude ?? null,
+              lng: data.longitude ?? null
             });
           }
         })
@@ -48,8 +100,15 @@ export default function StoreDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: userData.id, storeName: storeInfo.storeName, phone: storeInfo.phone,
-          address: storeInfo.address, description: storeInfo.description, openTime: storeInfo.openTime, closeTime: storeInfo.closeTime
+          userId: userData.id,
+          storeName: storeInfo.storeName,
+          phone: storeInfo.phone,
+          address: storeInfo.address,
+          description: storeInfo.description,
+          openTime: storeInfo.openTime,
+          closeTime: storeInfo.closeTime,
+          latitude: storeLocation.lat,
+          longitude: storeLocation.lng
         }),
       });
       const data = await response.json();
@@ -259,7 +318,38 @@ export default function StoreDashboard() {
                       <div style={{ flex: 1 }}><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>Giờ đóng</label><input type="time" name="closeTime" value={storeInfo.closeTime} onChange={handleInputChange} style={inputStyle} /></div>
                     </div>
                   </div>
-                  <div><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>Địa chỉ</label><input type="text" name="address" value={storeInfo.address} onChange={handleInputChange} style={inputStyle} /></div>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>
+                      Địa chỉ
+                    </label>
+
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <input
+                        type="text"
+                        name="address"
+                        value={storeInfo.address}
+                        onChange={handleInputChange}
+                        style={{ ...inputStyle, flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleGetCurrentLocation}
+                        disabled={loadingLocation}
+                        style={{
+                          backgroundColor: "#0ea5e9",
+                          color: "white",
+                          border: "none",
+                          padding: "0 16px",
+                          borderRadius: "8px",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        {loadingLocation ? "Đang lấy..." : "Lấy vị trí"}
+                      </button>
+                    </div>
+                  </div>
                   <div><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>Mô tả chuyên môn</label><textarea name="description" value={storeInfo.description} onChange={handleInputChange} rows="4" style={{...inputStyle, resize: "vertical"}} /></div>
                   <button type="submit" style={{ alignSelf: "flex-end", backgroundColor: "#2563eb", color: "white", border: "none", padding: "12px 24px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Lưu thay đổi</button>
                 </form>
