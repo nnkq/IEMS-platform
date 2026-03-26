@@ -1,7 +1,6 @@
 import axios from "axios";
 
 export const createRepairRequest = (data) => {
-
   const token = localStorage.getItem("token");
 
   return axios.post(
@@ -13,5 +12,17 @@ export const createRepairRequest = (data) => {
       }
     }
   );
+};
 
+export const getMyRepairRequests = () => {
+  const token = localStorage.getItem("token");
+
+  return axios.get(
+    "http://localhost:5000/api/repair-requests/my",
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
 };

@@ -5,5 +5,5 @@ const repairController = require("../controllers/repairRequest.controller");
 const { protect } = require("../middlewares/auth.middleware");
 
 router.post("/repair-requests", protect, repairController.createRepairRequest);
-
-module.exports = router;
+router.get("/repair-requests/my", protect, repairController.getMyRepairRequests);
+module.exports = router;    

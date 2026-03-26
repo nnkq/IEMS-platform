@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Home.css";
 import { getHomeDashboard, searchHome } from "../api/homeApi";
-import { createRepairRequest } from "../api/repairApi";
+import { createRepairRequest, getMyRepairRequests } from "../api/repairApi";
 const pageMeta = {
   home: {
     title: "Trang chủ",
@@ -107,52 +107,68 @@ function getAiReply(text) {
 export default function Home() {
   const submitRepairRequest = async () => {
     try {
-      if (!issueTitle || !description) {
+      if (!issueTitle.trim() || !description.trim()) {
         alert("Vui lòng nhập tiêu đề và mô tả lỗi");
         return;
       }
 
-      if (!userLocation.lat || !userLocation.lng) {
+      if (userLocation.lat == null || userLocation.lng == null) {
         alert("Vui lòng bấm 'Lấy vị trí hiện tại' trước");
         return;
       }
 
       const payload = {
-        device_id: 1,
-
-        // basic
-        title: issueTitle,
-        description: description,
-        budget: budget,
-
-        // 🔥 map
-        location: address,
+        device_id: null,
+        title: issueTitle.trim(),
+        description: description.trim(),
+        budget: budget || null,
+        location: address || null,
         latitude: userLocation.lat,
         longitude: userLocation.lng,
-
-        // 🔥 thêm đầy đủ
-        phone: phone,
-        desired_date: desiredDate,
-        service_mode: serviceMode,
-
-        device_type: deviceType,
-        brand: brand,
-        model: model,
-
+        phone: phone || null,
+        desired_date: desiredDate || null,
+        service_mode: serviceMode || null,
+        device_type: deviceType || null,
+        brand: brand || null,
+        model: model || null,
         symptoms: symptoms.join(", "),
       };
+
       console.log("payload:", payload);
 
-      await createRepairRequest(payload);
+      const res = await createRepairRequest(payload);
+      console.log("create result:", res.data);
 
-      alert("Tạo yêu cầu sửa chữa thành công!");
+      await loadTrackingRequests();
+
+      alert(res.data?.message || "Tạo yêu cầu sửa chữa thành công!");
 
       resetForm();
       setActivePage("tracking");
-
     } catch (error) {
       console.error("Create request error:", error);
-      alert("Không thể tạo yêu cầu sửa chữa");
+      console.error("Response data:", error.response?.data);
+      alert(
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Không thể tạo yêu cầu sửa chữa"
+      );
+    }
+  };
+  const loadTrackingRequests = async () => {
+    try {
+      setTrackingLoading(true);
+      setTrackingError("");
+
+      const res = await getMyRepairRequests();
+      setTrackingRequests(res.data?.requests || []);
+    } catch (error) {
+      console.error("Lỗi lấy danh sách yêu cầu:", error);
+      setTrackingError(
+        error.response?.data?.message || "Không lấy được danh sách yêu cầu"
+      );
+    } finally {
+      setTrackingLoading(false);
     }
   };
   const [activePage, setActivePage] = useState("home");
@@ -186,7 +202,10 @@ export default function Home() {
   const [address, setAddress] = useState("");
   const [serviceMode, setServiceMode] = useState("Mang đến cửa hàng");
   const [symptoms, setSymptoms] = useState(["Màn hình", "Cảm ứng"]);
-
+  
+  const [trackingRequests, setTrackingRequests] = useState([]);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([
     {
@@ -258,6 +277,11 @@ export default function Home() {
 
     return () => clearTimeout(timer);
   }, [searchText]);
+  useEffect(() => {
+    if (activePage === "tracking") {
+      loadTrackingRequests();
+    }
+  }, [activePage]);
 
   const previewBudget = useMemo(() => {
     const min = Math.max(Number(budget || 0) * 0.8, 200000);
@@ -815,14 +839,14 @@ export default function Home() {
                   <span className="eyebrow">YÊU CẦU SỬA CHỮA</span>
                   <h2 className="page-title">Form tạo yêu cầu sửa chữa</h2>
                   <p className="muted">
-                    Form này vẫn đang là frontend. Sau khi bạn muốn, tôi có thể nối tiếp API tạo request.
+                    Form này đã nối API tạo request. Sau khi gửi thành công, tab Theo dõi sẽ tải lại dữ liệu trực tiếp từ database.
                   </p>
                 </div>
 
                 <div className="request-layout">
                   <div className="surface">
                     <div className="note-banner">
-                      Đây là form giao diện. Sau bước này bạn có thể nối tiếp backend tạo repair request.
+                      Sau khi gửi thành công, hệ thống sẽ chuyển sang tab Theo dõi và đọc lại danh sách yêu cầu từ SQL.
                     </div>
 
                     <div className="space-18" />
@@ -1131,45 +1155,78 @@ export default function Home() {
               <div className="page-grid">
                 <div>
                   <span className="eyebrow">THEO DÕI TIẾN ĐỘ</span>
-                  <h2 className="page-title">Tracking đang dùng dữ liệu thật từ dashboard</h2>
+                  <h2 className="page-title">Tracking đồng bộ từ SQL</h2>
                 </div>
 
                 <div className="metrics-grid">
                   <div className="stat-card">
                     <span>Tổng yêu cầu</span>
-                    <strong>{counters.totalRequests || 0}</strong>
-                    <div className="muted">Tất cả request của user</div>
+                    <strong>{trackingRequests.length}</strong>
+                    <div className="muted">Lấy trực tiếp từ repair_requests</div>
                   </div>
                   <div className="stat-card">
                     <span>Đang xử lý</span>
-                    <strong>{counters.activeRequests || 0}</strong>
+                    <strong>
+                      {
+                        trackingRequests.filter((x) =>
+                          ["OPEN", "QUOTED", "IN_PROGRESS"].includes(x.status)
+                        ).length
+                      }
+                    </strong>
                     <div className="muted">OPEN / QUOTED / IN_PROGRESS</div>
                   </div>
                   <div className="stat-card">
-                    <span>Chờ phản hồi</span>
-                    <strong>{counters.pendingQuotes || 0}</strong>
-                    <div className="muted">Quote PENDING</div>
+                    <span>Đã hoàn tất</span>
+                    <strong>
+                      {trackingRequests.filter((x) => x.status === "COMPLETED").length}
+                    </strong>
+                    <div className="muted">Request COMPLETED</div>
                   </div>
                   <div className="stat-card">
-                    <span>Đã hoàn tất</span>
-                    <strong>{counters.completedRequests || 0}</strong>
-                    <div className="muted">Request COMPLETED</div>
+                    <span>Đã hủy</span>
+                    <strong>
+                      {trackingRequests.filter((x) => x.status === "CANCELLED").length}
+                    </strong>
+                    <div className="muted">Request CANCELLED</div>
                   </div>
                 </div>
 
                 <div className="surface">
                   <div className="section-head">
                     <div>
-                      <span className="eyebrow">REQUEST GẦN NHẤT</span>
+                      <span className="eyebrow">REQUEST CỦA BẠN</span>
                       <h3 className="section-title">Danh sách đang theo dõi</h3>
                     </div>
+
+                    <button className="mini-link" onClick={loadTrackingRequests}>
+                      Tải lại →
+                    </button>
                   </div>
 
-                  {recentRequests.length === 0 && (
-                    <div className="note-banner">Chưa có request nào từ backend.</div>
+                  {trackingLoading && (
+                    <div className="note-banner">Đang tải danh sách yêu cầu...</div>
                   )}
 
-                  {recentRequests.map((item) => (
+                  {trackingError && (
+                    <div
+                      style={{
+                        marginBottom: 16,
+                        padding: 14,
+                        borderRadius: 16,
+                        border: "1px solid #fecaca",
+                        background: "#fef2f2",
+                        color: "#b91c1c",
+                      }}
+                    >
+                      {trackingError}
+                    </div>
+                  )}
+
+                  {!trackingLoading && trackingRequests.length === 0 && !trackingError && (
+                    <div className="note-banner">Chưa có request nào từ database.</div>
+                  )}
+
+                  {trackingRequests.map((item) => (
                     <div key={`track-${item.id}`} className="request-card">
                       <div className="request-card-head">
                         <div>
@@ -1195,7 +1252,7 @@ export default function Home() {
                         </div>
                         <div className="detail-card">
                           <span>Danh mục</span>
-                          <strong>{item.device_category || "Chưa rõ"}</strong>
+                          <strong>{item.device_category || item.device_type || "Chưa rõ"}</strong>
                         </div>
                         <div className="detail-card">
                           <span>Địa điểm</span>
