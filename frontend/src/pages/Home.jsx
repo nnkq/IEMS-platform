@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./Home.css";
 import { getHomeDashboard, searchHome } from "../api/homeApi";
 import { createRepairRequest, getMyRepairRequests } from "../api/repairApi";
+
 const pageMeta = {
   home: {
     title: "Trang chủ",
@@ -104,6 +105,18 @@ function getAiReply(text) {
   return "Tôi đã ghi nhận triệu chứng của bạn. Ở bước tiếp theo có thể nối AI thật để trả về chẩn đoán, độ khẩn cấp và gợi ý cửa hàng phù hợp.";
 }
 
+function buildInitials(name = "") {
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(-2)
+      .map((word) => word.charAt(0).toUpperCase())
+      .join("") || "U"
+  );
+}
+
 export default function Home() {
   const submitRepairRequest = async () => {
     try {
@@ -150,11 +163,12 @@ export default function Home() {
       console.error("Response data:", error.response?.data);
       alert(
         error.response?.data?.message ||
-        error.response?.data?.error ||
-        "Không thể tạo yêu cầu sửa chữa"
+          error.response?.data?.error ||
+          "Không thể tạo yêu cầu sửa chữa"
       );
     }
   };
+
   const loadTrackingRequests = async () => {
     try {
       setTrackingLoading(true);
@@ -171,12 +185,21 @@ export default function Home() {
       setTrackingLoading(false);
     }
   };
+
   const [activePage, setActivePage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    phone: "",
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
 
   const [userLocation, setUserLocation] = useState({
     lat: null,
@@ -202,7 +225,7 @@ export default function Home() {
   const [address, setAddress] = useState("");
   const [serviceMode, setServiceMode] = useState("Mang đến cửa hàng");
   const [symptoms, setSymptoms] = useState(["Màn hình", "Cảm ứng"]);
-  
+
   const [trackingRequests, setTrackingRequests] = useState([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackingError, setTrackingError] = useState("");
@@ -236,6 +259,10 @@ export default function Home() {
 
         const res = await getHomeDashboard();
         setDashboardData(res.data);
+        setProfileForm({
+          name: res.data?.user?.name || "",
+          phone: res.data?.user?.phone || "",
+        });
       } catch (error) {
         console.error("Lỗi lấy dữ liệu trang chủ:", error);
         setDashboardError(
@@ -277,6 +304,7 @@ export default function Home() {
 
     return () => clearTimeout(timer);
   }, [searchText]);
+
   useEffect(() => {
     if (activePage === "tracking") {
       loadTrackingRequests();
@@ -324,6 +352,82 @@ export default function Home() {
     setChatInput("");
   };
 
+  const handleProfileInputChange = (e) => {
+    const { name, value } = e.target;
+    setProfileForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setProfileSaving(true);
+      setProfileMessage("");
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("Bạn chưa đăng nhập");
+      }
+
+      const response = await fetch("http://localhost:5000/api/users/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: profileForm.name,
+          phone: profileForm.phone,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Cập nhật hồ sơ thất bại");
+      }
+
+      const updatedUserFromApi = data.user || data.profile?.user || {};
+      const mergedUser = {
+        ...user,
+        ...updatedUserFromApi,
+        name: updatedUserFromApi.name || profileForm.name,
+        phone: updatedUserFromApi.phone ?? profileForm.phone,
+        initials:
+          updatedUserFromApi.initials ||
+          buildInitials(updatedUserFromApi.name || profileForm.name || user.name),
+      };
+
+      setDashboardData((prev) => ({
+        ...prev,
+        user: mergedUser,
+      }));
+
+      const oldUser = JSON.parse(localStorage.getItem("user") || "{}");
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          ...oldUser,
+          ...mergedUser,
+        })
+      );
+
+      setProfileForm({
+        name: mergedUser.name || "",
+        phone: mergedUser.phone || "",
+      });
+
+      setProfileMessage("Cập nhật hồ sơ thành công");
+      setIsEditingProfile(false);
+    } catch (error) {
+      setProfileMessage(error.message || "Có lỗi khi cập nhật hồ sơ");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const resetForm = () => {
     setDeviceType("Điện thoại");
     setBrand("Apple");
@@ -337,6 +441,7 @@ export default function Home() {
     setServiceMode("Mang đến cửa hàng");
     setSymptoms(["Màn hình", "Cảm ứng"]);
   };
+
   const getCurrentLocation = () => {
     if (loadingLocation) return;
 
@@ -355,11 +460,9 @@ export default function Home() {
         console.log("LAT:", lat);
         console.log("LNG:", lng);
 
-        // 🔥 lưu tọa độ
         setUserLocation({ lat, lng });
 
         try {
-          // ✅ API chính (ổn hơn nominatim)
           const res = await fetch(
             `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=vi`
           );
@@ -368,30 +471,19 @@ export default function Home() {
 
           console.log("Geo data:", data);
 
-          // 👉 build địa chỉ đẹp hơn
-          let addressText = [
-            data.locality,
-            data.principalSubdivision,
-            data.countryName,
-          ]
+          let addressText = [data.locality, data.principalSubdivision, data.countryName]
             .filter(Boolean)
             .join(", ");
 
-          // ❗ fallback nếu API trả thiếu
           if (!addressText) {
             addressText = `${lat}, ${lng}`;
           }
 
-          // 🔥 set vào input
           setAddress(addressText);
-
           alert("Đã lấy vị trí thành công!");
         } catch (err) {
           console.error("Lỗi API địa chỉ:", err);
-
-          // ❗ fallback luôn về tọa độ
           setAddress(`${lat}, ${lng}`);
-
           alert("Lấy được vị trí nhưng không xác định được địa chỉ");
         }
 
@@ -411,12 +503,13 @@ export default function Home() {
         setLoadingLocation(false);
       },
       {
-        enableHighAccuracy: true, // 🔥 tăng độ chính xác
+        enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 0,
       }
     );
   };
+
   const fetchNearbyStores = async () => {
     if (!userLocation.lat) return;
 
@@ -431,6 +524,7 @@ export default function Home() {
     const data = await res.json();
     console.log("Stores gần:", data);
   };
+
   return (
     <div className="iems-root">
       <div
@@ -496,9 +590,7 @@ export default function Home() {
                   type="text"
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  placeholder={
-                    header.searchPlaceholder || "Tìm yêu cầu, cửa hàng, thiết bị..."
-                  }
+                  placeholder={header.searchPlaceholder || "Tìm yêu cầu, cửa hàng, thiết bị..."}
                 />
               </label>
 
@@ -512,9 +604,7 @@ export default function Home() {
             </div>
           </div>
 
-          {dashboardLoading && (
-            <div className="note-banner">Đang tải dữ liệu backend...</div>
-          )}
+          {dashboardLoading && <div className="note-banner">Đang tải dữ liệu backend...</div>}
 
           {dashboardError && (
             <div
@@ -612,8 +702,9 @@ export default function Home() {
                     <span className="eyebrow">TỔNG QUAN NGƯỜI DÙNG</span>
                     <h2>Theo dõi dữ liệu thật từ backend ngay trên trang chủ.</h2>
                     <p>
-                      Phần này đang lấy trực tiếp từ API dashboard. Nếu backend không có dữ
-                      liệu thì giao diện sẽ hiện rỗng hoặc hiện lỗi thật, không còn dữ liệu mẫu che đi nữa.
+                      Phần này đang lấy trực tiếp từ API dashboard. Nếu backend không có dữ liệu
+                      thì giao diện sẽ hiện rỗng hoặc hiện lỗi thật, không còn dữ liệu mẫu che đi
+                      nữa.
                     </p>
 
                     <div className="hero-actions">
@@ -748,9 +839,7 @@ export default function Home() {
                             <span className="chip">
                               {item.price ? formatVND(item.price) : "Chưa có giá"}
                             </span>
-                            <span className="chip">
-                              {item.estimated_time || "Chưa có ETA"}
-                            </span>
+                            <span className="chip">{item.estimated_time || "Chưa có ETA"}</span>
                             <span className="chip">Request #{item.request_id}</span>
                           </div>
 
@@ -839,14 +928,16 @@ export default function Home() {
                   <span className="eyebrow">YÊU CẦU SỬA CHỮA</span>
                   <h2 className="page-title">Form tạo yêu cầu sửa chữa</h2>
                   <p className="muted">
-                    Form này đã nối API tạo request. Sau khi gửi thành công, tab Theo dõi sẽ tải lại dữ liệu trực tiếp từ database.
+                    Form này đã nối API tạo request. Sau khi gửi thành công, tab Theo dõi sẽ tải
+                    lại dữ liệu trực tiếp từ database.
                   </p>
                 </div>
 
                 <div className="request-layout">
                   <div className="surface">
                     <div className="note-banner">
-                      Sau khi gửi thành công, hệ thống sẽ chuyển sang tab Theo dõi và đọc lại danh sách yêu cầu từ SQL.
+                      Sau khi gửi thành công, hệ thống sẽ chuyển sang tab Theo dõi và đọc lại danh
+                      sách yêu cầu từ SQL.
                     </div>
 
                     <div className="space-18" />
@@ -1177,16 +1268,12 @@ export default function Home() {
                   </div>
                   <div className="stat-card">
                     <span>Đã hoàn tất</span>
-                    <strong>
-                      {trackingRequests.filter((x) => x.status === "COMPLETED").length}
-                    </strong>
+                    <strong>{trackingRequests.filter((x) => x.status === "COMPLETED").length}</strong>
                     <div className="muted">Request COMPLETED</div>
                   </div>
                   <div className="stat-card">
                     <span>Đã hủy</span>
-                    <strong>
-                      {trackingRequests.filter((x) => x.status === "CANCELLED").length}
-                    </strong>
+                    <strong>{trackingRequests.filter((x) => x.status === "CANCELLED").length}</strong>
                     <div className="muted">Request CANCELLED</div>
                   </div>
                 </div>
@@ -1276,9 +1363,7 @@ export default function Home() {
                 <div>
                   <span className="eyebrow">CHATBOT AI</span>
                   <h2 className="page-title">Màn hình hội thoại</h2>
-                  <p className="muted">
-                    Phần này vẫn là giao diện mẫu, chưa nối backend AI.
-                  </p>
+                  <p className="muted">Phần này vẫn là giao diện mẫu, chưa nối backend AI.</p>
                 </div>
 
                 <div className="chat-layout">
@@ -1305,7 +1390,8 @@ export default function Home() {
 
                   <div className="surface chat-card">
                     <div className="note-banner">
-                      Chẩn đoán AI chỉ mang tính tham khảo. Kết quả cuối cùng vẫn cần kỹ thuật viên xác nhận.
+                      Chẩn đoán AI chỉ mang tính tham khảo. Kết quả cuối cùng vẫn cần kỹ thuật
+                      viên xác nhận.
                     </div>
 
                     <div className="chat-stream">
@@ -1327,10 +1413,7 @@ export default function Home() {
                         placeholder="Nhập triệu chứng thiết bị để nhận gợi ý sơ bộ..."
                       />
                       <div className="card-actions">
-                        <button
-                          className="btn btn-primary"
-                          onClick={() => sendChatMessage(chatInput)}
-                        >
+                        <button className="btn btn-primary" onClick={() => sendChatMessage(chatInput)}>
                           Gửi cho AI
                         </button>
                         <button
@@ -1360,28 +1443,145 @@ export default function Home() {
                 <div className="profile-layout">
                   <aside className="profile-card">
                     <div className="profile-avatar">{user.initials || "U"}</div>
-                    <h3>{user.name || "Chưa có tên"}</h3>
-                    <p className="muted">{user.email || "Chưa có email"}</p>
-                    <p className="muted">{user.roleLabel || "Chưa có vai trò"}</p>
 
-                    <div className="profile-meta">
-                      <div className="profile-meta-item">
-                        <strong>Số điện thoại</strong>
-                        <span className="muted">{user.phone || "Chưa cập nhật"}</span>
+                    {!isEditingProfile ? (
+                      <>
+                        <h3>{user.name || "Chưa có tên"}</h3>
+                        <p className="muted">{user.email || "Chưa có email"}</p>
+                        <p className="muted">{user.roleLabel || "Chưa có vai trò"}</p>
+
+                        <div className="profile-meta">
+                          <div className="profile-meta-item">
+                            <strong>Số điện thoại</strong>
+                            <span className="muted">{user.phone || "Chưa cập nhật"}</span>
+                          </div>
+                          <div className="profile-meta-item">
+                            <strong>Thiết bị đã lưu</strong>
+                            <span className="muted">
+                              {savedDevices.length > 0
+                                ? savedDevices.map((item) => item.name).join(" · ")
+                                : "Chưa có dữ liệu"}
+                            </span>
+                          </div>
+                          <div className="profile-meta-item">
+                            <strong>Thông báo chưa đọc</strong>
+                            <span className="muted">{counters.unreadNotifications || 0}</span>
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: 20 }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => {
+                              setProfileForm({
+                                name: user.name || "",
+                                phone: user.phone || "",
+                              });
+                              setProfileMessage("");
+                              setIsEditingProfile(true);
+                            }}
+                          >
+                            Chỉnh sửa hồ sơ
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h3>Chỉnh sửa hồ sơ</h3>
+                        <p className="muted">{user.email || "Chưa có email"}</p>
+                        <p className="muted">{user.roleLabel || "Chưa có vai trò"}</p>
+
+                        <div className="profile-meta">
+                          <div className="profile-meta-item">
+                            <strong>Họ và tên</strong>
+                            <input
+                              type="text"
+                              name="name"
+                              value={profileForm.name}
+                              onChange={handleProfileInputChange}
+                              placeholder="Nhập họ và tên"
+                              style={{
+                                marginTop: 8,
+                                width: "100%",
+                                padding: "12px 14px",
+                                borderRadius: 12,
+                                border: "1px solid #dbe2ea",
+                                outline: "none",
+                              }}
+                            />
+                          </div>
+
+                          <div className="profile-meta-item">
+                            <strong>Số điện thoại</strong>
+                            <input
+                              type="text"
+                              name="phone"
+                              value={profileForm.phone}
+                              onChange={handleProfileInputChange}
+                              placeholder="Nhập số điện thoại"
+                              style={{
+                                marginTop: 8,
+                                width: "100%",
+                                padding: "12px 14px",
+                                borderRadius: 12,
+                                border: "1px solid #dbe2ea",
+                                outline: "none",
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 20,
+                            display: "flex",
+                            gap: 12,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleSaveProfile}
+                            disabled={profileSaving}
+                          >
+                            {profileSaving ? "Đang lưu..." : "Lưu thay đổi"}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setIsEditingProfile(false);
+                              setProfileMessage("");
+                              setProfileForm({
+                                name: user.name || "",
+                                phone: user.phone || "",
+                              });
+                            }}
+                          >
+                            Hủy
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {profileMessage && (
+                      <div
+                        style={{
+                          marginTop: 14,
+                          padding: 12,
+                          borderRadius: 12,
+                          background: "#eff6ff",
+                          border: "1px solid #bfdbfe",
+                          color: "#1d4ed8",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {profileMessage}
                       </div>
-                      <div className="profile-meta-item">
-                        <strong>Thiết bị đã lưu</strong>
-                        <span className="muted">
-                          {savedDevices.length > 0
-                            ? savedDevices.map((item) => item.name).join(" · ")
-                            : "Chưa có dữ liệu"}
-                        </span>
-                      </div>
-                      <div className="profile-meta-item">
-                        <strong>Thông báo chưa đọc</strong>
-                        <span className="muted">{counters.unreadNotifications || 0}</span>
-                      </div>
-                    </div>
+                    )}
                   </aside>
 
                   <div className="settings-grid">
@@ -1437,10 +1637,6 @@ export default function Home() {
                       </div>
 
                       <div className="space-12" />
-
-                      <div className="note-banner">
-                        Nếu phần này vẫn trống, bạn kiểm tra lại token đăng nhập hoặc dữ liệu trong database.
-                      </div>
                     </div>
                   </div>
                 </div>
