@@ -11,6 +11,14 @@ export default function StoreDashboard() {
   });
   const [products, setProducts] = useState([]);
 
+  // ==========================================
+  // STATE MỚI: QUẢN LÝ GÓI QUẢNG BÁ
+  // ==========================================
+  const [currentPackage, setCurrentPackage] = useState("FREE");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPackageToBuy, setSelectedPackageToBuy] = useState(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   // Tự động tải dữ liệu từ DB lên
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("user"));
@@ -33,6 +41,14 @@ export default function StoreDashboard() {
         .then((res) => res.json())
         .then((data) => setProducts(data))
         .catch((err) => console.error("Lỗi tải sản phẩm:", err));
+
+      // Tải Gói quảng bá
+      fetch(`http://localhost:5000/api/subscriptions/${userData.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.package_name) setCurrentPackage(data.package_name);
+        })
+        .catch((err) => console.error("Lỗi tải gói:", err));
     }
   }, []);
 
@@ -45,8 +61,7 @@ export default function StoreDashboard() {
 
     try {
       const response = await fetch("http://localhost:5000/api/stores/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData.id, storeName: storeInfo.storeName, phone: storeInfo.phone,
           address: storeInfo.address, description: storeInfo.description, openTime: storeInfo.openTime, closeTime: storeInfo.closeTime
@@ -116,14 +131,11 @@ export default function StoreDashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: "", type: "Dịch vụ", price: "", image: "" });
 
-  // Xử lý khi user chọn file ảnh từ máy tính
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewProduct({ ...newProduct, image: reader.result }); // Lưu ảnh dưới dạng mã Base64
-      };
+      reader.onloadend = () => setNewProduct({ ...newProduct, image: reader.result });
       reader.readAsDataURL(file);
     }
   };
@@ -136,38 +148,57 @@ export default function StoreDashboard() {
 
     try {
       const res = await fetch("http://localhost:5000/api/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: userData.id, ...newProduct })
       });
       const data = await res.json();
-      
       if (res.ok) {
         setProducts([{ id: data.id, ...newProduct }, ...products]);
         setNewProduct({ name: "", type: "Dịch vụ", price: "", image: "" });
         setShowAddForm(false);
         alert("✅ Đã thêm mặt hàng mới!");
-      } else {
-        alert("❌ Lỗi Database: " + data.error);
-      }
-    } catch (err) {
-      alert("❌ Lỗi kết nối mạng!");
-    }
+      } else alert("❌ Lỗi Database: " + data.error);
+    } catch (err) { alert("❌ Lỗi kết nối mạng!"); }
   };
 
   const handleDeleteProduct = async (id) => {
     if (window.confirm("Bạn có chắc muốn xóa mặt hàng này khỏi cửa hàng?")) {
       try {
         const res = await fetch(`http://localhost:5000/api/products/${id}`, { method: "DELETE" });
+        if (res.ok) setProducts(products.filter(p => p.id !== id));
+        else alert("❌ Có lỗi xảy ra khi xóa.");
+      } catch (err) { alert("❌ Lỗi kết nối mạng!"); }
+    }
+  };
+
+  // ==========================================
+  // MỚI: XỬ LÝ THANH TOÁN GÓI QUẢNG BÁ
+  // ==========================================
+  const handleOpenPayment = (packageName) => {
+    setSelectedPackageToBuy(packageName);
+    setShowPaymentModal(true);
+  };
+
+  const handleConfirmPayment = () => {
+    setIsProcessingPayment(true);
+    setTimeout(async () => {
+      const userData = JSON.parse(localStorage.getItem("user"));
+      try {
+        const res = await fetch("http://localhost:5000/api/subscriptions/upgrade", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: userData.id, packageName: selectedPackageToBuy, durationDays: 30 })
+        });
         if (res.ok) {
-          setProducts(products.filter(p => p.id !== id));
-        } else {
-          alert("❌ Có lỗi xảy ra khi xóa.");
+          setCurrentPackage(selectedPackageToBuy);
+          setIsProcessingPayment(false);
+          setShowPaymentModal(false);
+          alert(`🎉 Chúc mừng! Cửa hàng đã được nâng cấp lên gói ${selectedPackageToBuy}`);
         }
       } catch (err) {
-        alert("❌ Lỗi kết nối mạng!");
+        setIsProcessingPayment(false);
+        alert("Lỗi kết nối nâng cấp gói!");
       }
-    }
+    }, 2000);
   };
 
   // ==========================================
@@ -183,18 +214,8 @@ export default function StoreDashboard() {
 
   const CheckIcon = ({ color = "#10b981" }) => <svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke={color} style={{ width: "16px", height: "16px", marginRight: "8px", flexShrink: 0, marginTop: "2px" }}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>;
 
-  const inputStyle = {
-    width: "100%", padding: "12px", borderRadius: "8px", 
-    border: "1px solid #cbd5e1", backgroundColor: "#ffffff", 
-    color: "#0f172a", outline: "none", fontSize: "15px", boxSizing: "border-box"
-  };
-
-  const detailInputStyle = {
-    width: "100%", padding: "14px", borderRadius: "12px", 
-    border: "1px solid #cbd5e1", backgroundColor: "#f8fafc", 
-    color: "#334155", outline: "none", fontSize: "15px", boxSizing: "border-box", marginTop: "8px"
-  };
-
+  const inputStyle = { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", backgroundColor: "#ffffff", color: "#0f172a", outline: "none", fontSize: "15px", boxSizing: "border-box" };
+  const detailInputStyle = { width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid #cbd5e1", backgroundColor: "#f8fafc", color: "#334155", outline: "none", fontSize: "15px", boxSizing: "border-box", marginTop: "8px" };
   const labelStyle = { display: "block", fontWeight: "bold", color: "#0f172a", fontSize: "15px" };
 
   return (
@@ -203,27 +224,20 @@ export default function StoreDashboard() {
       {/* ===== MENU BÊN TRÁI ===== */}
       <div style={{ width: "280px", backgroundColor: "#0f172a", color: "white", padding: "24px 16px", display: "flex", flexDirection: "column" }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '40px', padding: '0 8px' }}>
-            <div style={{ width: '52px', height: '52px', background: 'linear-gradient(135deg, #60a5fa, #2563eb)', borderRadius: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontWeight: 'bold', fontSize: '15px', boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)' }}>
-                IEMS
-            </div>
+            <div style={{ width: '52px', height: '52px', background: 'linear-gradient(135deg, #60a5fa, #2563eb)', borderRadius: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontWeight: 'bold', fontSize: '15px', boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)' }}>IEMS</div>
             <div>
                 <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'white', letterSpacing: "0.5px" }}>Store Portal</h2>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>Nền tảng sửa chữa thiết bị</p>
             </div>
         </div>
-
         <p style={{ fontSize: "12px", fontWeight: "bold", color: "#64748b", margin: "0 0 16px 12px", letterSpacing: "1px", textTransform: "uppercase" }}>ĐIỀU HƯỚNG</p>
-        
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
               <div key={item.id} onClick={() => setActiveTab(item.id)} style={{ display: "flex", alignItems: "center", padding: "12px 16px", borderRadius: "12px", cursor: "pointer", backgroundColor: isActive ? "rgba(30, 41, 59, 0.8)" : "transparent", border: isActive ? "1px solid rgba(51, 65, 85, 0.8)" : "1px solid transparent", transition: "all 0.2s ease" }}>
                 <div style={{ width: "36px", height: "36px", borderRadius: "10px", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: isActive ? "#3b82f6" : "#1e293b", color: isActive ? "white" : "#94a3b8", marginRight: "16px", boxShadow: isActive ? "0 4px 10px rgba(59, 130, 246, 0.3)" : "none" }}>{item.icon}</div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: "14px", fontWeight: isActive ? "700" : "500", color: isActive ? "white" : "#cbd5e1" }}>{item.title}</h3>
-                  <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: isActive ? "#94a3b8" : "#64748b" }}>{item.subtitle}</p>
-                </div>
+                <div><h3 style={{ margin: 0, fontSize: "14px", fontWeight: isActive ? "700" : "500", color: isActive ? "white" : "#cbd5e1" }}>{item.title}</h3><p style={{ margin: "4px 0 0 0", fontSize: "12px", color: isActive ? "#94a3b8" : "#64748b" }}>{item.subtitle}</p></div>
               </div>
             );
           })}
@@ -323,7 +337,7 @@ export default function StoreDashboard() {
           </div>
         )}
 
-        {/* TAB 4: GÓI QUẢNG BÁ */}
+        {/* TAB 4: GÓI QUẢNG BÁ (CÓ API THẬT - ĐÃ CẬP NHẬT GIÁ TIỀN) */}
         {activeTab === "Gói quảng bá" && (
           <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
             <h1 style={{ color: "#0f172a", marginBottom: "8px", fontSize: "28px", fontWeight: "bold" }}>Gói hiển thị cửa hàng</h1>
@@ -333,40 +347,52 @@ export default function StoreDashboard() {
                 <span style={{ backgroundColor: "rgba(251, 191, 36, 0.15)", color: "#fbbf24", padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", letterSpacing: "1px", border: "1px solid rgba(251, 191, 36, 0.3)" }}>GÓI HIỆN TẠI CỦA BẠN</span>
                 <h2 style={{ margin: "16px 0 8px 0", fontSize: "32px", color: "white", display: "flex", alignItems: "center", gap: "12px" }}>
                   <svg fill="currentColor" viewBox="0 0 24 24" style={{ width: "36px", height: "36px", color: "#fbbf24" }}><path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd" /></svg>
-                  Đối Tác Chiến Lược
+                  {currentPackage === "FREE" ? "Chưa đăng ký gói" : currentPackage === "VERIFIED" ? "Cửa hàng Uy tín" : "Đối Tác Chiến Lược"}
                 </h2>
                 <p style={{ margin: 0, color: "#cbd5e1", fontSize: "15px" }}>Được cấp bởi Admin • Tự động gia hạn</p>
               </div>
               <div style={{ textAlign: "right" }}><button style={{ backgroundColor: "#fbbf24", color: "#0f172a", border: "none", padding: "14px 28px", borderRadius: "12px", fontWeight: "bold", fontSize: "15px", cursor: "pointer", boxShadow: "0 4px 14px rgba(251, 191, 36, 0.4)" }}>Liên hệ Admin</button></div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
+              {/* Gói Mặc định */}
               <div style={{ backgroundColor: "white", borderRadius: "20px", padding: "32px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)", position: "relative" }}>
                 <h3 style={{ margin: "0 0 8px 0", color: "#64748b", fontSize: "18px", fontWeight: "bold" }}>Top Search</h3><div style={{ fontSize: "24px", fontWeight: "bold", color: "#0f172a", marginBottom: "24px" }}>Ưu tiên hiển thị</div><div style={{ height: "1px", backgroundColor: "#f1f5f9", margin: "20px 0" }}></div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px", color: "#475569", fontSize: "15px" }}>
                   <li style={{ display: "flex" }}><CheckIcon /> Tên cửa hàng lên top tìm kiếm</li><li style={{ display: "flex" }}><CheckIcon /> Hiển thị ngẫu nhiên trên Trang chủ</li><li style={{ display: "flex", color: "#cbd5e1" }}><svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" style={{ width: "16px", height: "16px", marginRight: "8px", flexShrink: 0, marginTop: "2px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg> Huy hiệu Xác thực</li>
                 </ul>
-                <button style={{ width: "100%", marginTop: "32px", padding: "12px", borderRadius: "10px", backgroundColor: "#f1f5f9", color: "#64748b", fontWeight: "bold", border: "none", cursor: "not-allowed" }}>Chưa kích hoạt</button>
+                <button disabled style={{ width: "100%", marginTop: "32px", padding: "12px", borderRadius: "10px", backgroundColor: "#f1f5f9", color: "#64748b", fontWeight: "bold", border: "none", cursor: "not-allowed" }}>Mặc định</button>
               </div>
-              <div style={{ backgroundColor: "white", borderRadius: "20px", padding: "32px", border: "2px solid #3b82f6", boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.15)", position: "relative" }}>
-                <h3 style={{ margin: "0 0 8px 0", color: "#3b82f6", fontSize: "18px", fontWeight: "bold" }}>Verified Store</h3><div style={{ fontSize: "24px", fontWeight: "bold", color: "#0f172a", marginBottom: "24px" }}>Cửa hàng Uy tín</div><div style={{ height: "1px", backgroundColor: "#f1f5f9", margin: "20px 0" }}></div>
+              {/* Gói Verified */}
+              <div style={{ backgroundColor: currentPackage === "VERIFIED" ? "#eff6ff" : "white", borderRadius: "20px", padding: "32px", border: "2px solid #3b82f6", boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.15)", position: "relative" }}>
+                {currentPackage === "VERIFIED" && <div style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", backgroundColor: "#3b82f6", color: "white", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>ĐANG SỬ DỤNG</div>}
+                <h3 style={{ margin: "0 0 8px 0", color: "#3b82f6", fontSize: "18px", fontWeight: "bold" }}>Verified Store</h3><div style={{ fontSize: "24px", fontWeight: "bold", color: "#0f172a", marginBottom: "24px" }}>Cửa hàng Uy tín <span style={{fontSize: "14px", color: "#64748b", fontWeight: "normal"}}>(500,000 vnd)</span></div><div style={{ height: "1px", backgroundColor: "#f1f5f9", margin: "20px 0" }}></div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px", color: "#475569", fontSize: "15px" }}>
                   <li style={{ display: "flex" }}><CheckIcon color="#3b82f6" /> Lọc riêng trong mục "Cửa hàng uy tín"</li><li style={{ display: "flex" }}><CheckIcon color="#3b82f6" /> Gắn huy hiệu Xác thực xanh</li><li style={{ display: "flex" }}><CheckIcon color="#3b82f6" /> Đăng tải không giới hạn hình ảnh</li>
                 </ul>
-                <button style={{ width: "100%", marginTop: "32px", padding: "12px", borderRadius: "10px", backgroundColor: "white", color: "#3b82f6", border: "2px solid #3b82f6", fontWeight: "bold", cursor: "pointer" }}>Đăng ký gói này</button>
+                {currentPackage === "VERIFIED" || currentPackage === "PREMIUM" ? (
+                  <button disabled style={{ width: "100%", marginTop: "32px", padding: "12px", borderRadius: "10px", backgroundColor: "#3b82f6", color: "white", fontWeight: "bold", border: "none", opacity: 0.5 }}>Đã kích hoạt</button>
+                ) : (
+                  <button onClick={() => handleOpenPayment("VERIFIED")} style={{ width: "100%", marginTop: "32px", padding: "12px", borderRadius: "10px", backgroundColor: "white", color: "#3b82f6", border: "2px solid #3b82f6", fontWeight: "bold", cursor: "pointer" }}>Đăng ký gói này</button>
+                )}
               </div>
-              <div style={{ backgroundColor: "#fffbeb", borderRadius: "20px", padding: "32px", border: "2px solid #fbbf24", boxShadow: "0 10px 25px -5px rgba(251, 191, 36, 0.2)", position: "relative" }}>
-                <div style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", backgroundColor: "#fbbf24", color: "#0f172a", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>ĐANG SỬ DỤNG</div>
-                <h3 style={{ margin: "0 0 8px 0", color: "#d97706", fontSize: "18px", fontWeight: "bold" }}>Premium Partner</h3><div style={{ fontSize: "24px", fontWeight: "bold", color: "#0f172a", marginBottom: "24px" }}>Đối tác Chiến lược</div><div style={{ height: "1px", backgroundColor: "#fde68a", margin: "20px 0" }}></div>
+              {/* Gói Premium */}
+              <div style={{ backgroundColor: currentPackage === "PREMIUM" ? "#fffbeb" : "white", borderRadius: "20px", padding: "32px", border: "2px solid #fbbf24", boxShadow: "0 10px 25px -5px rgba(251, 191, 36, 0.2)", position: "relative" }}>
+                {currentPackage === "PREMIUM" && <div style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", backgroundColor: "#fbbf24", color: "#0f172a", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>ĐANG SỬ DỤNG</div>}
+                <h3 style={{ margin: "0 0 8px 0", color: "#d97706", fontSize: "18px", fontWeight: "bold" }}>Premium Partner</h3><div style={{ fontSize: "24px", fontWeight: "bold", color: "#0f172a", marginBottom: "24px" }}>Đối tác Chiến lược <span style={{fontSize: "14px", color: "#64748b", fontWeight: "normal"}}>(1,000,000 vnd)</span></div><div style={{ height: "1px", backgroundColor: "#fde68a", margin: "20px 0" }}></div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px", color: "#475569", fontSize: "15px" }}>
                   <li style={{ display: "flex" }}><CheckIcon color="#d97706" /> Bao gồm tất cả quyền lợi Gói Uy tín</li><li style={{ display: "flex" }}><CheckIcon color="#d97706" /> Đứng Top 1 vĩnh viễn khu vực lân cận</li><li style={{ display: "flex" }}><CheckIcon color="#d97706" /> Nhắn tin ưu đãi đến toàn bộ User</li><li style={{ display: "flex" }}><CheckIcon color="#d97706" /> Viền phát sáng nổi bật trên Bản đồ</li>
                 </ul>
-                <button style={{ width: "100%", marginTop: "32px", padding: "12px", borderRadius: "10px", backgroundColor: "#fbbf24", color: "#0f172a", fontWeight: "bold", border: "none", boxShadow: "0 4px 10px rgba(251, 191, 36, 0.3)" }}>Đang kích hoạt</button>
+                {currentPackage === "PREMIUM" ? (
+                   <button style={{ width: "100%", marginTop: "32px", padding: "12px", borderRadius: "10px", backgroundColor: "#fbbf24", color: "#0f172a", fontWeight: "bold", border: "none", boxShadow: "0 4px 10px rgba(251, 191, 36, 0.3)" }}>Đang kích hoạt</button>
+                ) : (
+                   <button onClick={() => handleOpenPayment("PREMIUM")} style={{ width: "100%", marginTop: "32px", padding: "12px", borderRadius: "10px", backgroundColor: "white", color: "#d97706", border: "2px solid #fbbf24", fontWeight: "bold", cursor: "pointer" }}>Đăng ký gói này</button>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 5: SẢN PHẨM (MỚI: Có NÚT CHỌN ẢNH TỪ MÁY TÍNH) */}
+        {/* TAB 5: SẢN PHẨM */}
         {activeTab === "Sản phẩm" && (
           <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "32px" }}>
@@ -383,7 +409,6 @@ export default function StoreDashboard() {
                     <div style={{ flex: 1 }}><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Giá tiền</label><input type="text" placeholder="VD: 500.000đ" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: e.target.value})} style={inputStyle} /></div>
                   </div>
                   
-                  {/* PHẦN CHỌN ẢNH ĐƯỢC NÂNG CẤP */}
                   <div style={{ display: "flex", gap: "16px", alignItems: "flex-end" }}>
                     <div style={{ flex: 1 }}>
                       <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Link hoặc File ảnh minh họa (Tùy chọn)</label>
@@ -418,6 +443,45 @@ export default function StoreDashboard() {
           </div>
         )}
       </div>
+
+      {/* ========================================== */}
+      {/* POPUP THANH TOÁN (MOCK PAYMENT MODAL)      */}
+      {/* ========================================== */}
+      {showPaymentModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100, backdropFilter: "blur(4px)" }}>
+          <div style={{ backgroundColor: "white", width: "450px", borderRadius: "20px", padding: "32px", textAlign: "center", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+            <h2 style={{ color: "#0f172a", marginTop: 0 }}>Thanh toán Gói Cước</h2>
+            <p style={{ color: "#64748b", marginBottom: "24px" }}>
+              Bạn đang đăng ký gói: <strong style={{color: selectedPackageToBuy === "PREMIUM" ? "#d97706" : "#3b82f6"}}>{selectedPackageToBuy}</strong>
+            </p>
+            
+            <div style={{ padding: "20px", backgroundColor: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1", marginBottom: "24px" }}>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=IEMS_PAYMENT_${selectedPackageToBuy}`} alt="Mã QR Thanh Toán" style={{ width: "180px", height: "180px", marginBottom: "16px", borderRadius: "8px" }} />
+              <div style={{ textAlign: "left", fontSize: "14px", color: "#334155", lineHeight: "1.6" }}>
+                <div>Ngân hàng: <strong>Vietcombank</strong></div>
+                <div>Số TK: <strong>1023456789</strong></div>
+                <div>Chủ TK: <strong>IEMS PLATFORM</strong></div>
+                {/* ĐÃ CẬP NHẬT GIÁ TIỀN Ở BẢNG THANH TOÁN */}
+                <div>Số tiền: <strong style={{color: "#ef4444", fontSize: "16px"}}>{selectedPackageToBuy === "PREMIUM" ? "1,000,000 vnd" : "500,000 vnd"}</strong></div>
+                <div>Nội dung: <strong>IEMS {selectedPackageToBuy}</strong></div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button disabled={isProcessingPayment} onClick={() => setShowPaymentModal(false)} style={{ flex: 1, padding: "12px", backgroundColor: "white", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "10px", fontWeight: "bold", cursor: isProcessingPayment ? "not-allowed" : "pointer" }}>Hủy bỏ</button>
+              
+              <button disabled={isProcessingPayment} onClick={handleConfirmPayment} style={{ flex: 2, padding: "12px", backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: isProcessingPayment ? "not-allowed" : "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}>
+                {isProcessingPayment ? (
+                  <> <span className="loader" style={{ width: "16px", height: "16px", border: "2px solid white", borderBottomColor: "transparent", borderRadius: "50%", display: "inline-block", boxSizing: "border-box", animation: "rotation 1s linear infinite" }}></span> Đang kiểm tra... </>
+                ) : (
+                  "Tôi đã thanh toán"
+                )}
+              </button>
+            </div>
+          </div>
+          <style>{`@keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
 
       {/* ========================================== */}
       {/* POPUP (MODAL) CHI TIẾT YÊU CẦU SỬA CHỮA    */}

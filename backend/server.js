@@ -12,7 +12,7 @@ const homeRoutes = require("./src/routes/home.routes");
 const repairRoutes = require("./src/routes/repairRequest.routes");
 const storeRoutes = require("./src/routes/storeRoutes"); 
 const productRoutes = require("./src/routes/productRoutes");
-const mapRoutes = require("./src/routes/map.routes");
+const subscriptionRoutes = require("./src/routes/subscriptionRoutes"); // [MỚI THÊM]
 
 const app = express();
 
@@ -24,8 +24,7 @@ app.use(
   })
 );
 
-/* ---------------- TĂNG GIỚI HẠN NHẬN DỮ LIỆU (FIX LỖI ẢNH TO) ---------------- */
-// Nới rộng giới hạn lên 50MB để chứa vừa chuỗi Base64 của ảnh
+/* ---------------- JSON LIMIT ---------------- */
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -81,19 +80,15 @@ passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
 /* ---------------- ROUTES ---------------- */
-app.get("/", (req, res) => {
-  res.send("IEMS API Running");
-});
+app.get("/", (req, res) => res.send("IEMS API Running"));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/home", homeRoutes);
 app.use("/api", repairRoutes);
 app.use("/api/stores", storeRoutes);
 app.use("/api/products", productRoutes);
-app.use("/api/map", mapRoutes);
+app.use("/api/subscriptions", subscriptionRoutes); // [MỚI THÊM]
 
 /* ---------------- SERVER ---------------- */
 const PORT = 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
