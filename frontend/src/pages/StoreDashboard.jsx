@@ -11,39 +11,26 @@ export default function StoreDashboard() {
   });
   const [products, setProducts] = useState([]);
   
-  // quang thêm lấy vị trí 
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [storeLocation, setStoreLocation] = useState({ lat: null, lng: null });
+  
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
       alert("Trình duyệt không hỗ trợ định vị.");
       return;
     }
-
     setLoadingLocation(true);
-
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-
         setStoreLocation({ lat, lng });
-
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-          );
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
           const data = await res.json();
-
-          setStoreInfo((prev) => ({
-            ...prev,
-            address: data?.display_name || `${lat}, ${lng}`,
-          }));
+          setStoreInfo((prev) => ({ ...prev, address: data?.display_name || `${lat}, ${lng}` }));
         } catch (err) {
-          setStoreInfo((prev) => ({
-            ...prev,
-            address: `${lat}, ${lng}`,
-          }));
+          setStoreInfo((prev) => ({ ...prev, address: `${lat}, ${lng}` }));
         } finally {
           setLoadingLocation(false);
         }
@@ -75,17 +62,11 @@ export default function StoreDashboard() {
         .then((data) => {
           if (data) {
             setStoreInfo({
-              storeName: data.store_name || "",
-              phone: data.phone || "",
-              address: data.address || "",
-              description: data.description || "",
-              openTime: data.open_time || "",
-              closeTime: data.close_time || ""
+              storeName: data.store_name || "", phone: data.phone || "",
+              address: data.address || "", description: data.description || "",
+              openTime: data.open_time || "", closeTime: data.close_time || ""
             });
-            setStoreLocation({
-              lat: data.latitude ?? null,
-              lng: data.longitude ?? null
-            });
+            setStoreLocation({ lat: data.latitude ?? null, lng: data.longitude ?? null });
           }
         })
         .catch((err) => console.error("Lỗi tải hồ sơ:", err));
@@ -93,16 +74,51 @@ export default function StoreDashboard() {
       // Tải Sản phẩm
       fetch(`http://localhost:5000/api/products/${userData.id}`)
         .then((res) => res.json())
-        .then((data) => setProducts(data))
+        .then((data) => setProducts(Array.isArray(data) ? data : []))
         .catch((err) => console.error("Lỗi tải sản phẩm:", err));
 
       // Tải Gói quảng bá
       fetch(`http://localhost:5000/api/subscriptions/${userData.id}`)
         .then((res) => res.json())
-        .then((data) => {
-          if (data && data.package_name) setCurrentPackage(data.package_name);
-        })
+        .then((data) => { if (data && data.package_name) setCurrentPackage(data.package_name); })
         .catch((err) => console.error("Lỗi tải gói:", err));
+
+      // 🔴 ĐÃ ĐỔI LINK ĐỘC QUYỀN KHÔNG BAO GIỜ TRÙNG
+      fetch(`http://localhost:5000/api/repair-requests/store-orders/${userData.id}`)
+        .then((res) => res.json())
+        .then((data) => { 
+            if (Array.isArray(data) && data.length > 0) {
+              const mappedRequests = data.map(req => {
+                let parsedDetail = {};
+                try { 
+                  parsedDetail = typeof req.detail_json === 'string' ? JSON.parse(req.detail_json) : (req.detail_json || {}); 
+                } catch(e) { console.error(e); }
+                
+                return {
+                  id: req.id,
+                  customer: req.customer_name || `Khách hàng (ID: ${req.user_id || '?'})`,
+                  device: req.device_name || req.brand || req.device_type || "Thiết bị chưa rõ",
+                  issue: req.issue_description || req.title || "Không có mô tả lỗi",
+                  status: req.status, 
+                  detail: {
+                    deviceType: parsedDetail.deviceType || "",
+                    brand: parsedDetail.brand || "",
+                    model: parsedDetail.model || "",
+                    title: parsedDetail.title || "",
+                    categories: parsedDetail.categories || [],
+                    description: parsedDetail.description || "",
+                    receiveMethod: parsedDetail.receiveMethod || "",
+                    budget: parsedDetail.budget || "",
+                    desiredDate: parsedDetail.desiredDate || "",
+                    phone: parsedDetail.phone || "",
+                    address: parsedDetail.address || ""
+                  }
+                };
+              });
+              setRequests(mappedRequests);
+            }
+        })
+        .catch((err) => console.error("Lỗi tải danh sách yêu cầu:", err));
     }
   }, []);
 
@@ -112,78 +128,135 @@ export default function StoreDashboard() {
     e.preventDefault();
     const userData = JSON.parse(localStorage.getItem("user"));
     if (!userData || !userData.id) return alert("Lỗi: Không tìm thấy ID tài khoản!");
-
     try {
       const response = await fetch("http://localhost:5000/api/stores/profile", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData.id,
-          storeName: storeInfo.storeName,
-          phone: storeInfo.phone,
-          address: storeInfo.address,
-          description: storeInfo.description,
-          openTime: storeInfo.openTime,
-          closeTime: storeInfo.closeTime,
-          latitude: storeLocation.lat,
-          longitude: storeLocation.lng
-        }),
+        body: JSON.stringify({ userId: userData.id, ...storeInfo, latitude: storeLocation.lat, longitude: storeLocation.lng }),
       });
       const data = await response.json();
       if (response.ok) alert("✅ Đã lưu thông tin hồ sơ cửa hàng thành công!");
       else alert("❌ Lỗi từ Database: " + (data.error || "Không rõ nguyên nhân"));
-    } catch (error) {
-      alert("❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!");
-    }
+    } catch (error) { alert("❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!"); }
   };
 
   // ==========================================
-  // 2. STATE: QUẢN LÝ YÊU CẦU & TIẾN ĐỘ
+  // 2. STATE & API: QUẢN LÝ YÊU CẦU & TIẾN ĐỘ
   // ==========================================
-  const [requests, setRequests] = useState([
-    { 
-      id: 1, customer: "Nguyễn Văn A", device: "Laptop Dell XPS", issue: "Màn hình bị sọc", status: "PENDING",
-      detail: { 
-        deviceType: "Laptop", brand: "Dell", model: "Dell XPS 15 9500", title: "Màn hình sọc xanh và cảm ứng chậm", 
-        categories: ["Màn hình", "Cảm ứng"], description: "Máy đang dùng bình thường thì tự nhiên xuất hiện sọc ngang.",
-        receiveMethod: "Mang đến cửa hàng", budget: "1.500.000", desiredDate: "20/03/2026", phone: "0912345678", address: "Tự mang tới cửa hàng"
-      }
-    },
-    { 
-      id: 2, customer: "Trần Thị B", device: "iPhone 13 Pro", issue: "Pin chai", status: "PENDING",
-      detail: { 
-        deviceType: "Điện thoại", brand: "Apple", model: "iPhone 13 Pro 256GB", title: "Pin tụt nhanh, máy nóng", 
-        categories: ["Pin", "Tản nhiệt"], description: "Sạc đầy 100% dùng được cỡ 2 tiếng là hết pin.",
-        receiveMethod: "Nhận tận nơi", budget: "800.000", desiredDate: "18/03/2026", phone: "0987654321", address: "45 Lê Duẩn, Hải Châu, Đà Nẵng"
-      }
-    },
-    { 
-      id: 3, customer: "Lê Văn C", device: "MacBook Air M1", issue: "Cài lại MacOS", status: "IN_PROGRESS",
-      detail: { 
-        deviceType: "Laptop", brand: "Apple", model: "MacBook Air M1 2020", title: "Cần cài lại MacOS trắng", 
-        categories: ["Nguồn"], description: "Máy bị dính mã độc tống tiền, cần format toàn bộ.",
-        receiveMethod: "Kiểm tra tại chỗ", budget: "300.000", desiredDate: "17/03/2026", phone: "0905112233", address: "Quán Cafe The Cup"
-      }
-    },
-  ]);
+  // Đã dọn sạch đống Nguyễn Văn A, Trần Thị B. Bắt đầu với mảng rỗng để hứng API.
+  const [requests, setRequests] = useState([]);
 
   const [selectedRequest, setSelectedRequest] = useState(null);
+  
 
-  const handleAccept = (id) => {
-    setRequests(requests.map(req => req.id === id ? { ...req, status: "IN_PROGRESS" } : req));
-    setSelectedRequest(null); 
-    alert("✅ Đã nhận đơn! Yêu cầu này đã được chuyển sang tab Tiến độ sửa chữa.");
+  const handleRequest = async (id) => {
+    try {
+      // 1. Lấy token từ LocalStorage để qua cửa bảo vệ
+      const userData = JSON.parse(localStorage.getItem("user"));
+      const token = localStorage.getItem("token") || (userData ? userData.token : "");
+
+      // 2. Gọi API kèm theo thẻ Căn Cước (Token) trong Headers
+      const res = await fetch(`http://localhost:5000/api/repair-requests/${id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` // 🔑 Chìa khóa qua cổng ở đây!
+        }
+      });
+      
+      if (res.ok) {
+        const responseData = await res.json();
+        
+        if (responseData.success) {
+          const dbData = responseData.data; // Móc lấy dòng dữ liệu từ DB
+          
+          // Xử lý cột detail_json an toàn để không bị sập UI
+          let parsedDetail = {};
+          try {
+            parsedDetail = typeof dbData.detail_json === 'string' 
+              ? JSON.parse(dbData.detail_json) 
+              : (dbData.detail_json || {});
+          } catch (e) {
+            console.error("Lỗi parse JSON:", e);
+          }
+
+          // Cập nhật lại state với cấu trúc khớp 100% với Popup
+          setSelectedRequest({
+            id: dbData.id,
+            customer: dbData.customer_name || `Khách hàng (ID: ${dbData.user_id})`,
+            device: dbData.device_name || dbData.brand || dbData.device_type || "Thiết bị",
+            issue: dbData.issue_description || dbData.title || "",
+            status: dbData.status,
+            // 🚨 BẮT BUỘC phải bọc trong object "detail" vì UI của bạn đang gọi selectedRequest.detail.xxx
+            detail: {
+              deviceType: parsedDetail.deviceType || dbData.device_type || "",
+              brand: parsedDetail.brand || dbData.brand || "",
+              model: parsedDetail.model || dbData.model || "",
+              title: parsedDetail.title || dbData.title || "",
+              categories: parsedDetail.categories || [],
+              description: parsedDetail.description || dbData.description || "",
+              receiveMethod: parsedDetail.receiveMethod || dbData.service_mode || "",
+              budget: parsedDetail.budget || dbData.budget || "",
+              desiredDate: parsedDetail.desiredDate || dbData.desired_date || "",
+              phone: parsedDetail.phone || dbData.phone || "",
+              address: parsedDetail.address || dbData.location || ""
+            }
+          });
+        }
+      } else {
+        console.error("❌ Bị chặn ở cửa khẩu, mã lỗi:", res.status);
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy chi tiết:", error);
+    }
+  };
+  const handleAccept = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/repair-requests/store-orders/${id}/status`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "IN_PROGRESS" })
+      });
+      if (res.ok) {
+        setRequests(requests.map(req => req.id === id ? { ...req, status: "IN_PROGRESS" } : req));
+        setSelectedRequest(null); 
+        alert("✅ Đã nhận đơn! Yêu cầu này đã được chuyển sang tab Tiến độ sửa chữa.");
+      } else {
+        setRequests(requests.map(req => req.id === id ? { ...req, status: "IN_PROGRESS" } : req));
+        setSelectedRequest(null); 
+      }
+    } catch (err) { console.error(err); }
   };
 
-  const handleReject = (id) => {
+  const handleReject = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn từ chối yêu cầu này?")) {
-      setRequests(requests.filter(req => req.id !== id));
-      setSelectedRequest(null); 
+      try {
+        await fetch(`http://localhost:5000/api/repair-requests/store-orders/${id}/status`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "REJECTED" })
+        });
+        setRequests(requests.filter(req => req.id !== id));
+        setSelectedRequest(null); 
+      } catch (err) { console.error(err); }
     }
   };
 
-  const handleComplete = (id) => {
-    setRequests(requests.map(req => req.id === id ? { ...req, status: "COMPLETED" } : req));
-    alert("🎉 Đã hoàn thành sửa chữa! Khách hàng sẽ nhận được thông báo.");
+  const handleComplete = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/repair-requests/store-orders/${id}/status`, {
+        method: "PUT", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "COMPLETED" })
+      });
+      
+      if (res.ok) {
+        setRequests(requests.map(req => req.id === id ? { ...req, status: "COMPLETED" } : req));
+        alert("🎉 Đã hoàn thành! Thông báo đã gửi tới User.");
+      } else {
+        const textError = await res.text();
+        alert(`❌ Lỗi số ${res.status}: ${textError}`);
+      }
+    } catch (err) { 
+      alert(`❌ LỖI CỨNG: ${err.message}`); 
+    }
   };
 
   // ==========================================
@@ -233,7 +306,7 @@ export default function StoreDashboard() {
   };
 
   // ==========================================
-  // MỚI: XỬ LÝ THANH TOÁN GÓI QUẢNG BÁ
+  // XỬ LÝ THANH TOÁN GÓI QUẢNG BÁ
   // ==========================================
   const handleOpenPayment = (packageName) => {
     setSelectedPackageToBuy(packageName);
@@ -262,9 +335,6 @@ export default function StoreDashboard() {
     }, 2000);
   };
 
-  // ==========================================
-  // MENU ITEMS CỦA STORE
-  // ==========================================
   const menuItems = [
     { id: "Hồ sơ", title: "Hồ sơ", subtitle: "Tài khoản và cài đặt", icon: <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: "20px", height: "20px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> },
     { id: "Yêu cầu", title: "Yêu cầu sửa chữa", subtitle: "Chờ phê duyệt", icon: <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: "20px", height: "20px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg> },
@@ -335,35 +405,10 @@ export default function StoreDashboard() {
                     </div>
                   </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>
-                      Địa chỉ
-                    </label>
-
+                    <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>Địa chỉ</label>
                     <div style={{ display: "flex", gap: "10px" }}>
-                      <input
-                        type="text"
-                        name="address"
-                        value={storeInfo.address}
-                        onChange={handleInputChange}
-                        style={{ ...inputStyle, flex: 1 }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleGetCurrentLocation}
-                        disabled={loadingLocation}
-                        style={{
-                          backgroundColor: "#0ea5e9",
-                          color: "white",
-                          border: "none",
-                          padding: "0 16px",
-                          borderRadius: "8px",
-                          fontWeight: "bold",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap"
-                        }}
-                      >
-                        {loadingLocation ? "Đang lấy..." : "Lấy vị trí"}
-                      </button>
+                      <input type="text" name="address" value={storeInfo.address} onChange={handleInputChange} style={{ ...inputStyle, flex: 1 }} />
+                      <button type="button" onClick={handleGetCurrentLocation} disabled={loadingLocation} style={{ backgroundColor: "#0ea5e9", color: "white", border: "none", padding: "0 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>{loadingLocation ? "Đang lấy..." : "Lấy vị trí"}</button>
                     </div>
                   </div>
                   <div><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>Mô tả chuyên môn</label><textarea name="description" value={storeInfo.description} onChange={handleInputChange} rows="4" style={{...inputStyle, resize: "vertical"}} /></div>
@@ -383,19 +428,20 @@ export default function StoreDashboard() {
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                 <thead><tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}><th style={{ padding: "16px", color: "#475569" }}>Khách hàng</th><th style={{ padding: "16px", color: "#475569" }}>Thiết bị</th><th style={{ padding: "16px", color: "#475569" }}>Lỗi gặp phải</th><th style={{ padding: "16px", color: "#475569", textAlign: "center" }}>Hành động</th></tr></thead>
                 <tbody>
-                  {requests.filter(req => req.status === "PENDING").map(req => (
+                  {/* Đổi từ PENDING sang OPEN để khớp với Backend */}
+                  {requests.filter(req => req.status === "OPEN").map(req => (
                     <tr key={req.id} onClick={() => setSelectedRequest(req)} style={{ borderBottom: "1px solid #e2e8f0", cursor: "pointer", transition: "background-color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: "16px", fontWeight: "bold", color: "#0f172a" }}>{req.customer}</td>
                       <td style={{ padding: "16px", color: "#334155" }}>{req.device}</td>
                       <td style={{ padding: "16px", color: "#ef4444" }}>{req.issue}</td>
                       <td style={{ padding: "16px", textAlign: "center" }} onClick={(e) => e.stopPropagation() }>
-                        <button onClick={() => setSelectedRequest(req)} style={{ padding: "8px 16px", backgroundColor: "#f8fafc", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginRight: "8px" }}>Xem chi tiết</button>
+                        <button onClick={() => handleRequest(req.id)} style={{ padding: "8px 16px", backgroundColor: "#f8fafc", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginRight: "8px" }}>Xem chi tiết</button>
                         <button onClick={() => handleAccept(req.id)} style={{ padding: "8px 16px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginRight: "8px" }}>Nhận đơn</button>
                         <button onClick={() => handleReject(req.id)} style={{ padding: "8px 16px", backgroundColor: "white", color: "#ef4444", border: "1px solid #fca5a5", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Từ chối</button>
                       </td>
                     </tr>
                   ))}
-                  {requests.filter(req => req.status === "PENDING").length === 0 && <tr><td colSpan="4" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>Không có yêu cầu mới nào.</td></tr>}
+                  {requests.filter(req => req.status === "OPEN").length === 0 && <tr><td colSpan="4" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>Không có yêu cầu mới nào.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -422,14 +468,15 @@ export default function StoreDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {requests.filter(req => req.status !== "PENDING").length === 0 && <tr><td colSpan="4" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>Chưa có máy nào đang sửa.</td></tr>}
+                  {/* Đã sửa logic chỗ này để ko dính mấy đơn REJECTED */}
+                  {requests.filter(req => req.status === "IN_PROGRESS" || req.status === "COMPLETED").length === 0 && <tr><td colSpan="4" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>Chưa có máy nào đang sửa.</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* TAB 4: GÓI QUẢNG BÁ (CÓ API THẬT - ĐÃ CẬP NHẬT GIÁ TIỀN) */}
+        {/* TAB 4: GÓI QUẢNG BÁ */}
         {activeTab === "Gói quảng bá" && (
           <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
             <h1 style={{ color: "#0f172a", marginBottom: "8px", fontSize: "28px", fontWeight: "bold" }}>Gói hiển thị cửa hàng</h1>
@@ -553,7 +600,6 @@ export default function StoreDashboard() {
                 <div>Ngân hàng: <strong>Vietcombank</strong></div>
                 <div>Số TK: <strong>1023456789</strong></div>
                 <div>Chủ TK: <strong>IEMS PLATFORM</strong></div>
-                {/* ĐÃ CẬP NHẬT GIÁ TIỀN Ở BẢNG THANH TOÁN */}
                 <div>Số tiền: <strong style={{color: "#ef4444", fontSize: "16px"}}>{selectedPackageToBuy === "PREMIUM" ? "1,000,000 vnd" : "500,000 vnd"}</strong></div>
                 <div>Nội dung: <strong>IEMS {selectedPackageToBuy}</strong></div>
               </div>
@@ -614,7 +660,7 @@ export default function StoreDashboard() {
               </div>
               <div style={{ display: "flex", gap: "20px" }}>
                 <div style={{ flex: 1 }}><label style={labelStyle}>Ngân sách dự kiến</label><input type="text" readOnly value={selectedRequest.detail.budget} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
-                <div style={{ flex: 1 }}><label style={labelStyle}>Ngày mong muốn</label><input type="text" readOnly value={selectedRequest.detail.desiredDate} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
+                <div style={{ flex: 1 }}><label style={labelStyle}>Ngày mong muốn</label><input type="text" readOnly value={selectedRequest.detail.desiredDate ? new Date(selectedRequest.detail.desiredDate).toLocaleDateString('vi-VN', {day: '2-digit', month: '2-digit', year: 'numeric'}) : ""} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
               </div>
               <div style={{ display: "flex", gap: "20px" }}>
                 <div style={{ flex: 1 }}><label style={labelStyle}>Số điện thoại liên hệ</label><input type="text" readOnly value={selectedRequest.detail.phone} style={{...detailInputStyle, backgroundColor: "#f8fafc"}} /></div>
