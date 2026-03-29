@@ -45,72 +45,57 @@ const getHomeDashboard = async (req, res) => {
          INNER JOIN repair_requests rr ON rr.id = q.request_id
          WHERE rr.user_id = ? AND q.status = 'PENDING') AS pendingQuotes,
         (SELECT COUNT(*) FROM stores WHERE status = 'approved') AS verifiedStores,
-        (
-          SELECT COUNT(DISTINCT COALESCE(
-            CAST(device_id AS CHAR),
-            NULLIF(CONCAT_WS('|', device_type, brand, model), '')
-          ))
-          FROM repair_requests
-          WHERE user_id = ?
-        ) AS savedDevices,
+        (SELECT COUNT(*)
+         FROM repair_requests
+         WHERE user_id = ?) AS savedDevices,
         (SELECT COUNT(*)
          FROM notifications
          WHERE user_id = ? AND is_read = 0) AS unreadNotifications
       `,
-      [userId, userId, userId, userId, userId, userId]
+      [userId, userId, userId, userId, userId, userId, userId]
     );
 
     const counters = counterRows[0] || {};
 
-    const [recentRequests] = await promiseDb.query(
+    const [rawRecentRequests] = await promiseDb.query(
       `
-      SELECT
-        rr.id,
-        rr.title,
-        rr.description,
-        rr.status,
-        rr.budget,
-        rr.location,
-        rr.created_at,
-        COALESCE(
-          d.name,
-          NULLIF(TRIM(CONCAT_WS(' ', rr.brand, rr.model)), ''),
-          rr.device_type,
-          'Thiết bị chưa rõ'
-        ) AS device_name,
-        COALESCE(sc.name, d.category, rr.device_type, 'Khác') AS device_category
-      FROM repair_requests rr
-      LEFT JOIN devices d ON d.id = rr.device_id
-      LEFT JOIN service_categories sc ON sc.id = d.category_id
-      WHERE rr.user_id = ?
-      ORDER BY rr.created_at DESC
+      SELECT *
+      FROM repair_requests
+      WHERE user_id = ?
+      ORDER BY created_at DESC
       LIMIT 5
       `,
       [userId]
     );
 
-    const [pendingQuotes] = await promiseDb.query(
+    const recentRequests = rawRecentRequests.map((row) => {
+      return {
+        id: row.id,
+        title: row.title || "Yêu cầu sửa chữa",
+        description: row.description || "",
+        status: row.status,
+        budget: row.budget || "",
+        location: row.location || "",
+        created_at: row.created_at,
+        device_name: `${row.brand || ''} ${row.model || ''}`.trim() || row.device_type || "Thiết bị",
+        device_category: row.device_type || "Chưa phân loại"
+      };
+    });
+
+    // ĐÃ SỬA CHỖ NÀY: Xuống dòng đàng hoàng để không bị lỗi syntax
+    const [rawPendingQuotes] = await promiseDb.query(
       `
       SELECT
-        q.id,
+        q.id AS quote_id,
         q.price,
         q.message,
         q.estimated_time,
-        q.status,
-        q.created_at,
-        rr.id AS request_id,
-        rr.title AS request_title,
-        rr.status AS request_status,
-        COALESCE(
-          d.name,
-          NULLIF(TRIM(CONCAT_WS(' ', rr.brand, rr.model)), ''),
-          rr.device_type,
-          'Thiết bị chưa rõ'
-        ) AS device_name,
+        q.status AS quote_status,
+        q.created_at AS quote_created_at,
+        rr.*,
         s.store_name
       FROM quotes q
       INNER JOIN repair_requests rr ON rr.id = q.request_id
-      LEFT JOIN devices d ON d.id = rr.device_id
       INNER JOIN stores s ON s.id = q.store_id
       WHERE rr.user_id = ?
         AND q.status = 'PENDING'
@@ -120,37 +105,42 @@ const getHomeDashboard = async (req, res) => {
       [userId]
     );
 
-    const [savedDevices] = await promiseDb.query(
+    const pendingQuotes = rawPendingQuotes.map((row) => {
+      return {
+        id: row.quote_id,
+        price: row.price,
+        message: row.message,
+        estimated_time: row.estimated_time,
+        status: row.quote_status,
+        created_at: row.quote_created_at,
+        request_id: row.id,
+        request_title: row.title || "Yêu cầu sửa chữa",
+        request_status: row.status,
+        device_name: `${row.brand || ''} ${row.model || ''}`.trim() || row.device_type || "Thiết bị",
+        store_name: row.store_name
+      };
+    });
+
+    const [rawSavedDevices] = await promiseDb.query(
       `
-      SELECT
-        COALESCE(d.id, 0) AS id,
-        COALESCE(
-          d.name,
-          NULLIF(TRIM(CONCAT_WS(' ', rr.brand, rr.model)), ''),
-          rr.device_type,
-          'Thiết bị chưa rõ'
-        ) AS name,
-        COALESCE(sc.name, d.category, rr.device_type, 'Khác') AS category,
-        COUNT(rr.id) AS total_requests,
-        MAX(rr.created_at) AS last_request_at
-      FROM repair_requests rr
-      LEFT JOIN devices d ON d.id = rr.device_id
-      LEFT JOIN service_categories sc ON sc.id = d.category_id
-      WHERE rr.user_id = ?
-      GROUP BY
-        COALESCE(d.id, 0),
-        COALESCE(
-          d.name,
-          NULLIF(TRIM(CONCAT_WS(' ', rr.brand, rr.model)), ''),
-          rr.device_type,
-          'Thiết bị chưa rõ'
-        ),
-        COALESCE(sc.name, d.category, rr.device_type, 'Khác')
-      ORDER BY last_request_at DESC
+      SELECT *
+      FROM repair_requests
+      WHERE user_id = ?
+      ORDER BY created_at DESC
       LIMIT 5
       `,
       [userId]
     );
+
+    const savedDevices = rawSavedDevices.map((row) => {
+      return {
+        id: row.id,
+        name: `${row.brand || ''} ${row.model || ''}`.trim() || row.device_type || "Thiết bị",
+        category: row.device_type || "Chưa phân loại",
+        total_requests: 1,
+        last_request_at: row.created_at
+      };
+    });
 
     const [verifiedStores] = await promiseDb.query(
       `
@@ -225,37 +215,30 @@ const searchHome = async (req, res) => {
     const keyword = `%${q}%`;
     const promiseDb = db.promise();
 
-    const [repairRequests] = await promiseDb.query(
+    const [rawRepairRequests] = await promiseDb.query(
       `
-      SELECT
-        rr.id,
-        rr.title,
-        rr.status,
-        rr.created_at,
-        COALESCE(
-          d.name,
-          NULLIF(TRIM(CONCAT_WS(' ', rr.brand, rr.model)), ''),
-          rr.device_type,
-          'Thiết bị chưa rõ'
-        ) AS device_name
-      FROM repair_requests rr
-      LEFT JOIN devices d ON d.id = rr.device_id
-      WHERE rr.user_id = ?
-        AND (
-          rr.title LIKE ?
-          OR rr.description LIKE ?
-          OR rr.device_type LIKE ?
-          OR rr.brand LIKE ?
-          OR rr.model LIKE ?
-          OR rr.symptoms LIKE ?
-          OR d.name LIKE ?
-          OR d.category LIKE ?
-        )
-      ORDER BY rr.created_at DESC
-      LIMIT 5
+      SELECT *
+      FROM repair_requests
+      WHERE user_id = ?
+      ORDER BY created_at DESC
       `,
-      [userId, keyword, keyword, keyword, keyword, keyword, keyword, keyword, keyword]
+      [userId]
     );
+
+    const repairRequests = rawRepairRequests.map(row => {
+      return {
+        id: row.id,
+        status: row.status,
+        created_at: row.created_at,
+        title: row.title || "Yêu cầu sửa chữa",
+        description: row.description || "",
+        device_name: `${row.brand || ''} ${row.model || ''}`.trim() || row.device_type || "Thiết bị"
+      };
+    }).filter(r =>
+      r.title.toLowerCase().includes(q.toLowerCase()) ||
+      r.description.toLowerCase().includes(q.toLowerCase()) ||
+      r.device_name.toLowerCase().includes(q.toLowerCase())
+    ).slice(0, 5);
 
     const [stores] = await promiseDb.query(
       `

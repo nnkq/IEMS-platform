@@ -59,31 +59,34 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString("vi-VN");
 }
 
+// 🔥 CẬP NHẬT: Đổi nhãn tiếng Việt cho khớp với bên Store Portal
 function statusLabel(status) {
   switch (status) {
     case "OPEN":
-      return "Mới tạo";
+    case "PENDING":
+      return "Đang chờ duyệt";
     case "QUOTED":
       return "Đã có báo giá";
     case "IN_PROGRESS":
-      return "Đang xử lý";
+      return "Đang sửa chữa ⚙️";
     case "COMPLETED":
-      return "Hoàn tất";
+      return "Đã hoàn thành ✅";
     case "CANCELLED":
       return "Đã hủy";
-    case "PENDING":
-      return "Chờ phản hồi";
     case "ACCEPTED":
       return "Đã chấp nhận";
     case "REJECTED":
-      return "Đã từ chối";
+      return "Bị từ chối ❌";
     default:
       return status || "Không rõ";
   }
 }
 
+// 🔥 CẬP NHẬT: Tô màu cho các trạng thái đặc biệt
 function statusClass(status) {
   if (status === "IN_PROGRESS") return "status-warning";
+  if (status === "COMPLETED") return "status-success"; // Bạn có thể thêm class .status-success màu xanh lá trong css
+  if (status === "REJECTED") return "status-error";
   return "status-accent";
 }
 
@@ -169,20 +172,23 @@ export default function Home() {
     }
   };
 
-  const loadTrackingRequests = async () => {
+  // 🔥 CẬP NHẬT: Thêm cờ isBackground để khi nó tự auto-refresh thì không làm chớp loading
+  const loadTrackingRequests = async (isBackground = false) => {
     try {
-      setTrackingLoading(true);
+      if (!isBackground) setTrackingLoading(true);
       setTrackingError("");
 
       const res = await getMyRepairRequests();
       setTrackingRequests(res.data?.requests || []);
     } catch (error) {
       console.error("Lỗi lấy danh sách yêu cầu:", error);
-      setTrackingError(
-        error.response?.data?.message || "Không lấy được danh sách yêu cầu"
-      );
+      if (!isBackground) {
+        setTrackingError(
+          error.response?.data?.message || "Không lấy được danh sách yêu cầu"
+        );
+      }
     } finally {
-      setTrackingLoading(false);
+      if (!isBackground) setTrackingLoading(false);
     }
   };
 
@@ -305,10 +311,18 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
+  // 🔥 CẬP NHẬT: Thêm chức năng Polling ngầm mỗi 3 giây khi ở tab Theo dõi
   useEffect(() => {
+    let interval;
     if (activePage === "tracking") {
-      loadTrackingRequests();
+      loadTrackingRequests(); // Lần đầu hiển thị loading bình thường
+      
+      // Auto-refresh ngầm sau mỗi 3 giây
+      interval = setInterval(() => {
+        loadTrackingRequests(true); 
+      }, 3000);
     }
+    return () => clearInterval(interval);
   }, [activePage]);
 
   const previewBudget = useMemo(() => {
@@ -1285,7 +1299,7 @@ export default function Home() {
                       <h3 className="section-title">Danh sách đang theo dõi</h3>
                     </div>
 
-                    <button className="mini-link" onClick={loadTrackingRequests}>
+                    <button className="mini-link" onClick={() => loadTrackingRequests()}>
                       Tải lại →
                     </button>
                   </div>

@@ -13,7 +13,6 @@ exports.getStoreProfile = (req, res) => {
         res.status(200).json(results[0]);
     });
 };
-
 // 2. Hàm Lưu/Cập nhật hồ sơ cửa hàng
 exports.updateStoreProfile = (req, res) => {
     const { userId, storeName, phone, address, description, openTime, closeTime } = req.body;
