@@ -98,7 +98,8 @@ exports.createRepairRequest = async (req, res) => {
       });
     }
 
-    const user_id = req.user.id;
+    // 🐛 FIX LỖI Ở ĐÂY: Đổi user_id thành userId cho khớp với mảng insertValues bên dưới
+    const userId = req.user.id;
 
     // 🔥 NHẬN FULL DATA
     const {
@@ -183,7 +184,7 @@ exports.createRepairRequest = async (req, res) => {
     `;
 
     const insertValues = [
-      userId,
+      userId, // Bây giờ thằng này đã được định nghĩa ở trên, hết báo lỗi!
       finalDeviceId,
       cleanTitle,
       cleanDescription,
