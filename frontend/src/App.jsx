@@ -7,6 +7,7 @@ import GoogleSuccess from "./pages/GoogleSuccess";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import StoreDashboard from "./pages/StoreDashboard"; // <-- Mình đã thêm import ở đây
+import ChooseRole from "./pages/ChooseRole";
 import "./App.css";
 
 function PrivateRoute({ children }) {
@@ -23,7 +24,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/google-success" element={<GoogleSuccess />} />
-
+      <Route path="/choose-role" element={<ChooseRole />} />
       <Route
         path="/home"
         element={

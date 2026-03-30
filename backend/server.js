@@ -62,26 +62,32 @@ passport.use(
 
             if (results.length > 0) {
               const user = results[0];
+
               db.query(
                 'UPDATE users SET google_id = ? WHERE id = ?',
                 [googleId, user.id],
                 (updateErr) => {
                   if (updateErr) return done(updateErr);
-                  return done(null, { ...user, google_id: googleId });
+
+                  return done(null, {
+                    ...user,
+                    google_id: googleId,
+                  });
                 }
               );
             } else {
               db.query(
                 'INSERT INTO users (name, email, google_id, role) VALUES (?, ?, ?, ?)',
-                [name, email, googleId, 'USER'],
+                [name, email, googleId, null],
                 (insertErr, result) => {
                   if (insertErr) return done(insertErr);
+
                   return done(null, {
                     id: result.insertId,
                     name,
                     email,
                     google_id: googleId,
-                    role: 'USER',
+                    role: null,
                   });
                 }
               );
@@ -112,4 +118,4 @@ app.use('/api/users', userRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-}); 
+});

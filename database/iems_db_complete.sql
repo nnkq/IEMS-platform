@@ -29,7 +29,7 @@ CREATE TABLE users (
   reset_token         VARCHAR(255)  NULL,
   reset_token_expire  DATETIME      NULL,
   phone               VARCHAR(20),
-  role                ENUM('USER','STORE','ADMIN') NOT NULL DEFAULT 'USER',
+  role                ENUM('USER','STORE','ADMIN') NULL DEFAULT NULL,
   status              ENUM('ACTIVE','BLOCKED','PENDING') NOT NULL DEFAULT 'ACTIVE',
   created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
