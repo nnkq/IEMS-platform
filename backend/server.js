@@ -14,6 +14,7 @@ const storeRoutes = require('./src/routes/storeRoutes');
 const productRoutes = require('./src/routes/productRoutes');
 const mapRoutes = require('./src/routes/map.routes');
 const userRoutes = require('./src/routes/user.routes');
+const adminRoutes = require('./src/routes/admin.routes');
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
@@ -115,6 +116,7 @@ app.use('/api/stores', storeRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/map', mapRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

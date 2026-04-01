@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import StoreDashboard from "./pages/StoreDashboard"; // <-- Mình đã thêm import ở đây
 import ChooseRole from "./pages/ChooseRole";
+import AdminDashboard from "./pages/AdminDashboard";
 import "./App.css";
 
 function PrivateRoute({ children }) {
@@ -49,6 +50,15 @@ function App() {
         element={
           <PrivateRoute>
             <StoreDashboard />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <PrivateRoute>
+            <AdminDashboard />
           </PrivateRoute>
         }
       />
