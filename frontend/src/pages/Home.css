@@ -333,14 +333,10 @@ img {
 
 .iems-root .page-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
-}
-
-.iems-root .hero-card,
-.iems-root .surface {
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(219, 228, 238, 0.96);
-  box-shadow: var(--shadow);
+  width: 100%;
+  min-width: 0;
 }
 
 .iems-root .hero-card {
@@ -348,6 +344,10 @@ img {
   grid-template-columns: 1.1fr 0.95fr;
   gap: 22px;
   padding: 28px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  text-align: left;
 }
 
 .iems-root .hero-copy {

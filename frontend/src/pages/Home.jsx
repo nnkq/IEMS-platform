@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import { getHomeDashboard, searchHome } from "../api/homeApi";
 import { createRepairRequest, getMyRepairRequests } from "../api/repairApi";
@@ -59,7 +59,6 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString("vi-VN");
 }
 
-// 🔥 CẬP NHẬT: Đổi nhãn tiếng Việt cho khớp với bên Store Portal
 function statusLabel(status) {
   switch (status) {
     case "OPEN":
@@ -82,10 +81,9 @@ function statusLabel(status) {
   }
 }
 
-// 🔥 CẬP NHẬT: Tô màu cho các trạng thái đặc biệt
 function statusClass(status) {
   if (status === "IN_PROGRESS") return "status-warning";
-  if (status === "COMPLETED") return "status-success"; // Bạn có thể thêm class .status-success màu xanh lá trong css
+  if (status === "COMPLETED") return "status-success";
   if (status === "REJECTED") return "status-error";
   return "status-accent";
 }
@@ -172,7 +170,6 @@ export default function Home() {
     }
   };
 
-  // 🔥 CẬP NHẬT: Thêm cờ isBackground để khi nó tự auto-refresh thì không làm chớp loading
   const loadTrackingRequests = async (isBackground = false) => {
     try {
       if (!isBackground) setTrackingLoading(true);
@@ -194,6 +191,8 @@ export default function Home() {
 
   const [activePage, setActivePage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -311,19 +310,38 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  // 🔥 CẬP NHẬT: Thêm chức năng Polling ngầm mỗi 3 giây khi ở tab Theo dõi
   useEffect(() => {
     let interval;
     if (activePage === "tracking") {
-      loadTrackingRequests(); // Lần đầu hiển thị loading bình thường
-      
-      // Auto-refresh ngầm sau mỗi 3 giây
+      loadTrackingRequests();
+
       interval = setInterval(() => {
-        loadTrackingRequests(true); 
+        loadTrackingRequests(true);
       }, 3000);
     }
     return () => clearInterval(interval);
   }, [activePage]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    sessionStorage.clear();
+    window.location.href = "/login";
+  };
 
   const previewBudget = useMemo(() => {
     const min = Math.max(Number(budget || 0) * 0.8, 200000);
@@ -345,6 +363,7 @@ export default function Home() {
   const openPage = (page) => {
     setActivePage(page);
     setSidebarOpen(false);
+    setMenuOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -608,12 +627,26 @@ export default function Home() {
                 />
               </label>
 
-              <div className="user-pill">
-                <div className="avatar">{user.initials || "U"}</div>
-                <div>
-                  <strong>{user.name || "Chưa có dữ liệu"}</strong>
-                  <span>{user.roleLabel || "Chưa có vai trò"}</span>
-                </div>
+              <div className="user-menu" ref={menuRef}>
+                <button
+                  type="button"
+                  className="avatar-button"
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                >
+                  <div className="avatar">{user.initials || "U"}</div>
+                  <div className="user-info">
+                    <p className="user-name">{user.name || "Chưa có dữ liệu"}</p>
+                    <p className="user-role">{user.roleLabel || "Chưa có vai trò"}</p>
+                  </div>
+                </button>
+
+                {menuOpen && (
+                  <div className="dropdown-menu">
+                    <button type="button" className="logout-btn" onClick={handleLogout}>
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
