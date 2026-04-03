@@ -15,6 +15,7 @@ const storeRoutes = require('./src/routes/storeRoutes');
 const productRoutes = require('./src/routes/productRoutes');
 const mapRoutes = require('./src/routes/map.routes');
 const userRoutes = require('./src/routes/user.routes');
+const adminRoutes = require('./src/routes/admin.routes');
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
@@ -63,26 +64,32 @@ passport.use(
 
             if (results.length > 0) {
               const user = results[0];
+
               db.query(
                 'UPDATE users SET google_id = ? WHERE id = ?',
                 [googleId, user.id],
                 (updateErr) => {
                   if (updateErr) return done(updateErr);
-                  return done(null, { ...user, google_id: googleId });
+
+                  return done(null, {
+                    ...user,
+                    google_id: googleId,
+                  });
                 }
               );
             } else {
               db.query(
                 'INSERT INTO users (name, email, google_id, role) VALUES (?, ?, ?, ?)',
-                [name, email, googleId, 'USER'],
+                [name, email, googleId, null],
                 (insertErr, result) => {
                   if (insertErr) return done(insertErr);
+
                   return done(null, {
                     id: result.insertId,
                     name,
                     email,
                     google_id: googleId,
-                    role: 'USER',
+                    role: null,
                   });
                 }
               );
@@ -113,6 +120,7 @@ app.use('/api/stores', storeRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/map', mapRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ==========================================
 // API: QUẢN LÝ NHÂN VIÊN (KỸ THUẬT VIÊN)

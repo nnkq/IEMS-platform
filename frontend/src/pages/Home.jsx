@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import { getHomeDashboard, searchHome } from "../api/homeApi";
 import { createRepairRequest, getMyRepairRequests } from "../api/repairApi";
@@ -221,6 +221,8 @@ export default function Home() {
 
   const [activePage, setActivePage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -344,11 +346,32 @@ export default function Home() {
       loadTrackingRequests(); 
       
       interval = setInterval(() => {
-        loadTrackingRequests(true); 
+        loadTrackingRequests(true);
       }, 3000);
     }
     return () => clearInterval(interval);
   }, [activePage]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    sessionStorage.clear();
+    window.location.href = "/login";
+  };
 
   const previewBudget = useMemo(() => {
     const min = Math.max(Number(budget || 0) * 0.8, 200000);
@@ -629,12 +652,26 @@ export default function Home() {
                 />
               </label>
 
-              <div className="user-pill">
-                <div className="avatar">{user.initials || "U"}</div>
-                <div>
-                  <strong>{user.name || "Chưa có dữ liệu"}</strong>
-                  <span>{user.roleLabel || "Chưa có vai trò"}</span>
-                </div>
+              <div className="user-menu" ref={menuRef}>
+                <button
+                  type="button"
+                  className="avatar-button"
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                >
+                  <div className="avatar">{user.initials || "U"}</div>
+                  <div className="user-info">
+                    <p className="user-name">{user.name || "Chưa có dữ liệu"}</p>
+                    <p className="user-role">{user.roleLabel || "Chưa có vai trò"}</p>
+                  </div>
+                </button>
+
+                {menuOpen && (
+                  <div className="dropdown-menu">
+                    <button type="button" className="logout-btn" onClick={handleLogout}>
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

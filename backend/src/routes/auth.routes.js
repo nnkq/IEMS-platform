@@ -6,8 +6,10 @@ const {
   forgotPassword,
   resetPassword,
   googleSuccess,
-  googleFailure
+  googleFailure,
+  selectRole,
 } = require("../controllers/auth.controller");
+const { protect } = require("../middlewares/auth.middleware");
 
 const router = express.Router();
 
@@ -15,6 +17,7 @@ router.post("/register", register);
 router.post("/login", login);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
+router.post("/select-role", protect, selectRole);
 
 router.get(
   "/google",
@@ -25,7 +28,7 @@ router.get(
   "/google/callback",
   passport.authenticate("google", {
     failureRedirect: "/api/auth/google/failure",
-    session: false
+    session: false,
   }),
   googleSuccess
 );

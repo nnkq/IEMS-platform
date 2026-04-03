@@ -19,16 +19,25 @@ const generateToken = (user) => {
 };
 
 const normalizeRole = (value) => {
-  const role = String(value || 'USER').trim().toUpperCase();
-  return ['USER', 'STORE', 'ADMIN'].includes(role) ? role : 'USER';
-};
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return null;
+  }
 
+  const role = String(value).trim().toUpperCase();
+  return ['USER', 'STORE', 'ADMIN'].includes(role) ? role : null;
+};
 const register = async (req, res) => {
   try {
     const { name, email, password, phone, role } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin' });
+    }
+
+    const safeRole = normalizeRole(role);
+
+    if (!safeRole) {
+      return res.status(400).json({ message: 'Vui lòng chọn vai trò USER hoặc STORE' });
     }
 
     db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
@@ -39,7 +48,6 @@ const register = async (req, res) => {
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const safeRole = normalizeRole(role);
 
       db.query(
         'INSERT INTO users (name, email, password, phone, role) VALUES (?, ?, ?, ?, ?)',
@@ -64,7 +72,6 @@ const register = async (req, res) => {
     return res.status(500).json({ message: 'Lỗi server', error: error.message || error });
   }
 };
-
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -227,7 +234,56 @@ const googleSuccess = (req, res) => {
 const googleFailure = (req, res) => {
   return res.status(401).json({ message: 'Đăng nhập Google thất bại' });
 };
+const selectRole = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { role } = req.body;
 
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const safeRole = String(role || "").trim().toUpperCase();
+
+    if (!["USER", "STORE"].includes(safeRole)) {
+      return res.status(400).json({ message: "Vai trò không hợp lệ" });
+    }
+
+    db.query(
+      "UPDATE users SET role = ? WHERE id = ?",
+      [safeRole, userId],
+      (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Lỗi server", err });
+        }
+
+        db.query(
+          "SELECT id, name, email, phone, role, status FROM users WHERE id = ? LIMIT 1",
+          [userId],
+          (selectErr, results) => {
+            if (selectErr) {
+              return res.status(500).json({ message: "Lỗi server", err: selectErr });
+            }
+
+            if (!results.length) {
+              return res.status(404).json({ message: "Không tìm thấy user" });
+            }
+
+            return res.json({
+              message: "Cập nhật vai trò thành công",
+              user: results[0],
+            });
+          }
+        );
+      }
+    );
+  } catch (error) {
+    return res.status(500).json({
+      message: "Lỗi server",
+      error: error.message || error,
+    });
+  }
+};
 module.exports = {
   register,
   login,
@@ -235,4 +291,5 @@ module.exports = {
   resetPassword,
   googleSuccess,
   googleFailure,
+  selectRole,
 };

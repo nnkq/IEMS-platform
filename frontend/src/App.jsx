@@ -29,7 +29,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/google-success" element={<GoogleSuccess />} />
-
+      <Route path="/choose-role" element={<ChooseRole />} />
       <Route
         path="/home"
         element={
