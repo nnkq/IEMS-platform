@@ -52,6 +52,18 @@ export default function StoreDashboard() {
   const [selectedPackageToBuy, setSelectedPackageToBuy] = useState(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // ==========================================
+  // 🚀 STATE MỚI: QUẢN LÝ NHÂN VIÊN
+  // ==========================================
+  const [employees, setEmployees] = useState([]);
+  const [showAddEmployeeForm, setShowAddEmployeeForm] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({ name: "", specialty: "Sửa phần cứng", phone: "" });
+
+  // 🚀 STATE MỚI: POPUP GIAO VIỆC (ASSIGN ĐƠN)
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [requestToAssign, setRequestToAssign] = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+
   // Tự động tải dữ liệu từ DB lên
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("user"));
@@ -77,14 +89,20 @@ export default function StoreDashboard() {
         .then((data) => setProducts(Array.isArray(data) ? data : []))
         .catch((err) => console.error("Lỗi tải sản phẩm:", err));
 
+      // 🚀 Tải Danh sách Nhân viên của Cửa hàng
+      fetch(`http://localhost:5000/api/employees/${userData.id}`)
+        .then((res) => res.json())
+        .then((data) => setEmployees(Array.isArray(data) ? data : []))
+        .catch((err) => console.error("Lỗi tải nhân viên:", err));
+
       // Tải Gói quảng bá
       fetch(`http://localhost:5000/api/subscriptions/${userData.id}`)
         .then((res) => res.json())
         .then((data) => { if (data && data.package_name) setCurrentPackage(data.package_name); })
         .catch((err) => console.error("Lỗi tải gói:", err));
 
-      // 🔴 ĐÃ ĐỔI LINK ĐỘC QUYỀN KHÔNG BAO GIỜ TRÙNG
-      fetch(`http://localhost:5000/api/repair-requests/store-orders/${userData.id}`)
+      // Tải Danh sách đơn hàng (Có gắn chìa khóa storeId)
+      fetch(`http://localhost:5000/api/repair-requests/store-orders/${userData.id}?storeId=${userData.id}`)
         .then((res) => res.json())
         .then((data) => { 
             if (Array.isArray(data) && data.length > 0) {
@@ -100,6 +118,7 @@ export default function StoreDashboard() {
                   device: req.device_name || req.brand || req.device_type || "Thiết bị chưa rõ",
                   issue: req.issue_description || req.title || "Không có mô tả lỗi",
                   status: req.status, 
+                  employee_name: req.employee_name || null, // Thêm hiển thị tên nhân viên phụ trách nếu có
                   detail: {
                     deviceType: parsedDetail.deviceType || "",
                     brand: parsedDetail.brand || "",
@@ -142,24 +161,19 @@ export default function StoreDashboard() {
   // ==========================================
   // 2. STATE & API: QUẢN LÝ YÊU CẦU & TIẾN ĐỘ
   // ==========================================
-  // Đã dọn sạch đống Nguyễn Văn A, Trần Thị B. Bắt đầu với mảng rỗng để hứng API.
   const [requests, setRequests] = useState([]);
-
   const [selectedRequest, setSelectedRequest] = useState(null);
   
-
   const handleRequest = async (id) => {
     try {
-      // 1. Lấy token từ LocalStorage để qua cửa bảo vệ
       const userData = JSON.parse(localStorage.getItem("user"));
       const token = localStorage.getItem("token") || (userData ? userData.token : "");
 
-      // 2. Gọi API kèm theo thẻ Căn Cước (Token) trong Headers
       const res = await fetch(`http://localhost:5000/api/repair-requests/${id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // 🔑 Chìa khóa qua cổng ở đây!
+          "Authorization": `Bearer ${token}` 
         }
       });
       
@@ -167,26 +181,20 @@ export default function StoreDashboard() {
         const responseData = await res.json();
         
         if (responseData.success) {
-          const dbData = responseData.data; // Móc lấy dòng dữ liệu từ DB
-          
-          // Xử lý cột detail_json an toàn để không bị sập UI
+          const dbData = responseData.data; 
           let parsedDetail = {};
           try {
-            parsedDetail = typeof dbData.detail_json === 'string' 
-              ? JSON.parse(dbData.detail_json) 
-              : (dbData.detail_json || {});
+            parsedDetail = typeof dbData.detail_json === 'string' ? JSON.parse(dbData.detail_json) : (dbData.detail_json || {});
           } catch (e) {
             console.error("Lỗi parse JSON:", e);
           }
 
-          // Cập nhật lại state với cấu trúc khớp 100% với Popup
           setSelectedRequest({
             id: dbData.id,
             customer: dbData.customer_name || `Khách hàng (ID: ${dbData.user_id})`,
             device: dbData.device_name || dbData.brand || dbData.device_type || "Thiết bị",
             issue: dbData.issue_description || dbData.title || "",
             status: dbData.status,
-            // 🚨 BẮT BUỘC phải bọc trong object "detail" vì UI của bạn đang gọi selectedRequest.detail.xxx
             detail: {
               deviceType: parsedDetail.deviceType || dbData.device_type || "",
               brand: parsedDetail.brand || dbData.brand || "",
@@ -202,26 +210,52 @@ export default function StoreDashboard() {
             }
           });
         }
-      } else {
-        console.error("❌ Bị chặn ở cửa khẩu, mã lỗi:", res.status);
       }
     } catch (error) {
       console.error("Lỗi khi lấy chi tiết:", error);
     }
   };
-  const handleAccept = async (id) => {
+
+  // 🚀 ĐÃ SỬA: Hàm bấm nút Nhận Đơn sẽ mở Modal thay vì gọi API ngay
+  const handleAcceptClick = (id) => {
+    setRequestToAssign(id);
+    // Tự động chọn ông thợ đầu tiên trong danh sách (hoặc "Chủ cửa hàng" nếu chưa có thợ)
+    if (employees.length > 0) {
+      setSelectedEmployeeId(employees[0].id);
+    } else {
+      setSelectedEmployeeId("OWNER");
+    }
+    setAssignModalOpen(true);
+  };
+
+  // 🚀 ĐÃ THÊM: Hàm chốt Giao Việc
+  const confirmAcceptOrder = async () => {
+    if (!selectedEmployeeId) return alert("Vui lòng chọn người phụ trách!");
+
     try {
-      const res = await fetch(`http://localhost:5000/api/repair-requests/store-orders/${id}/status`, {
+      const res = await fetch(`http://localhost:5000/api/repair-requests/store-orders/${requestToAssign}/status`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "IN_PROGRESS" })
+        // Gửi trạng thái và ID nhân viên phụ trách xuống Backend
+        body: JSON.stringify({ 
+          status: "IN_PROGRESS", 
+          employee_id: selectedEmployeeId === "OWNER" ? null : selectedEmployeeId 
+        })
       });
+
       if (res.ok) {
-        setRequests(requests.map(req => req.id === id ? { ...req, status: "IN_PROGRESS" } : req));
-        setSelectedRequest(null); 
-        alert("✅ Đã nhận đơn! Yêu cầu này đã được chuyển sang tab Tiến độ sửa chữa.");
+        // Tìm tên nhân viên để hiển thị tạm trên UI
+        let assignedName = "Chủ cửa hàng tự làm";
+        if (selectedEmployeeId !== "OWNER") {
+          const emp = employees.find(e => e.id.toString() === selectedEmployeeId.toString());
+          if (emp) assignedName = emp.name;
+        }
+
+        setRequests(requests.map(req => req.id === requestToAssign ? { ...req, status: "IN_PROGRESS", employee_name: assignedName } : req));
+        setAssignModalOpen(false);
+        setRequestToAssign(null);
+        alert(`✅ Đã giao đơn cho kỹ thuật viên: ${assignedName}`);
       } else {
-        setRequests(requests.map(req => req.id === id ? { ...req, status: "IN_PROGRESS" } : req));
-        setSelectedRequest(null); 
+        alert("Lỗi khi nhận đơn. Vui lòng thử lại.");
       }
     } catch (err) { console.error(err); }
   };
@@ -306,6 +340,40 @@ export default function StoreDashboard() {
   };
 
   // ==========================================
+  // 🚀 API: THÊM / XÓA NHÂN VIÊN (KỸ THUẬT VIÊN)
+  // ==========================================
+  const handleAddEmployee = async (e) => {
+    e.preventDefault();
+    const userData = JSON.parse(localStorage.getItem("user"));
+    if (!userData || !userData.id) return alert("Lỗi đăng nhập!");
+    if (!newEmployee.name || !newEmployee.specialty) return alert("Vui lòng nhập Tên và Chuyên môn!");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/employees", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId: userData.id, ...newEmployee })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEmployees([{ id: data.id, ...newEmployee }, ...employees]);
+        setNewEmployee({ name: "", specialty: "Sửa phần cứng", phone: "" });
+        setShowAddEmployeeForm(false);
+        alert("✅ Đã thêm nhân viên mới!");
+      } else alert("❌ Lỗi Database: " + data.error);
+    } catch (err) { alert("❌ Lỗi kết nối mạng!"); }
+  };
+
+  const handleDeleteEmployee = async (id) => {
+    if (window.confirm("Bạn có chắc muốn xóa nhân viên này khỏi hệ thống?")) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/employees/${id}`, { method: "DELETE" });
+        if (res.ok) setEmployees(employees.filter(e => e.id !== id));
+        else alert("❌ Có lỗi xảy ra khi xóa.");
+      } catch (err) { alert("❌ Lỗi kết nối mạng!"); }
+    }
+  };
+
+  // ==========================================
   // XỬ LÝ THANH TOÁN GÓI QUẢNG BÁ
   // ==========================================
   const handleOpenPayment = (packageName) => {
@@ -335,10 +403,12 @@ export default function StoreDashboard() {
     }, 2000);
   };
 
+  // 🚀 ĐÃ THÊM: Tab "Nhân viên" vào menu
   const menuItems = [
     { id: "Hồ sơ", title: "Hồ sơ", subtitle: "Tài khoản và cài đặt", icon: <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: "20px", height: "20px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> },
     { id: "Yêu cầu", title: "Yêu cầu sửa chữa", subtitle: "Chờ phê duyệt", icon: <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: "20px", height: "20px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg> },
     { id: "Tiến độ", title: "Tiến độ sửa chữa", subtitle: "Cập nhật trạng thái", icon: <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: "20px", height: "20px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg> },
+    { id: "Nhân viên", title: "Nhân viên", subtitle: "Quản lý kỹ thuật viên", icon: <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: "20px", height: "20px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg> },
     { id: "Gói quảng bá", title: "Gói quảng bá", subtitle: "Nâng cấp hiển thị", icon: <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: "20px", height: "20px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385c.148.621-.531 1.05-1.015.809l-4.73-2.365a.563.563 0 0 0-.528 0l-4.73 2.365c-.484.24-1.163-.188-1.015-.809l1.285-5.385a.563.563 0 0 0-.182-.557l-4.204-3.602a.563.563 0 0 0-.182-.557l-4.204-3.602c-.38-.325-.178-.948.321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" /></svg> },
     { id: "Sản phẩm", title: "Sản phẩm & Dịch vụ", subtitle: "Quản lý danh mục", icon: <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: "20px", height: "20px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg> },
   ];
@@ -419,7 +489,7 @@ export default function StoreDashboard() {
           </div>
         )}
 
-        {/* TAB 2: YÊU CẦU */}
+        {/* TAB 2: YÊU CẦU SỬA CHỮA */}
         {activeTab === "Yêu cầu" && (
           <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
             <h1 style={{ color: "#0f172a", marginBottom: "8px", fontSize: "28px", fontWeight: "bold" }}>Yêu cầu sửa chữa mới</h1>
@@ -428,7 +498,6 @@ export default function StoreDashboard() {
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                 <thead><tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}><th style={{ padding: "16px", color: "#475569" }}>Khách hàng</th><th style={{ padding: "16px", color: "#475569" }}>Thiết bị</th><th style={{ padding: "16px", color: "#475569" }}>Lỗi gặp phải</th><th style={{ padding: "16px", color: "#475569", textAlign: "center" }}>Hành động</th></tr></thead>
                 <tbody>
-                  {/* Đổi từ PENDING sang OPEN để khớp với Backend */}
                   {requests.filter(req => req.status === "OPEN").map(req => (
                     <tr key={req.id} onClick={() => setSelectedRequest(req)} style={{ borderBottom: "1px solid #e2e8f0", cursor: "pointer", transition: "background-color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: "16px", fontWeight: "bold", color: "#0f172a" }}>{req.customer}</td>
@@ -436,7 +505,8 @@ export default function StoreDashboard() {
                       <td style={{ padding: "16px", color: "#ef4444" }}>{req.issue}</td>
                       <td style={{ padding: "16px", textAlign: "center" }} onClick={(e) => e.stopPropagation() }>
                         <button onClick={() => handleRequest(req.id)} style={{ padding: "8px 16px", backgroundColor: "#f8fafc", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginRight: "8px" }}>Xem chi tiết</button>
-                        <button onClick={() => handleAccept(req.id)} style={{ padding: "8px 16px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginRight: "8px" }}>Nhận đơn</button>
+                        {/* 🚀 ĐÃ SỬA: Thay vì nhận đơn ngay, thì gọi hàm mở Popup Giao Việc */}
+                        <button onClick={() => handleAcceptClick(req.id)} style={{ padding: "8px 16px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginRight: "8px" }}>Nhận đơn</button>
                         <button onClick={() => handleReject(req.id)} style={{ padding: "8px 16px", backgroundColor: "white", color: "#ef4444", border: "1px solid #fca5a5", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Từ chối</button>
                       </td>
                     </tr>
@@ -448,18 +518,26 @@ export default function StoreDashboard() {
           </div>
         )}
 
-        {/* TAB 3: TIẾN ĐỘ */}
+        {/* TAB 3: TIẾN ĐỘ SỬA CHỮA */}
         {activeTab === "Tiến độ" && (
           <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
             <h1 style={{ color: "#0f172a", marginBottom: "8px", fontSize: "28px", fontWeight: "bold" }}>Tiến độ máy đang sửa</h1>
             <p style={{ color: "#64748b", marginBottom: "32px" }}>Cập nhật trạng thái để khách hàng tiện theo dõi.</p>
             <div style={{ backgroundColor: "white", padding: "24px", borderRadius: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", border: "1px solid #e2e8f0" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                <thead><tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}><th style={{ padding: "16px", color: "#475569" }}>Khách hàng</th><th style={{ padding: "16px", color: "#475569" }}>Thiết bị</th><th style={{ padding: "16px", color: "#475569" }}>Trạng thái</th><th style={{ padding: "16px", color: "#475569", textAlign: "center" }}>Cập nhật</th></tr></thead>
+                <thead><tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={{ padding: "16px", color: "#475569" }}>Khách hàng</th>
+                  <th style={{ padding: "16px", color: "#475569" }}>Thiết bị</th>
+                  <th style={{ padding: "16px", color: "#475569" }}>Nhân viên PT</th>
+                  <th style={{ padding: "16px", color: "#475569" }}>Trạng thái</th>
+                  <th style={{ padding: "16px", color: "#475569", textAlign: "center" }}>Cập nhật</th>
+                </tr></thead>
                 <tbody>
                   {requests.filter(req => req.status === "IN_PROGRESS" || req.status === "COMPLETED").map(req => (
                     <tr key={req.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                      <td style={{ padding: "16px", fontWeight: "bold", color: "#0f172a" }}>{req.customer}</td><td style={{ padding: "16px", color: "#334155" }}>{req.device}</td>
+                      <td style={{ padding: "16px", fontWeight: "bold", color: "#0f172a" }}>{req.customer}</td>
+                      <td style={{ padding: "16px", color: "#334155" }}>{req.device}</td>
+                      <td style={{ padding: "16px", color: "#2563eb", fontWeight: "500" }}>{req.employee_name || "Chủ cửa hàng"}</td>
                       <td style={{ padding: "16px" }}>
                         {req.status === "IN_PROGRESS" ? <span style={{ padding: "6px 12px", backgroundColor: "#fef3c7", color: "#d97706", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>Đang sửa chữa ⚙️</span> : <span style={{ padding: "6px 12px", backgroundColor: "#d1fae5", color: "#059669", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" }}>Đã hoàn thành ✅</span>}
                       </td>
@@ -468,8 +546,50 @@ export default function StoreDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {/* Đã sửa logic chỗ này để ko dính mấy đơn REJECTED */}
-                  {requests.filter(req => req.status === "IN_PROGRESS" || req.status === "COMPLETED").length === 0 && <tr><td colSpan="4" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>Chưa có máy nào đang sửa.</td></tr>}
+                  {requests.filter(req => req.status === "IN_PROGRESS" || req.status === "COMPLETED").length === 0 && <tr><td colSpan="5" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>Chưa có máy nào đang sửa.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 🚀 TAB MỚI: QUẢN LÝ NHÂN VIÊN */}
+        {activeTab === "Nhân viên" && (
+          <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "32px" }}>
+              <div><h1 style={{ color: "#0f172a", marginBottom: "8px", fontSize: "28px", fontWeight: "bold" }}>Quản lý Nhân viên (Kỹ thuật)</h1><p style={{ color: "#64748b", margin: 0 }}>Thêm nhân sự để tiện giao việc khi nhận đơn mới.</p></div>
+              <button onClick={() => setShowAddEmployeeForm(!showAddEmployeeForm)} style={{ backgroundColor: "#2563eb", color: "white", border: "none", padding: "12px 24px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>{showAddEmployeeForm ? "Đóng form" : "+ Thêm thợ mới"}</button>
+            </div>
+
+            {showAddEmployeeForm && (
+              <div style={{ backgroundColor: "white", padding: "24px", borderRadius: "16px", marginBottom: "24px", border: "1px solid #e2e8f0" }}>
+                <form onSubmit={handleAddEmployee} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div style={{ display: "flex", gap: "16px", alignItems: "flex-end" }}>
+                    <div style={{ flex: 2 }}><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Tên nhân viên</label><input type="text" placeholder="VD: Nguyễn Văn A..." value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} style={inputStyle} /></div>
+                    <div style={{ flex: 1 }}><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Chuyên môn</label><select value={newEmployee.specialty} onChange={(e) => setNewEmployee({...newEmployee, specialty: e.target.value})} style={inputStyle}><option>Sửa phần cứng</option><option>Sửa phần mềm</option><option>Ép kính - Màn hình</option><option>Đa năng</option></select></div>
+                    <div style={{ flex: 1 }}><label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#475569" }}>Số điện thoại</label><input type="text" placeholder="VD: 09..." value={newEmployee.phone} onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})} style={inputStyle} /></div>
+                    <button type="submit" style={{ backgroundColor: "#10b981", color: "white", border: "none", padding: "12px 32px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", height: "46px" }}>Lưu lại</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div style={{ backgroundColor: "white", borderRadius: "16px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                <thead><tr style={{ backgroundColor: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}><th style={{ padding: "16px", color: "#475569" }}>Tên nhân viên</th><th style={{ padding: "16px", color: "#475569" }}>Chuyên môn</th><th style={{ padding: "16px", color: "#475569" }}>Số điện thoại</th><th style={{ padding: "16px", textAlign: "center", color: "#475569" }}>Đuổi việc</th></tr></thead>
+                <tbody>
+                  {employees.map((item) => (
+                    <tr key={item.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "16px", fontWeight: "600", color: "#0f172a", display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{ width: "36px", height: "36px", backgroundColor: "#e2e8f0", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", color: "#475569" }}>{item.name.charAt(0)}</div>
+                        {item.name}
+                      </td>
+                      <td style={{ padding: "16px" }}><span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", backgroundColor: "#fef3c7", color: "#d97706" }}>{item.specialty}</span></td>
+                      <td style={{ padding: "16px", fontWeight: "bold", color: "#0f172a" }}>{item.phone || "Không có"}</td>
+                      <td style={{ padding: "16px", textAlign: "center" }}><button onClick={() => handleDeleteEmployee(item.id)} style={{ backgroundColor: "transparent", color: "#ef4444", border: "none", cursor: "pointer", fontSize: "18px" }}>🗑️</button></td>
+                    </tr>
+                  ))}
+                  {employees.length === 0 && <tr><td colSpan="4" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>Cửa hàng chưa có nhân viên nào.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -584,6 +704,45 @@ export default function StoreDashboard() {
       </div>
 
       {/* ========================================== */}
+      {/* 🚀 POPUP GIAO VIỆC CHO NHÂN VIÊN           */}
+      {/* ========================================== */}
+      {assignModalOpen && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.7)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+          <div style={{ backgroundColor: "white", width: "100%", maxWidth: "500px", borderRadius: "20px", padding: "32px", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+            <h2 style={{ color: "#0f172a", marginTop: 0, marginBottom: "8px", fontSize: "22px" }}>Phân công công việc</h2>
+            <p style={{ color: "#64748b", marginBottom: "24px", fontSize: "15px" }}>Chọn thợ/kỹ thuật viên phụ trách sửa chữa đơn hàng này.</p>
+            
+            <div style={{ marginBottom: "24px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "15px" }}>Chọn người phụ trách</label>
+              <select 
+                value={selectedEmployeeId} 
+                onChange={(e) => setSelectedEmployeeId(e.target.value)} 
+                style={{...inputStyle, padding: "14px", backgroundColor: "#f8fafc", border: "2px solid #e2e8f0", fontSize: "16px", cursor: "pointer"}}
+              >
+                <option value="OWNER">👤 Chủ cửa hàng (Tự xử lý)</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    🔧 {emp.name} - {emp.specialty}
+                  </option>
+                ))}
+              </select>
+              {employees.length === 0 && (
+                <p style={{ color: "#ef4444", fontSize: "13px", marginTop: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: "16px", height: "16px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  Bạn chưa có thợ nào. Mặc định chủ shop sẽ nhận đơn.
+                </p>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button onClick={() => { setAssignModalOpen(false); setRequestToAssign(null); }} style={{ flex: 1, padding: "12px", backgroundColor: "white", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>Hủy bỏ</button>
+              <button onClick={confirmAcceptOrder} style={{ flex: 2, padding: "12px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 10px rgba(59, 130, 246, 0.3)" }}>Xác nhận Nhận Đơn</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
       {/* POPUP THANH TOÁN (MOCK PAYMENT MODAL)      */}
       {/* ========================================== */}
       {showPaymentModal && (
@@ -670,7 +829,7 @@ export default function StoreDashboard() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "32px", paddingTop: "20px", borderTop: "1px solid #e2e8f0" }}>
               <button onClick={() => setSelectedRequest(null)} style={{ padding: "10px 20px", backgroundColor: "white", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Đóng</button>
               <button onClick={() => handleReject(selectedRequest.id)} style={{ padding: "10px 20px", backgroundColor: "white", color: "#ef4444", border: "1px solid #fca5a5", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Từ chối đơn</button>
-              <button onClick={() => handleAccept(selectedRequest.id)} style={{ padding: "10px 24px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(59, 130, 246, 0.3)" }}>Chấp nhận sửa</button>
+              <button onClick={() => { setSelectedRequest(null); handleAcceptClick(selectedRequest.id); }} style={{ padding: "10px 24px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(59, 130, 246, 0.3)" }}>Chấp nhận sửa</button>
             </div>
           </div>
         </div>

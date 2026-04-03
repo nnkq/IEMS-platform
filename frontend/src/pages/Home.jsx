@@ -59,7 +59,6 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString("vi-VN");
 }
 
-// 🔥 CẬP NHẬT: Đổi nhãn tiếng Việt cho khớp với bên Store Portal
 function statusLabel(status) {
   switch (status) {
     case "OPEN":
@@ -82,10 +81,9 @@ function statusLabel(status) {
   }
 }
 
-// 🔥 CẬP NHẬT: Tô màu cho các trạng thái đặc biệt
 function statusClass(status) {
   if (status === "IN_PROGRESS") return "status-warning";
-  if (status === "COMPLETED") return "status-success"; // Bạn có thể thêm class .status-success màu xanh lá trong css
+  if (status === "COMPLETED") return "status-success"; 
   if (status === "REJECTED") return "status-error";
   return "status-accent";
 }
@@ -121,20 +119,49 @@ function buildInitials(name = "") {
 }
 
 export default function Home() {
-  const submitRepairRequest = async () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // 🚀 ĐÃ THÊM: STATE CHO POPUP CHI TIẾT ĐƠN Ở TAB TRACKING
+  const [selectedTrackedRequest, setSelectedTrackedRequest] = useState(null);
+
+  const [selectedStoreDetail, setSelectedStoreDetail] = useState(null);
+  const [storeProducts, setStoreProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  const handleViewStoreDetail = async (store) => {
+    setSelectedStoreDetail(store);
+    setLoadingProducts(true);
     try {
-      if (!issueTitle.trim() || !description.trim()) {
-        alert("Vui lòng nhập tiêu đề và mô tả lỗi");
-        return;
-      }
+      const storeOwnerId = store.user_id || store.id; 
+      const res = await fetch(`http://localhost:5000/api/products/${storeOwnerId}`);
+      const data = await res.json();
+      setStoreProducts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Lỗi lấy sản phẩm cửa hàng:", error);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
 
-      if (userLocation.lat == null || userLocation.lng == null) {
-        alert("Vui lòng bấm 'Lấy vị trí hiện tại' trước");
-        return;
-      }
+  const handleOpenStoreSelection = () => {
+    if (!issueTitle.trim() || !description.trim()) {
+      alert("Vui lòng nhập tiêu đề và mô tả lỗi");
+      return;
+    }
 
+    if (userLocation.lat == null || userLocation.lng == null) {
+      alert("Vui lòng bấm 'Lấy vị trí hiện tại' trước");
+      return;
+    }
+
+    setIsModalOpen(true);
+  };
+
+  const submitRepairRequestWithStore = async (selectedStoreId) => {
+    try {
       const payload = {
         device_id: null,
+        store_id: selectedStoreId,
         title: issueTitle.trim(),
         description: description.trim(),
         budget: budget || null,
@@ -160,6 +187,7 @@ export default function Home() {
       alert(res.data?.message || "Tạo yêu cầu sửa chữa thành công!");
 
       resetForm();
+      setIsModalOpen(false); 
       setActivePage("tracking");
     } catch (error) {
       console.error("Create request error:", error);
@@ -172,7 +200,6 @@ export default function Home() {
     }
   };
 
-  // 🔥 CẬP NHẬT: Thêm cờ isBackground để khi nó tự auto-refresh thì không làm chớp loading
   const loadTrackingRequests = async (isBackground = false) => {
     try {
       if (!isBackground) setTrackingLoading(true);
@@ -311,13 +338,11 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  // 🔥 CẬP NHẬT: Thêm chức năng Polling ngầm mỗi 3 giây khi ở tab Theo dõi
   useEffect(() => {
     let interval;
     if (activePage === "tracking") {
-      loadTrackingRequests(); // Lần đầu hiển thị loading bình thường
+      loadTrackingRequests(); 
       
-      // Auto-refresh ngầm sau mỗi 3 giây
       interval = setInterval(() => {
         loadTrackingRequests(true); 
       }, 3000);
@@ -345,6 +370,7 @@ export default function Home() {
   const openPage = (page) => {
     setActivePage(page);
     setSidebarOpen(false);
+    setSelectedStoreDetail(null); 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -471,9 +497,6 @@ export default function Home() {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-        console.log("LAT:", lat);
-        console.log("LNG:", lng);
-
         setUserLocation({ lat, lng });
 
         try {
@@ -482,8 +505,6 @@ export default function Home() {
           );
 
           const data = await res.json();
-
-          console.log("Geo data:", data);
 
           let addressText = [data.locality, data.principalSubdivision, data.countryName]
             .filter(Boolean)
@@ -950,8 +971,7 @@ export default function Home() {
                 <div className="request-layout">
                   <div className="surface">
                     <div className="note-banner">
-                      Sau khi gửi thành công, hệ thống sẽ chuyển sang tab Theo dõi và đọc lại danh
-                      sách yêu cầu từ SQL.
+                      Sau khi điền form và bấm gửi, bạn sẽ được chọn Cửa hàng để giao máy.
                     </div>
 
                     <div className="space-18" />
@@ -1116,7 +1136,7 @@ export default function Home() {
                         <button
                           className="btn btn-primary"
                           type="button"
-                          onClick={submitRepairRequest}
+                          onClick={handleOpenStoreSelection}
                         >
                           Gửi yêu cầu
                         </button>
@@ -1164,6 +1184,40 @@ export default function Home() {
                   </aside>
                 </div>
               </div>
+
+              {isModalOpen && (
+                <div className="modal-overlay" style={{
+                  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+                  padding: '20px'
+                }}>
+                  <div className="modal-content" style={{
+                    backgroundColor: 'white', padding: '30px', borderRadius: '24px',
+                    width: '100%', maxWidth: '600px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+                  }}>
+                    <h2 style={{ marginBottom: '10px', color: '#111' }}>Chọn Cửa Hàng</h2>
+                    <p className="muted" style={{ marginBottom: '20px', color: '#666' }}>Dưới đây là các cửa hàng đã xác minh. Hãy chọn nơi bạn muốn gửi máy.</p>
+                    
+                    <div className="store-list" style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {verifiedStores.map(store => (
+                        <div key={store.id} className="store-item" style={{
+                          padding: '16px', borderRadius: '16px', border: '1px solid #eee',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        }}>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: '16px', color: '#111' }}>{store.store_name}</strong>
+                            <span className="muted" style={{ fontSize: '13px', color: '#666' }}>{store.address || "Chưa có địa chỉ"} · ★ {store.google_rating || 0}</span>
+                          </div>
+                          <button className="btn btn-primary" type="button" onClick={() => submitRepairRequestWithStore(store.id)}>Chọn</button>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <button className="btn btn-secondary" type="button" style={{ marginTop: '20px', width: '100%' }} onClick={() => setIsModalOpen(false)}>Hủy bỏ</button>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
@@ -1172,57 +1226,119 @@ export default function Home() {
               <div className="page-grid">
                 <div>
                   <span className="eyebrow">CỬA HÀNG</span>
-                  <h2 className="page-title">Danh sách cửa hàng từ backend</h2>
+                  <h2 className="page-title">
+                    {selectedStoreDetail ? `Cửa hàng: ${selectedStoreDetail.store_name}` : "Danh sách cửa hàng từ backend"}
+                  </h2>
                   <p className="muted">
-                    Phần này đang bind theo danh sách cửa hàng approved từ API dashboard.
+                    {selectedStoreDetail ? "Danh sách các dịch vụ và sản phẩm đang cung cấp." : "Phần này đang bind theo danh sách cửa hàng approved từ API dashboard."}
                   </p>
                 </div>
 
                 <div className="stores-layout">
                   <div className="surface">
-                    <div className="section-head">
-                      <div>
-                        <span className="eyebrow">CỬA HÀNG ĐỀ XUẤT</span>
-                        <h3 className="section-title">Ưu tiên rating và độ tin cậy</h3>
-                      </div>
-                    </div>
-
-                    <div className="store-grid">
-                      {verifiedStores.length === 0 && (
-                        <div className="note-banner">Chưa có cửa hàng nào từ backend.</div>
-                      )}
-
-                      {verifiedStores.map((store) => (
-                        <div key={store.id} className="store-card">
-                          <div className="store-card-head">
-                            <div>
-                              <h3>{store.store_name}</h3>
-                              <p className="muted">{store.address || "Chưa có địa chỉ"}</p>
-                            </div>
-                            <div className="rating-badge">★ {store.google_rating || 0}</div>
-                          </div>
-
-                          <p className="muted">
-                            {store.description || "Chưa có mô tả cửa hàng."}
-                          </p>
-
-                          <div className="chips">
-                            <span className="chip">{store.total_quotes || 0} báo giá</span>
-                            <span className="chip">{store.total_reviews || 0} đánh giá</span>
-                            <span className="chip">Approved</span>
-                          </div>
-
-                          <div className="card-actions">
-                            <button className="btn btn-primary" onClick={() => openPage("request")}>
-                              Gửi yêu cầu
-                            </button>
-                            <button className="btn btn-secondary" onClick={() => openPage("home")}>
-                              Xem trang chủ
-                            </button>
+                    
+                    {!selectedStoreDetail ? (
+                      <>
+                        <div className="section-head">
+                          <div>
+                            <span className="eyebrow">CỬA HÀNG ĐỀ XUẤT</span>
+                            <h3 className="section-title">Ưu tiên rating và độ tin cậy</h3>
                           </div>
                         </div>
-                      ))}
-                    </div>
+
+                        <div className="store-grid">
+                          {verifiedStores.length === 0 && (
+                            <div className="note-banner">Chưa có cửa hàng nào từ backend.</div>
+                          )}
+
+                          {verifiedStores.map((store) => (
+                            <div key={store.id} className="store-card">
+                              <div className="store-card-head">
+                                <div>
+                                  <h3>{store.store_name}</h3>
+                                  <p className="muted">{store.address || "Chưa có địa chỉ"}</p>
+                                </div>
+                                <div className="rating-badge">★ {store.google_rating || 0}</div>
+                              </div>
+
+                              <p className="muted">
+                                {store.description || "Chưa có mô tả cửa hàng."}
+                              </p>
+
+                              <div className="chips">
+                                <span className="chip">{store.total_quotes || 0} báo giá</span>
+                                <span className="chip">{store.total_reviews || 0} đánh giá</span>
+                                <span className="chip">Approved</span>
+                              </div>
+
+                              <div className="card-actions">
+                                <button className="btn btn-primary" onClick={() => handleViewStoreDetail(store)}>
+                                  Xem mặt hàng
+                                </button>
+                                <button className="btn btn-secondary" onClick={() => {
+                                  openPage("request");
+                                  setTimeout(() => handleOpenStoreSelection(), 100);
+                                }}>
+                                  Gửi yêu cầu
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      
+                      <>
+                        <div className="section-head" style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: "16px" }}>
+                          <div>
+                            <button 
+                              className="mini-link" 
+                              onClick={() => setSelectedStoreDetail(null)}
+                              style={{ fontSize: "15px", fontWeight: "bold" }}
+                            >
+                              ← Quay lại danh sách
+                            </button>
+                            <h3 className="section-title" style={{ marginTop: "12px" }}>Các dịch vụ & Sản phẩm nổi bật</h3>
+                          </div>
+                        </div>
+
+                        {loadingProducts ? (
+                          <div className="note-banner" style={{ marginTop: "20px" }}>Đang tải danh sách mặt hàng...</div>
+                        ) : (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginTop: '24px' }}>
+                            {storeProducts.length === 0 && (
+                              <div className="note-banner" style={{ gridColumn: "1 / -1" }}>Cửa hàng này chưa đăng tải mặt hàng nào.</div>
+                            )}
+                            
+                            {storeProducts.map(prod => (
+                              <div key={prod.id} style={{ border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                <img 
+                                  src={prod.image || "https://placehold.co/150x150?text=No+Image"} 
+                                  alt={prod.name}
+                                  style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '8px', marginBottom: '12px', border: '1px solid #f1f5f9' }} 
+                                />
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#0f172a' }}>{prod.name}</h4>
+                                <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", backgroundColor: prod.type === "Dịch vụ" ? "#dbeafe" : "#fef3c7", color: prod.type === "Dịch vụ" ? "#2563eb" : "#d97706" }}>
+                                  {prod.type}
+                                </span>
+                                <div style={{ marginTop: '12px', fontWeight: 'bold', color: '#ef4444', fontSize: '16px' }}>
+                                  {formatVND(prod.price)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div style={{ marginTop: "32px", textAlign: "center" }}>
+                          <button className="btn btn-primary" style={{ padding: "12px 32px" }} onClick={() => {
+                             openPage("request");
+                             setTimeout(() => submitRepairRequestWithStore(selectedStoreDetail.id), 500); 
+                          }}>
+                            Bấm để gửi yêu cầu sửa chữa cho {selectedStoreDetail.store_name}
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <aside className="aside-card">
@@ -1340,9 +1456,18 @@ export default function Home() {
                           <h3>{item.device_name || item.title}</h3>
                           <p className="muted">{item.description || "Không có mô tả"}</p>
                         </div>
-                        <div>
+                        <div style={{ textAlign: "right" }}>
                           <strong>{item.budget ? formatVND(item.budget) : "Chưa có giá"}</strong>
-                          <div className="muted">{formatDateTime(item.created_at)}</div>
+                          <div className="muted" style={{ marginBottom: "8px" }}>{formatDateTime(item.created_at)}</div>
+                          
+                          {/* 🚀 ĐÃ THÊM: NÚT XEM CHI TIẾT */}
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: "6px 12px", fontSize: "13px" }}
+                            onClick={() => setSelectedTrackedRequest(item)}
+                          >
+                            Xem chi tiết
+                          </button>
                         </div>
                       </div>
 
@@ -1368,6 +1493,63 @@ export default function Home() {
                   ))}
                 </div>
               </div>
+
+              {/* 🚀 ĐÃ THÊM: MODAL CHI TIẾT ĐƠN HÀNG Ở TAB THEO DÕI */}
+              {selectedTrackedRequest && (
+                <div className="modal-overlay" style={{
+                  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+                  padding: '20px', backdropFilter: "blur(4px)"
+                }}>
+                  <div className="modal-content" style={{
+                    backgroundColor: 'white', padding: '32px', borderRadius: '24px',
+                    width: '100%', maxWidth: '600px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+                    maxHeight: '90vh', overflowY: 'auto'
+                  }}>
+                    <h2 style={{ marginTop: 0, color: '#0f172a' }}>Chi tiết đơn hàng #RQ-{selectedTrackedRequest.id}</h2>
+                    
+                    <div style={{ backgroundColor: "#f8fafc", padding: "16px", borderRadius: "12px", marginBottom: "20px", border: "1px solid #e2e8f0" }}>
+                      <h4 style={{ margin: "0 0 12px 0", color: "#334155" }}>Thông tin khách báo:</h4>
+                      <p style={{ margin: "0 0 8px 0" }}><strong>Thiết bị:</strong> {selectedTrackedRequest.device_name}</p>
+                      <p style={{ margin: "0 0 8px 0", color: "#ef4444" }}><strong>Lỗi gặp phải:</strong> {selectedTrackedRequest.title}</p>
+                      <p style={{ margin: 0 }}><strong>Mô tả chi tiết:</strong> {selectedTrackedRequest.description}</p>
+                    </div>
+
+                    <div style={{ backgroundColor: selectedTrackedRequest.technician_note ? "#fffbeb" : "#f1f5f9", padding: "20px", borderRadius: "12px", border: selectedTrackedRequest.technician_note ? "1px solid #fde68a" : "1px dashed #cbd5e1" }}>
+                      <h4 style={{ margin: "0 0 12px 0", color: selectedTrackedRequest.technician_note ? "#d97706" : "#64748b", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "18px" }}>👨‍🔧</span> Báo cáo của Kỹ thuật viên
+                      </h4>
+                      
+                      {selectedTrackedRequest.technician_note ? (
+                        <>
+                          <div style={{ color: '#0f172a', fontSize: '15px', lineHeight: '1.6' }}>
+                            {selectedTrackedRequest.technician_note}
+                          </div>
+                          {selectedTrackedRequest.extra_cost > 0 && (
+                            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #fcd34d', color: '#ef4444', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>Phí sửa chữa phát sinh:</span>
+                              <span style={{ fontSize: '16px' }}>+ {formatVND(selectedTrackedRequest.extra_cost)}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p style={{ margin: 0, color: "#94a3b8", fontStyle: "italic" }}>
+                          Thợ kỹ thuật chưa cập nhật báo cáo cho đơn hàng này.
+                        </p>
+                      )}
+                    </div>
+
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ marginTop: '24px', width: '100%', padding: '14px' }} 
+                      onClick={() => setSelectedTrackedRequest(null)}
+                    >
+                      Đóng chi tiết
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 

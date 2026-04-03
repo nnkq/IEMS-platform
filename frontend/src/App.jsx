@@ -6,7 +6,9 @@ import ResetPassword from "./pages/ResetPassword";
 import GoogleSuccess from "./pages/GoogleSuccess";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
-import StoreDashboard from "./pages/StoreDashboard"; // <-- Mình đã thêm import ở đây
+import StoreDashboard from "./pages/StoreDashboard"; 
+import TechnicianDashboard from './pages/TechnicianDashboard';
+import TechnicianLogin from './pages/TechnicianLogin';
 import "./App.css";
 
 function PrivateRoute({ children }) {
@@ -19,6 +21,10 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
+      
+      {/* 🚀 ĐÃ THÊM: Route Đăng nhập riêng cho Kỹ thuật viên (Không cần PrivateRoute) */}
+      <Route path="/tech-login" element={<TechnicianLogin />} />
+      
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
@@ -48,6 +54,16 @@ function App() {
         element={
           <PrivateRoute>
             <StoreDashboard />
+          </PrivateRoute>
+        }
+      />
+
+      {/* 🚀 ĐÃ THÊM: Route bảo vệ cho Không gian làm việc của Kỹ thuật viên */}
+      <Route
+        path="/technician"
+        element={
+          <PrivateRoute>
+            <TechnicianDashboard />
           </PrivateRoute>
         }
       />

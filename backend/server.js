@@ -5,6 +5,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 require('dotenv').config();
 
+// Khai báo db MỘT LẦN DUY NHẤT ở đầu file
 const db = require('./src/config/db');
 
 const authRoutes = require('./src/routes/auth.routes');
@@ -102,6 +103,9 @@ app.get('/', (req, res) => {
   res.send('IEMS API Running');
 });
 
+// ==========================================
+// CÁC ROUTES CÓ SẴN CỦA BẠN
+// ==========================================
 app.use('/api/auth', authRoutes);
 app.use('/api/home', homeRoutes);
 app.use('/api', repairRoutes);
@@ -110,6 +114,108 @@ app.use('/api/products', productRoutes);
 app.use('/api/map', mapRoutes);
 app.use('/api/users', userRoutes);
 
+// ==========================================
+// API: QUẢN LÝ NHÂN VIÊN (KỸ THUẬT VIÊN)
+// ==========================================
+
+// 1. Lấy danh sách nhân viên của cửa hàng
+app.get('/api/employees/:storeId', (req, res) => {
+    const storeId = req.params.storeId;
+    db.query('SELECT * FROM employees WHERE store_id = ? ORDER BY id DESC', [storeId], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json(results);
+    });
+});
+
+// 2. Thêm nhân viên mới
+app.post('/api/employees', (req, res) => {
+    const { storeId, name, specialty, phone } = req.body;
+    
+    // Gán cứng mật khẩu mặc định theo luồng Đồ án
+    const defaultPassword = 'abc123'; 
+
+    const sql = 'INSERT INTO employees (store_id, name, specialty, phone, password) VALUES (?, ?, ?, ?, ?)';
+    
+    db.query(sql, [storeId, name, specialty, phone, defaultPassword], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ id: result.insertId, message: 'Thêm nhân viên và cấp tài khoản thành công' });
+    });
+});
+
+// 3. Xóa nhân viên
+app.delete('/api/employees/:id', (req, res) => {
+    const id = req.params.id;
+    db.query('DELETE FROM employees WHERE id = ?', [id], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json({ message: 'Đã xóa nhân viên' });
+    });
+});
+
+// ==========================================
+// API: DÀNH RIÊNG CHO KỸ THUẬT VIÊN (TECHNICIAN)
+// ==========================================
+
+// 1. Lấy danh sách đơn được Store giao cho Thợ này
+app.get('/api/technician/orders/:employeeId', (req, res) => {
+    const empId = req.params.employeeId;
+    db.query('SELECT * FROM repair_requests WHERE employee_id = ? ORDER BY id DESC', [empId], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json(results);
+    });
+});
+
+// 2. Thợ cập nhật đơn (Nhận, Từ chối, Ghi chú bệnh thật, Báo tiền phát sinh)
+app.put('/api/technician/orders/:id', (req, res) => {
+    const reqId = req.params.id;
+    const { status, technician_note, extra_cost } = req.body;
+    
+    let sql = 'UPDATE repair_requests SET ';
+    const params = [];
+    
+    if (status) { sql += 'status = ?, '; params.push(status); }
+    if (technician_note !== undefined) { sql += 'technician_note = ?, '; params.push(technician_note); }
+    if (extra_cost !== undefined) { sql += 'extra_cost = ?, '; params.push(extra_cost); }
+    
+    sql = sql.slice(0, -2); // Xóa dấu phẩy thừa ở cuối
+    sql += ' WHERE id = ?';
+    params.push(reqId);
+
+    db.query(sql, params, (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json({ message: 'Đã cập nhật đơn hàng thành công' });
+    });
+});
+
+// 3. ĐĂNG NHẬP CHO KỸ THUẬT VIÊN (TECHNICIAN)
+app.post('/api/technician/login', (req, res) => {
+    const { phone, password } = req.body;
+    
+    // Tìm nhân viên khớp cả SĐT và Mật khẩu
+    db.query('SELECT * FROM employees WHERE phone = ? AND password = ?', [phone, password], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        if (results.length === 0) {
+            return res.status(401).json({ message: 'Số điện thoại hoặc mật khẩu không chính xác!' });
+        }
+        
+        const tech = results[0];
+        // Đăng nhập thành công, trả về thông tin thợ
+        res.status(200).json({
+            message: 'Đăng nhập thành công',
+            tech: {
+                id: tech.id,
+                name: tech.name,
+                specialty: tech.specialty,
+                store_id: tech.store_id,
+                phone: tech.phone
+            }
+        });
+    });
+});
+
+// ==========================================
+// APP.LISTEN (LUÔN PHẢI NẰM CUỐI CÙNG - KHÔNG ĐƯỢC ĐỂ CÁI GÌ Ở DƯỚI NÀY NỮA NHÉ)
+// ==========================================
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-}); 
+});

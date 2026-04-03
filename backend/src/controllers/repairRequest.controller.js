@@ -98,11 +98,11 @@ exports.createRepairRequest = async (req, res) => {
       });
     }
 
-    // 🐛 FIX LỖI Ở ĐÂY: Đổi user_id thành userId cho khớp với mảng insertValues bên dưới
     const userId = req.user.id;
 
-    // 🔥 NHẬN FULL DATA
+    // 🔥 NHẬN FULL DATA (ĐÃ THÊM store_id VÀO ĐỂ NHẬN TỪ FRONTEND)
     const {
+      store_id, // <-- CỘT MỚI: Khách hàng tự chọn Cửa hàng nào thì Frontend gửi ID đó xuống
       device_id, title, description, budget, location,
       latitude, longitude, phone, desired_date, service_mode,
       device_type, brand, model, symptoms
@@ -143,8 +143,9 @@ exports.createRepairRequest = async (req, res) => {
     }
 
     // ==========================================================
-    // 🧠 TÌM STORE GẦN NHẤT để tạo quote auto
+    // 🧠 TÌM STORE GẦN NHẤT (ĐÃ COMMENT VÔ HIỆU HÓA VÌ KHÁCH ĐÃ TỰ CHỌN ĐÍCH DANH)
     // ==========================================================
+    /*
     let nearestStore = null;
     try {
       nearestStore = await findNearestStore(cleanLatitude, cleanLongitude);
@@ -157,12 +158,14 @@ exports.createRepairRequest = async (req, res) => {
       const fallbackStores = await queryAsync("SELECT id FROM stores LIMIT 1");
       finalStoreId = fallbackStores.length > 0 ? fallbackStores[0].id : null;
     }
+    */
     // ==========================================================
 
-    // 📝 INSERT dùng đúng cột của DB
+    // 📝 INSERT dùng đúng cột của DB (ĐÃ THÊM store_id VÀO SQL)
     const insertSql = `
       INSERT INTO repair_requests (
         user_id,
+        store_id, 
         device_id,
         title,
         description,
@@ -180,11 +183,12 @@ exports.createRepairRequest = async (req, res) => {
         status,
         created_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', NOW())
     `;
 
     const insertValues = [
-      userId, // Bây giờ thằng này đã được định nghĩa ở trên, hết báo lỗi!
+      userId, 
+      store_id || null, // <-- TRUYỀN ID CỬA HÀNG KHÁCH CHỌN VÀO ĐÂY
       finalDeviceId,
       cleanTitle,
       cleanDescription,
@@ -204,27 +208,29 @@ exports.createRepairRequest = async (req, res) => {
     const result = await queryAsync(insertSql, insertValues);
     const requestId = result.insertId;
 
-    const safeDistance = Number(nearestStore?.distance || 0);
-    const distanceText = safeDistance.toFixed(2);
+    // Lấy thông tin cửa hàng khách vừa chọn để gửi thông báo (nếu có)
+    let assignedStoreName = null;
+    let assignedStoreUserId = null;
 
-    // 💰 TẠO QUOTE AUTO (gán store gần nhất nếu có)
-    try {
-      if (finalStoreId) {
-        const quoteSql = `INSERT INTO quotes (request_id, store_id, status) VALUES (?, ?, 'PENDING')`;
-        await queryAsync(quoteSql, [requestId, finalStoreId]);
-      }
-    } catch (quoteErr) {
-      console.error('Insert quote error:', quoteErr);
+    if (store_id) {
+        const storeInfo = await queryAsync("SELECT user_id, store_name FROM stores WHERE id = ?", [store_id]);
+        if (storeInfo.length > 0) {
+            assignedStoreName = storeInfo[0].store_name;
+            assignedStoreUserId = storeInfo[0].user_id;
+        }
     }
 
-    // 🔔 NOTIFICATION
+    // 💰 TẠO QUOTE AUTO (Vẫn đang được comment vô hiệu hóa như yêu cầu)
+    // try { ... }
+
+    // 🔔 NOTIFICATION (Đã sửa để bắn thông báo đúng cho chủ Cửa hàng khách chọn)
     try {
-      if (nearestStore && nearestStore.user_id) {
+      if (assignedStoreUserId) {
         const notifySql = `INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'SYSTEM')`;
         await queryAsync(notifySql, [
-          nearestStore.user_id,
+          assignedStoreUserId,
           "Job mới",
-          `Có yêu cầu sửa chữa gần bạn (~${distanceText} km)`
+          `Khách hàng vừa gửi trực tiếp một yêu cầu sửa chữa đến cửa hàng của bạn!`
         ]);
       }
     } catch (notifyErr) {
@@ -236,8 +242,7 @@ exports.createRepairRequest = async (req, res) => {
       success: true,
       message: 'Tạo yêu cầu thành công',
       request_id: requestId,
-      assigned_store: nearestStore ? nearestStore.store_name : null,
-      distance_km: Number(distanceText)
+      assigned_store: assignedStoreName // Trả về tên cửa hàng đã nhận đơn
     });
   } catch (error) {
     console.error("Create request error:", error);
@@ -251,7 +256,7 @@ exports.createRepairRequest = async (req, res) => {
 
 
 
-// Lấy danh sách yêu cầu của một User (dành cho User Portal)
+// Lấy danh sách yêu cầu của một User (dành cho User Portal) - ĐÃ THÊM 2 CỘT BÁO CÁO THỢ
 exports.getMyRepairRequests = (req, res) => {
   const userId = req.user.id;
 
@@ -278,15 +283,18 @@ exports.getMyRepairRequests = (req, res) => {
         budget: row.budget || "",
         location: row.location || "",
         device_name: `${row.brand || ''} ${row.model || ''}`.trim() || row.device_type || "Thiết bị chưa rõ",
-        device_category: row.device_type || 'Chưa phân loại'
+        device_category: row.device_type || 'Chưa phân loại',
+        // 🚀 THÊM 2 DÒNG NÀY ĐỂ GỬI BÁO CÁO CỦA THỢ LÊN FRONTEND
+        technician_note: row.technician_note || null,
+        extra_cost: row.extra_cost || 0
       };
     });
 
     res.json({ requests: mappedRequests });
   });
 };
-//lấy danh sách chi tiết từng repair request
-// Lấy danh sách chi tiết từng repair request (Đã sửa chuẩn API Express)
+
+// Lấy danh sách chi tiết từng repair request - GIỮ NGUYÊN
 exports.getRepairRequestsDetail = async (req, res) => {
   try {
     const requestId = req.params.id; // Lấy ID từ URL (VD: /api/repair-requests/1)
@@ -308,6 +316,7 @@ exports.getRepairRequestsDetail = async (req, res) => {
     return res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
   }
 };
+
 // ======================================================================
 // --- BẮT ĐẦU PHẦN MỚI: XỬ LÝ TIẾN ĐỘ SỬA CHỮA ---
 // ======================================================================
@@ -324,10 +333,11 @@ exports.getOngoingRepairs = async (req, res) => {
             });
         }
 
+        // ĐÃ FIX: Sửa user_id = ? thành store_id = ?
         const query = `
             SELECT id, user_id, title, brand, model, device_type, status
             FROM repair_requests
-            WHERE user_id = ? AND status = 'IN_PROGRESS'
+            WHERE store_id = ? AND status = 'IN_PROGRESS'
         `;
 
         const [rows] = await db.promise().query(query, [storeId]);
@@ -347,7 +357,7 @@ exports.getOngoingRepairs = async (req, res) => {
     }
 };
 
-// 2. Hàm Cập nhật trạng thái (Dùng khi bấm nút "Báo hoàn thành")
+// 2. Hàm Cập nhật trạng thái (Dùng khi bấm nút "Báo hoàn thành") - GIỮ NGUYÊN
 exports.updateRepairProgress = async (req, res) => {
     try {
         const requestId = req.params.id; 
@@ -385,26 +395,54 @@ exports.updateRepairProgress = async (req, res) => {
         });
     }
 };
+
 // ============================================================
 // 🚀 PHẦN THÊM MỚI CHO STORE PORTAL (TIẾN ĐỘ SỬA CHỮA)
 // ============================================================
 
 exports.getStoreRequests = (req, res) => {
-    const sql = 'SELECT * FROM repair_requests ORDER BY created_at DESC';
+    const storeId = req.query.storeId; 
+
+    if (!storeId) {
+        return res.status(400).json({ error: "Thiếu storeId. Vui lòng truyền storeId trên URL (VD: ?storeId=1)" });
+    }
+
+    // 🚀 Dùng LEFT JOIN để móc tên thợ từ bảng employees lên
+    const sql = `
+        SELECT r.*, e.name as employee_name 
+        FROM repair_requests r
+        LEFT JOIN employees e ON r.employee_id = e.id
+        WHERE r.store_id = ? 
+        ORDER BY r.created_at DESC
+    `;
     
-    db.query(sql, (err, results) => {
+    db.query(sql, [storeId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.status(200).json(results);
     });
 };
 
+// ============================================================
+// 2. SỬA HÀM UPDATE: Lưu ID của thợ vào Database (Fix Ảnh 2)
+// ============================================================
 exports.updateRequestStatus = (req, res) => {
     const requestId = req.params.id;
-    const { status } = req.body; 
+    // 🚀 Lấy thêm employee_id do Frontend gửi xuống
+    const { status, employee_id } = req.body; 
 
-    db.query('UPDATE repair_requests SET status = ? WHERE id = ?', [status, requestId], (err, result) => {
+    let sql = 'UPDATE repair_requests SET status = ? WHERE id = ?';
+    let params = [status, requestId];
+
+    // Nếu Frontend có truyền employee_id (nghĩa là có phân công thợ)
+    if (employee_id !== undefined) {
+        sql = 'UPDATE repair_requests SET status = ?, employee_id = ? WHERE id = ?';
+        params = [status, employee_id, requestId];
+    }
+
+    db.query(sql, params, (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
 
+        // Logic gửi thông báo khi hoàn thành giữ nguyên
         if (status === 'COMPLETED') {
             db.query('SELECT user_id, brand, model, device_type FROM repair_requests WHERE id = ?', [requestId], (selErr, selRes) => {
                 if (!selErr && selRes.length > 0) {
@@ -419,10 +457,11 @@ exports.updateRequestStatus = (req, res) => {
                 }
             });
         }
-        res.status(200).json({ message: 'Đã cập nhật tiến độ!' });
+        res.status(200).json({ message: 'Đã cập nhật tiến độ và nhân viên!' });
     });
 };
 
+// GIỮ NGUYÊN
 exports.deleteRequest = (req, res) => {
     const requestId = req.params.id;
     db.query('DELETE FROM repair_requests WHERE id = ?', [requestId], (err) => {
