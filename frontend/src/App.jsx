@@ -4,6 +4,7 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import GoogleSuccess from "./pages/GoogleSuccess";
+import ChooseRole from "./pages/ChooseRole";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import StoreDashboard from "./pages/StoreDashboard"; 
