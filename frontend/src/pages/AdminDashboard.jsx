@@ -49,8 +49,8 @@ export default function AdminDashboard() {
             const data = await res.json();
             console.log("Users and Partners Data:", data);
             if (data && data.stats) setUsersData(data);
-        } catch (e) { 
-            console.error("Fetch Users/Partners Failed:", e); 
+        } catch (e) {
+            console.error("Fetch Users/Partners Failed:", e);
         }
     };
 
@@ -100,6 +100,14 @@ export default function AdminDashboard() {
             } else alert('❌ Lỗi khi từ chối!');
         } catch (e) { console.error(e); }
     };
+    // đăng xuất
+    const handleLogout = () => {
+        if (window.confirm("Bạn có chắc chắn muốn đăng xuất hệ thống?")) {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = '/login';
+        }
+    };
 
     // ======= ICONS (inline SVG) =======
     const IconStore = () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: 20, height: 20 }}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z" /></svg>;
@@ -111,6 +119,7 @@ export default function AdminDashboard() {
     const IconMap = () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: 14, height: 14 }}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>;
     const IconShield = () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: 22, height: 22 }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>;
     const IconExternal = () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: 13, height: 13 }}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>;
+    const IconLogout = () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: 18, height: 18 }}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg>;
 
     // ======= STYLES =======
     const s = {
@@ -205,15 +214,44 @@ export default function AdminDashboard() {
                     ))}
                 </nav>
 
-                <div style={s.sidebarFooter}>
-                    <div style={s.avatar}>AD</div>
-                    <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Quản trị viên</div>
-                        <div style={{ fontSize: 12, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
-                            Đang hoạt động
+                <div style={{ ...s.sidebarFooter, justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={s.avatar}>AD</div>
+                        <div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Quản trị viên</div>
+                            <div style={{ fontSize: 12, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
+                                Đang hoạt động
+                            </div>
                         </div>
                     </div>
+                    <button
+                        onClick={handleLogout}
+                        style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.15)',
+                            color: '#f87171',
+                            padding: '8px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s',
+                            outline: 'none',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
+                            e.currentTarget.style.color = '#ef4444';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                            e.currentTarget.style.color = '#f87171';
+                        }}
+                        title="Đăng xuất"
+                    >
+                        <IconLogout />
+                    </button>
                 </div>
             </aside>
 
@@ -455,7 +493,7 @@ export default function AdminDashboard() {
                                                         <td style={s.td}>
                                                             <span style={{ color: '#f59e0b', fontWeight: 600 }}>★ {store.rating}</span>
                                                             <span style={{ color: '#94a3b8', fontSize: 12, marginLeft: 4 }}>({store.reviews} ĐG)</span>
-                                                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Đã hoàn tất: <span style={{fontWeight:600}}>{store.totalOrders} đơn</span></div>
+                                                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Đã hoàn tất: <span style={{ fontWeight: 600 }}>{store.totalOrders} đơn</span></div>
                                                         </td>
                                                         <td style={s.td}>
                                                             <div style={{ color: store.package?.includes('Premium') ? '#ea580c' : '#475569', fontWeight: store.package?.includes('Premium') ? 600 : 400 }}>{store.package}</div>
@@ -498,7 +536,7 @@ export default function AdminDashboard() {
                                                             <div style={{ fontWeight: 600, color: '#0f172a' }}>{user.name}</div>
                                                             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{user.email} • {user.phone}</div>
                                                         </td>
-                                                        <td style={s.td}><span style={{fontWeight:600, color:'#2563eb'}}>{user.totalRequests}</span> Yêu cầu</td>
+                                                        <td style={s.td}><span style={{ fontWeight: 600, color: '#2563eb' }}>{user.totalRequests}</span> Yêu cầu</td>
                                                         <td style={{ ...s.td, textAlign: 'right' }}>
                                                             <span style={s.badge(user.status === 'ACTIVE' ? '#059669' : '#dc2626', user.status === 'ACTIVE' ? '#d1fae5' : '#fee2e2')}>{user.status}</span>
                                                             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Tham gia: {user.joinedAt}</div>
@@ -563,9 +601,9 @@ export default function AdminDashboard() {
                                                 <span style={{ position: 'absolute', top: 0, right: 0, backgroundColor: '#f97316', color: 'white', fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: '0 12px 0 8px' }}>Trả Phí</span>
                                             )}
                                             <div style={{ fontWeight: 800, fontSize: 17, color: '#0f172a', marginBottom: 4 }}>{pkg.name}</div>
-                                            
+
                                             <div style={{ fontSize: 28, fontWeight: 800, color: pkg.isPremium ? '#ea580c' : '#0f172a', margin: '16px 0' }}>{pkg.price}</div>
-                                            
+
                                             <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                                                     <span style={{ color: '#64748b' }}>Độ Phản Hồi AI:</span>
@@ -576,7 +614,7 @@ export default function AdminDashboard() {
                                                     <span style={{ fontWeight: 700, color: '#2563eb' }}>{pkg.activeStores} Cửa Hàng</span>
                                                 </div>
                                             </div>
-                                            
+
                                             <div style={{ display: 'flex', gap: 8 }}>
                                                 <button style={{ ...s.btn('#eff6ff', '#2563eb', '1px solid #bfdbfe'), flex: 1, justifyContent: 'center' }}>Cập nhật Mức Phí</button>
                                             </div>
