@@ -1,4 +1,5 @@
-const db = require('./db.js');
+require('dotenv').config();
+const db = require('./src/config/db.js');
 const bcrypt = require('bcryptjs');
 
 async function createAdmin() {
@@ -7,28 +8,34 @@ async function createAdmin() {
         const adminPassword = '123456';
         const adminName = 'Quản Trị Viên';
 
+        console.log('⏳ Đang kết nối database...');
+
         // Check if admin already exists
-        const [existing] = await db.query('SELECT * FROM users WHERE email = ?', [adminEmail]);
-        if (existing.length > 0) {
-            console.log('✅ Tài khoản admin đã tồn tại!');
-            console.log('📧 Email   :', adminEmail);
-            console.log('🔑 Mật khẩu: 123456');
-            process.exit(0);
-        }
+        // Sử dụng db.promise() vì kết nối mysql2 mặc định là callback-based
+        const [existing] = await db.promise().query('SELECT * FROM users WHERE email = ?', [adminEmail]);
 
         // Hash password
         const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-        // Insert admin
-        await db.query(
-            `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'ADMIN')`,
-            [adminName, adminEmail, hashedPassword]
-        );
+        if (existing.length > 0) {
+            // Update existing admin password
+            await db.promise().query(
+                `UPDATE users SET password = ?, name = ?, role = 'ADMIN' WHERE email = ?`,
+                [hashedPassword, adminName, adminEmail]
+            );
+            console.log('✅ Đã cập nhật lại (reset) tài khoản admin!');
+        } else {
+            // Insert admin
+            await db.promise().query(
+                `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'ADMIN')`,
+                [adminName, adminEmail, hashedPassword]
+            );
+            console.log('🎉 Tạo tài khoản admin mới thành công!');
+        }
 
-        console.log('🎉 Tạo tài khoản admin thành công!');
         console.log('----------------------------------------');
         console.log('📧 Email   :', adminEmail);
-        console.log('🔑 Mật khẩu: 123456 (đã hash)');
+        console.log('🔑 Mật khẩu: 123456');
         console.log('👤 Tên     :', adminName);
         console.log('🔐 Role    : ADMIN');
         console.log('----------------------------------------');
@@ -36,8 +43,11 @@ async function createAdmin() {
     } catch (err) {
         console.error('❌ Lỗi khi tạo admin:', err.message);
     } finally {
-        process.exit(0);
+        // Đóng kết nối để script kết thúc
+        db.end();
     }
 }
 
 createAdmin();
+
+// BẬT TERMINAL NHẬP "node create_acc_admin.js " để tạo tài khoản admin
