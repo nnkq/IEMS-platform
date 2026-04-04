@@ -12,6 +12,8 @@ export default function AdminDashboard() {
         usersList: [] // Added usersList
     });
     const [packages, setPackages] = useState([]);
+    const [currentPackage, setCurrentPackage] = useState("FREE"); // Default for sample
+    const handleOpenPayment = (pkg) => alert(`Đăng ký gói ${pkg}`);
     const [revenueData, setRevenueData] = useState([]);
     const [revenueStats, setRevenueStats] = useState({ totalCommission: 0, totalPremium: 0, totalProfit: 0 });
 
@@ -120,6 +122,11 @@ export default function AdminDashboard() {
     const IconShield = () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: 22, height: 22 }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>;
     const IconExternal = () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: 13, height: 13 }}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>;
     const IconLogout = () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: 18, height: 18 }}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg>;
+    const CheckIcon = ({ color = "#10b981" }) => (
+        <svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke={color} style={{ width: "16px", height: "16px", marginRight: "8px", flexShrink: 0, marginTop: "2px" }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+        </svg>
+    );
 
     // ======= STYLES =======
     const s = {
@@ -178,8 +185,8 @@ export default function AdminDashboard() {
         { id: 'approval', label: 'Phê Duyệt Cửa Hàng', icon: <IconStore />, group: 'core', count: pendingStores.length },
         { id: 'orders', label: 'Quản Lý Đơn Hàng', icon: <IconOrders />, group: 'core' },
         { id: 'users', label: 'Người Dùng & Đối Tác', icon: <IconUsers />, group: 'ext' },
-        { id: 'revenue', label: 'Báo Cáo Doanh Thu', icon: <IconRevenue />, group: 'ext' },
-        { id: 'packages', label: 'Quản Lý Gói Dịch Vụ', icon: <IconCrown />, group: 'ext' },
+        { id: 'revenue', label: 'Báo cáo doanh thu', icon: <IconRevenue />, group: 'ext' },
+        { id: 'packages', label: 'Gói quảng bá', icon: <IconCrown />, group: 'ext' },
     ];
 
     return (
@@ -582,46 +589,156 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
-                    {/* ===== TAB 5: GÓI DỊCH VỤ ===== */}
+                    {/* ===== TAB 5: QUẢN LÝ GÓI QUẢNG BÁ (DÀNH CHO ADMIN) ===== */}
                     {activeTab === 'packages' && (
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
+                        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
                                 <div>
-                                    <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>Gói Dịch Vụ (Subscription)</h1>
-                                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>Quản lý đặc quyền AI và thời gian trễ phản hồi của các cấp bậc Cửa Hàng.</p>
+                                    <h1 style={{ color: "#0f172a", margin: 0, fontSize: "28px", fontWeight: "bold" }}>Quản Lý Gói Quảng Bá</h1>
+                                    <p style={{ color: "#64748b", margin: "4px 0 0" }}>Cấu hình đặc quyền và theo dõi số lượng cửa hàng đăng ký.</p>
+                                </div>
+                                <div style={{ display: 'flex', gap: 12 }}>
+                                    <div style={{ ...s.badge('#2563eb', '#dbeafe'), padding: '8px 16px' }}>
+                                        Tổng doanh thu: {Number(revenueStats.totalPremium).toLocaleString()}đ
+                                    </div>
                                 </div>
                             </div>
-                            {packages.length === 0 ? (
-                                <div style={{ ...s.card, textAlign: 'center', padding: 48, color: '#94a3b8' }}>Chưa có gói dịch vụ nào.</div>
-                            ) : (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-                                    {packages.map(pkg => (
-                                        <div key={pkg.id} style={{ ...s.card, border: pkg.isPremium ? '2px solid #f97316' : '1px solid #e2e8f0', position: 'relative', paddingTop: pkg.isPremium ? 36 : 24 }}>
-                                            {pkg.isPremium && (
-                                                <span style={{ position: 'absolute', top: 0, right: 0, backgroundColor: '#f97316', color: 'white', fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: '0 12px 0 8px' }}>Trả Phí</span>
-                                            )}
-                                            <div style={{ fontWeight: 800, fontSize: 17, color: '#0f172a', marginBottom: 4 }}>{pkg.name}</div>
 
-                                            <div style={{ fontSize: 28, fontWeight: 800, color: pkg.isPremium ? '#ea580c' : '#0f172a', margin: '16px 0' }}>{pkg.price}</div>
-
-                                            <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
-                                                    <span style={{ color: '#64748b' }}>Độ Phản Hồi AI:</span>
-                                                    <span style={{ fontWeight: 700, color: pkg.jobDelayMinutes === 0 ? '#059669' : '#d97706' }}>{pkg.delayLabel}</span>
-                                                </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                                                    <span style={{ color: '#64748b' }}>Cửa hàng đang sử dụng:</span>
-                                                    <span style={{ fontWeight: 700, color: '#2563eb' }}>{pkg.activeStores} Cửa Hàng</span>
-                                                </div>
-                                            </div>
-
-                                            <div style={{ display: 'flex', gap: 8 }}>
-                                                <button style={{ ...s.btn('#eff6ff', '#2563eb', '1px solid #bfdbfe'), flex: 1, justifyContent: 'center' }}>Cập nhật Mức Phí</button>
-                                            </div>
-                                        </div>
-                                    ))}
+                            <div style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", borderRadius: "20px", padding: "32px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.4)", border: "1px solid #334155" }}>
+                                <div>
+                                    <span style={{ backgroundColor: "rgba(251, 191, 36, 0.15)", color: "#fbbf24", padding: "6px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", letterSpacing: "1.5px", border: "1px solid rgba(251, 191, 36, 0.3)" }}>THỐNG KÊ HỆ THỐNG</span>
+                                    <h2 style={{ margin: "16px 0 8px 0", fontSize: "32px", color: "white", display: "flex", alignItems: "center", gap: "12px" }}>
+                                        <svg fill="currentColor" viewBox="0 0 24 24" style={{ width: "36px", height: "36px", color: "#fbbf24" }}><path d="M11.644 1.59a.75.75 0 0 1 .712 0l9.75 5.25a.75.75 0 0 1 0 1.32l-9.75 5.25a.75.75 0 0 1-.712 0l-9.75-5.25a.75.75 0 0 1 0-1.32l9.75-5.25Z" /><path d="m3.265 10.602 7.667 4.128a1.25 1.25 0 0 0 1.136 0l7.667-4.128A1.251 1.251 0 0 0 21 10.601V15c0 .385-.224.734-.572.895l-7.833 3.613a1.455 1.455 0 0 1-1.19 0L3.572 15.895A.996.996 0 0 1 3 15v-4.399c0-.41.25-.783.621-.958l.644-.316Z" /></svg>
+                                        Dịch Vụ Premium
+                                    </h2>
+                                    <p style={{ margin: 0, color: "#cbd5e1", fontSize: "15px" }}>Đang có <b style={{ color: '#fbbf24' }}>{usersData.stats.premiumSubscriptions}</b> cửa hàng đang được hưởng đặc quyền hiển thị.</p>
                                 </div>
-                            )}
+                                <div style={{ textAlign: "right" }}>
+                                    <button onClick={() => setActiveTab('users')} style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", padding: "14px 28px", borderRadius: "12px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", transition: '0.2s' }}>
+                                        Quản lý Đối tác
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
+                                {packages.map((pkg, idx) => {
+                                    const isFree = pkg.price === "Miễn phí";
+                                    const isStorePremium = pkg.name.includes("Uy tín");
+                                    const isStrategic = pkg.name.includes("Chiến lược");
+
+                                    // Mapping colors based on package name or idx
+                                    let accentColor = "#64748b";
+                                    let borderColor = "#e2e8f0";
+                                    let subHeading = "Top Search";
+
+                                    if (isStorePremium) { accentColor = "#3b82f6"; borderColor = "#3b82f6"; subHeading = "Verified Store"; }
+                                    if (isStrategic) { accentColor = "#d97706"; borderColor = "#fbbf24"; subHeading = "Premium Partner"; }
+
+                                    return (
+                                        <div key={pkg.id} style={{ backgroundColor: "white", borderRadius: "20px", padding: "32px", border: `2px solid ${borderColor}`, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.05)", position: "relative" }}>
+                                            <h3 style={{ margin: "0 0 8px 0", color: accentColor, fontSize: "18px", fontWeight: "bold" }}>{subHeading}</h3>
+                                            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#0f172a", marginBottom: "8px" }}>{pkg.name}</div>
+                                            <div style={{ color: "#64748b", marginBottom: "24px", fontWeight: 600 }}>{pkg.price}</div>
+                                            <div style={{ height: "1px", backgroundColor: "#f1f5f9", margin: "20px 0" }}></div>
+                                            
+                                            <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 24 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                                                    <span style={{ color: '#64748b', fontSize: 13 }}>Cửa hàng đang sử dụng:</span>
+                                                    <span style={{ fontWeight: 800, color: '#2563eb' }}>{pkg.activeStores}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span style={{ color: '#64748b', fontSize: 13 }}>Tốc độ phản hồi AI:</span>
+                                                    <span style={{ fontWeight: 700, color: pkg.jobDelayMinutes === 0 ? '#059669' : '#d97706', fontSize: 13 }}>{pkg.delayLabel}</span>
+                                                </div>
+                                            </div>
+
+                                            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 32px 0", display: "flex", flexDirection: "column", gap: "16px", color: "#475569", fontSize: "14px" }}>
+                                                <li style={{ display: "flex" }}><CheckIcon color={accentColor} /> Tên cửa hàng lên top tìm kiếm</li>
+                                                <li style={{ display: "flex" }}><CheckIcon color={accentColor} /> Hiển thị đặc biệt trên Map</li>
+                                                {isFree ? (
+                                                    <li style={{ display: "flex", color: "#cbd5e1" }}><svg fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" style={{ width: "16px", height: "16px", marginRight: "8px", flexShrink: 0, marginTop: "2px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg> Huy hiệu Xác thực</li>
+                                                ) : (
+                                                    <li style={{ display: "flex" }}><CheckIcon color={accentColor} /> {isStrategic ? "Viền phát sáng Bản đồ" : "Huy hiệu Xác thực xanh"}</li>
+                                                )}
+                                            </ul>
+                                            
+                                            <button style={{ width: "100%", padding: "12px", borderRadius: "10px", backgroundColor: isFree ? "#f8fafc" : accentColor, color: isFree ? "#64748b" : "white", border: isFree ? '1px solid #e2e8f0' : "none", fontWeight: "bold", cursor: "pointer", transition: '0.2s' }}>
+                                                Thiết Lập Đặc Quyền
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* ===== PHẦN MỚI: DANH SÁCH CHI TIẾT CỬA HÀNG ĐANG SỬ DỤNG ===== */}
+                            <div style={{ marginTop: 48 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                    <h3 style={{ margin: 0, fontSize: 20, color: '#0f172a', fontWeight: 700 }}>Danh Sách Đối Soát Gói Dịch Vụ</h3>
+                                    <span style={s.badge('#3b82f6', '#eff6ff')}>{usersData.storesList.length} Cửa hàng Active</span>
+                                </div>
+                                
+                                <div style={{ ...s.card, padding: 0, overflow: 'hidden' }}>
+                                    <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Theo dõi biến động đăng ký</span>
+                                        <span style={{ fontSize: 13, color: '#2563eb', cursor: 'pointer', fontWeight: 600 }}>Tải báo cáo CSV</span>
+                                    </div>
+                                    
+                                    <table style={s.table}>
+                                        <thead>
+                                            <tr>
+                                                <th style={s.th}>Cửa Hàng</th>
+                                                <th style={s.th}>Gói Quảng Bá</th>
+                                                <th style={s.th}>Hiệu Lực</th>
+                                                <th style={s.th}>Doanh Thu Thu Được</th>
+                                                <th style={{ ...s.th, textAlign: 'right' }}>Hành Động</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {usersData.storesList.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={5} style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>Chưa có cửa hàng nào đăng ký.</td>
+                                                </tr>
+                                            ) : (
+                                                usersData.storesList.map(store => {
+                                                    const isPremium = store.package?.includes('Premium') || store.package?.includes('Uy tín');
+                                                    return (
+                                                        <tr key={store.id} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}>
+                                                            <td style={s.td}>
+                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{store.name}</div>
+                                                                <div style={{ fontSize: 12, color: '#94a3b8' }}>ID: {store.id} • {store.owner}</div>
+                                                            </td>
+                                                            <td style={s.td}>
+                                                                <span style={{ 
+                                                                    ...s.badge(isPremium ? '#d97706' : '#64748b', isPremium ? '#fffbeb' : '#f1f5f9'), 
+                                                                    border: isPremium ? '1px solid #fde68a' : 'none' 
+                                                                }}>
+                                                                    {store.package}
+                                                                </span>
+                                                            </td>
+                                                            <td style={s.td}>
+                                                                <div style={{ fontWeight: 600 }}>Hết hạn: {store.packageExpiry}</div>
+                                                                <div style={{ fontSize: 11, color: '#94a3b8' }}>Ngày ĐK: {store.joinedAt}</div>
+                                                            </td>
+                                                            <td style={s.td}>
+                                                                <div style={{ fontWeight: 800, color: '#059669' }}>
+                                                                    {isPremium ? (store.package?.includes('Chiến lược') ? '1,000,000đ' : '500,000đ') : '0đ'}
+                                                                </div>
+                                                                <div style={{ fontSize: 11, color: '#94a3b8' }}>Đã thanh toán</div>
+                                                            </td>
+                                                            <td style={{ ...s.td, textAlign: 'right' }}>
+                                                                <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                                                    <button style={{ ...s.btn('#f1f5f9', '#475569'), padding: '6px 12px', fontSize: 12 }}>Gia hạn</button>
+                                                                    <button style={{ ...s.btn('#eff6ff', '#2563eb'), padding: '6px 12px', fontSize: 12 }}>Sửa</button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

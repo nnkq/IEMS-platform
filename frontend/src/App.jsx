@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import StoreDashboard from "./pages/StoreDashboard"; 
 import TechnicianDashboard from './pages/TechnicianDashboard';
 import TechnicianLogin from './pages/TechnicianLogin';
+import AdminDashboard from './pages/AdminDashboard'; // Import AdminDashboard
 import "./App.css";
 
 function PrivateRoute({ children }) {
@@ -66,6 +67,16 @@ function App() {
         element={
           <PrivateRoute>
             <TechnicianDashboard />
+          </PrivateRoute>
+        }
+      />
+
+      {/*  ĐÃ THÊM: Route bảo vệ cho Admin Dashboard */}
+      <Route
+        path="/admin"
+        element={
+          <PrivateRoute>
+            <AdminDashboard />
           </PrivateRoute>
         }
       />
