@@ -1,7 +1,5 @@
 -- ============================================================
---  IEMS DATABASE - COMPLETE SCRIPT (merged from all files)
---  Generated: 2026-03-29
---  Run once on a fresh MySQL server.
+--  IEMS DATABASE - COMPLETE SCRIPT (ĐÃ CẬP NHẬT THỢ & BÁO CÁO)
 -- ============================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
@@ -88,7 +86,22 @@ CREATE TABLE stores (
 CREATE INDEX idx_store_location ON stores(latitude, longitude);
 
 -- ============================================================
---  6. REPAIR REQUESTS
+--  5.5 EMPLOYEES (🚀 ĐÃ THÊM MỚI: BẢNG NHÂN VIÊN/THỢ SỬA CHỮA)
+-- ============================================================
+CREATE TABLE employees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    store_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    specialty VARCHAR(255),
+    phone VARCHAR(20) NOT NULL,
+    password VARCHAR(255) DEFAULT 'abc123',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT fk_employees_store FOREIGN KEY (store_id) REFERENCES stores(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+--  6. REPAIR REQUESTS (🚀 ĐÃ CẬP NHẬT THÊM EMPLOYEE_ID & NOTE)
 -- ============================================================
 CREATE TABLE repair_requests (
   id           INT AUTO_INCREMENT PRIMARY KEY,
@@ -107,11 +120,17 @@ CREATE TABLE repair_requests (
   brand        VARCHAR(100)  NULL,
   model        VARCHAR(100)  NULL,
   symptoms     TEXT          NULL,
-  status       ENUM('OPEN','QUOTED','IN_PROGRESS','COMPLETED','CANCELLED') NOT NULL DEFAULT 'OPEN',
+  status       ENUM('OPEN','QUOTED','IN_PROGRESS','COMPLETED','CANCELLED', 'REJECTED') NOT NULL DEFAULT 'OPEN',
+  
+  -- 2 Cột mới để chia đơn cho thợ
+  employee_id INT NULL,
+  technician_note TEXT NULL,
+  
   created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
   CONSTRAINT fk_repair_requests_user   FOREIGN KEY (user_id)   REFERENCES users(id),
-  CONSTRAINT fk_repair_requests_device FOREIGN KEY (device_id) REFERENCES devices(id)
+  CONSTRAINT fk_repair_requests_device FOREIGN KEY (device_id) REFERENCES devices(id),
+  CONSTRAINT fk_repair_requests_emp    FOREIGN KEY (employee_id) REFERENCES employees(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_request_location ON repair_requests(latitude, longitude);
