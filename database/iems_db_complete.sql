@@ -316,3 +316,7 @@ ALTER TABLE repair_requests
 ADD CONSTRAINT fk_repair_requests_store 
 FOREIGN KEY (store_id) REFERENCES stores(id);
 
+USE iems_db;
+
+ALTER TABLE repair_requests 
+ADD COLUMN image LONGTEXT NULL AFTER description;

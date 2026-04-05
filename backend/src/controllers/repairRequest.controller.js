@@ -105,7 +105,7 @@ exports.createRepairRequest = async (req, res) => {
       store_id, // <-- CỘT MỚI: Khách hàng tự chọn Cửa hàng nào thì Frontend gửi ID đó xuống
       device_id, title, description, budget, location,
       latitude, longitude, phone, desired_date, service_mode,
-      device_type, brand, model, symptoms
+      device_type, brand, model, symptoms,image
     } = req.body;
 
     // ✅ CHUẨN HÓA DATA
@@ -126,6 +126,7 @@ exports.createRepairRequest = async (req, res) => {
     const cleanLongitude = toNumberOrNull(longitude);
     const cleanBudget = toNumberOrNull(budget);
     const cleanDeviceId = toNumberOrNull(device_id);
+    const cleanImage = toStringOrNull(image);
 
     // ❗ VALIDATE
     if (!cleanTitle || !cleanDescription) {
@@ -180,10 +181,11 @@ exports.createRepairRequest = async (req, res) => {
         brand,
         model,
         symptoms,
+        image,
         status,
         created_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', NOW())
     `;
 
     const insertValues = [
@@ -203,6 +205,7 @@ exports.createRepairRequest = async (req, res) => {
       cleanBrand,
       cleanModel,
       cleanSymptoms,
+      cleanImage,
     ];
 
     const result = await queryAsync(insertSql, insertValues);
@@ -284,9 +287,9 @@ exports.getMyRepairRequests = (req, res) => {
         location: row.location || "",
         device_name: `${row.brand || ''} ${row.model || ''}`.trim() || row.device_type || "Thiết bị chưa rõ",
         device_category: row.device_type || 'Chưa phân loại',
-        // 🚀 THÊM 2 DÒNG NÀY ĐỂ GỬI BÁO CÁO CỦA THỢ LÊN FRONTEND
         technician_note: row.technician_note || null,
-        extra_cost: row.extra_cost || 0
+        extra_cost: row.extra_cost || 0,
+        image: row.image || null // <-- THÊM DÒNG NÀY ĐỂ FRONTEND NHẬN ĐƯỢC ẢNH
       };
     });
 
@@ -334,8 +337,9 @@ exports.getOngoingRepairs = async (req, res) => {
         }
 
         // ĐÃ FIX: Sửa user_id = ? thành store_id = ?
+        // ĐÃ FIX: Lấy thêm cột image
         const query = `
-            SELECT id, user_id, title, brand, model, device_type, status
+            SELECT id, user_id, title, brand, model, device_type, status, image
             FROM repair_requests
             WHERE store_id = ? AND status = 'IN_PROGRESS'
         `;
@@ -354,6 +358,7 @@ exports.getOngoingRepairs = async (req, res) => {
             message: 'Đã xảy ra lỗi server khi lấy dữ liệu.',
             error: error.message 
         });
+        
     }
 };
 

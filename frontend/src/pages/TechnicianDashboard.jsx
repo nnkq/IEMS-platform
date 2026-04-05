@@ -163,6 +163,32 @@ export default function TechnicianDashboard() {
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#64748b", marginBottom: "6px" }}>Loại thiết bị</label>
                   <div style={{ padding: "12px 16px", backgroundColor: "white", borderRadius: "10px", border: "1px solid #cbd5e1", color: "#0f172a", fontWeight: "500" }}>{selectedRequest.device_type || "Không rõ"}</div>
                 </div>
+                <div style={{ marginBottom: "20px" }}>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#64748b", marginBottom: "6px" }}>Mô tả chi tiết</label>
+                  <div style={{ padding: "16px", backgroundColor: "white", borderRadius: "10px", border: "1px solid #cbd5e1", color: "#334155", minHeight: "80px", whiteSpace: "pre-wrap", lineHeight: "1.6" }}>
+                    {selectedRequest.description || "Không có mô tả chi tiết."}
+                  </div>
+                </div>
+
+                {/* 🚀 THÊM KHU VỰC HIỂN THỊ ẢNH CỦA KHÁCH DÀNH CHO THỢ Ở ĐÂY */}
+                {selectedRequest.image && (
+                  <div style={{ marginBottom: "20px" }}>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#64748b", marginBottom: "6px" }}>Hình ảnh thiết bị lỗi</label>
+                    <img 
+                      src={selectedRequest.image} 
+                      alt="Ảnh thiết bị" 
+                      style={{ 
+                        width: "100%", 
+                        maxHeight: "300px", 
+                        objectFit: "contain", 
+                        borderRadius: "10px", 
+                        border: "1px dashed #cbd5e1",
+                        backgroundColor: "white",
+                        padding: "8px"
+                      }} 
+                    />
+                  </div>
+                )}
                 <div>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#64748b", marginBottom: "6px" }}>Thương hiệu</label>
                   <div style={{ padding: "12px 16px", backgroundColor: "white", borderRadius: "10px", border: "1px solid #cbd5e1", color: "#0f172a", fontWeight: "500" }}>{selectedRequest.brand || "Không rõ"}</div>

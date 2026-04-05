@@ -143,18 +143,23 @@ export default function Home() {
     }
   };
 
-  const handleOpenStoreSelection = () => {
+  const handleOpenSummary = () => {
     if (!issueTitle.trim() || !description.trim()) {
       alert("Vui lòng nhập tiêu đề và mô tả lỗi");
       return;
     }
-
-    if (userLocation.lat == null || userLocation.lng == null) {
-      alert("Vui lòng bấm 'Lấy vị trí hiện tại' trước");
+    if (!userLocation.lat || !userLocation.lng) {
+      alert("Vui lòng chọn một địa chỉ từ danh sách gợi ý.");
       return;
     }
+    // Mở modal tóm tắt thay vì cửa hàng
+    setShowSummaryModal(true);
+  };
 
-    setIsModalOpen(true);
+  // Nút này sẽ nằm trong modal Tóm tắt
+  const proceedToStoreSelection = () => {
+    setShowSummaryModal(false);
+    setIsModalOpen(true); // Mở modal chọn cửa hàng
   };
 
   const submitRepairRequestWithStore = async (selectedStoreId) => {
@@ -175,6 +180,7 @@ export default function Home() {
         brand: brand || null,
         model: model || null,
         symptoms: symptoms.join(", "),
+        image: imageFile || null,
       };
 
       console.log("payload:", payload);
@@ -582,7 +588,72 @@ export default function Home() {
     const data = await res.json();
     console.log("Stores gần:", data);
   };
+  // --- STATE MỚI THÊM ---
+  const [imageFile, setImageFile] = useState(""); // Lưu ảnh dạng Base64
+  const [showSummaryModal, setShowSummaryModal] = useState(false); // Modal tóm tắt
+  
+  // State cho Autocomplete Địa chỉ
+  const searchTimeout = useRef(null);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
 
+  // Hàm chuyển file ảnh sang Base64 để gửi API
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageFile(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Hàm bỏ ảnh đã chọn
+  const removeImage = () => setImageFile("");
+
+  // Hàm gọi API tìm kiếm địa chỉ (Dùng OpenStreetMap Nominatim - Miễn phí, không cần Key)
+  // Đã ưu tiên khu vực Đà Nẵng theo ngữ cảnh hiện tại.
+  // Hàm gọi API tìm kiếm địa chỉ (Đã bổ sung Debounce chống Spam API)
+  const searchAddress = (text) => {
+    setAddress(text);
+    
+    // 1. Chặn gọi API nếu gõ quá ngắn
+    if (text.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+      return;
+    }
+
+    // 2. XÓA lệnh gọi API cũ nếu người dùng vẫn đang gõ liên tục
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+
+    // 3. DEBOUNCE: Thiết lập chờ 500ms (nửa giây) sau khi người dùng DỪNG GÕ mới gọi API
+    searchTimeout.current = setTimeout(async () => {
+      setIsSearchingAddress(true);
+      try {
+        const searchQuery = `${text}, Đà Nẵng, Việt Nam`;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`);
+        const data = await res.json();
+        
+        setAddressSuggestions(data);
+        setShowAddressDropdown(true);
+      } catch (error) {
+        console.error("Lỗi tìm địa chỉ:", error);
+      } finally {
+        setIsSearchingAddress(false);
+      }
+    }, 500); // 500ms là thời gian chờ
+  };
+
+  const handleSelectAddress = (item) => {
+    setAddress(item.display_name);
+    setUserLocation({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
+    setShowAddressDropdown(false);
+  };
   return (
     <div className="iems-root">
       <div
@@ -996,257 +1067,345 @@ export default function Home() {
           {activePage === "request" && (
             <section className="page active">
               <div className="page-grid">
-                <div>
-                  <span className="eyebrow">YÊU CẦU SỬA CHỮA</span>
-                  <h2 className="page-title">Form tạo yêu cầu sửa chữa</h2>
-                  <p className="muted">
-                    Form này đã nối API tạo request. Sau khi gửi thành công, tab Theo dõi sẽ tải
-                    lại dữ liệu trực tiếp từ database.
+                <div style={{ marginBottom: "16px" }}>
+                  <h2 className="page-title" style={{ margin: "0 0 8px 0" }}>Tạo yêu cầu mới</h2>
+                  <p className="muted" style={{ margin: 0 }}>
+                    Điền thông tin tình trạng máy của bạn. Hệ thống sẽ giúp bạn tìm cửa hàng phù hợp nhất.
                   </p>
                 </div>
 
-                <div className="request-layout">
-                  <div className="surface">
-                    <div className="note-banner">
-                      Sau khi điền form và bấm gửi, bạn sẽ được chọn Cửa hàng để giao máy.
-                    </div>
+                {/* Đã bỏ maxWidth, set width 100% để full màn hình */}
+                <div className="surface" style={{ width: "100%", padding: "20px" }}>
+                  
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                    }}
+                  >
+                    {/* SỬ DỤNG CSS GRID ĐỂ CHIA 3 CỘT - GIẢM CHIỀU CAO FORM ĐỂ KHÔNG CẦN SCROLL */}
+                    <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", alignItems: "start" }}>
+                      
+                      {/* DÒNG 1: Loại thiết bị - Thương hiệu - Model (3 cột) */}
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label htmlFor="deviceType">Loại thiết bị</label>
+                        <select
+                          id="deviceType"
+                          value={deviceType}
+                          onChange={(e) => setDeviceType(e.target.value)}
+                        >
+                          <option>Điện thoại</option>
+                          <option>Laptop</option>
+                          <option>Máy tính bảng</option>
+                          <option>Thiết bị thông minh</option>
+                        </select>
+                      </div>
 
-                    <div className="space-18" />
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label htmlFor="brand">Thương hiệu</label>
+                        <select
+                          id="brand"
+                          value={brand}
+                          onChange={(e) => setBrand(e.target.value)}
+                        >
+                          <option>Apple</option>
+                          <option>Samsung</option>
+                          <option>Dell</option>
+                          <option>Xiaomi</option>
+                          <option>Ecovacs</option>
+                        </select>
+                      </div>
 
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                      }}
-                    >
-                      <div className="form-grid">
-                        <div className="form-group">
-                          <label htmlFor="deviceType">Loại thiết bị</label>
-                          <select
-                            id="deviceType"
-                            value={deviceType}
-                            onChange={(e) => setDeviceType(e.target.value)}
-                          >
-                            <option>Điện thoại</option>
-                            <option>Laptop</option>
-                            <option>Máy tính bảng</option>
-                            <option>Thiết bị thông minh</option>
-                          </select>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label htmlFor="model">Model / dòng máy</label>
+                        <input
+                          id="model"
+                          type="text"
+                          value={model}
+                          placeholder="Ví dụ: iPhone 12, Dell Inspiron 14..."
+                          onChange={(e) => setModel(e.target.value)}
+                        />
+                      </div>
+
+                      {/* DÒNG 2: Tiêu đề vấn đề (chiếm 2 cột) - SĐT (chiếm 1 cột) */}
+                      <div className="form-group" style={{ margin: 0, gridColumn: "span 2" }}>
+                        <label htmlFor="issueTitle">Tiêu đề vấn đề</label>
+                        <input
+                          id="issueTitle"
+                          type="text"
+                          value={issueTitle}
+                          placeholder="Ví dụ: Màn hình sọc xanh và cảm ứng chậm"
+                          onChange={(e) => setIssueTitle(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label htmlFor="phone">Số điện thoại liên hệ</label>
+                        <input
+                          id="phone"
+                          type="text"
+                          value={phone}
+                          placeholder="09xxxxxxxx"
+                          onChange={(e) => setPhone(e.target.value)}
+                        />
+                      </div>
+
+                      {/* DÒNG 3: Nhóm lỗi liên quan (Chiếm full 3 cột) */}
+                      <div className="form-group" style={{ margin: 0, gridColumn: "span 3" }}>
+                        <label>Nhóm lỗi liên quan</label>
+                        <div className="pill-row">
+                          {["Màn hình", "Cảm ứng", "Pin", "Camera", "Nguồn", "Tản nhiệt"].map(
+                            (item) => (
+                              <label className="pill" key={item}>
+                                <input
+                                  type="checkbox"
+                                  checked={symptoms.includes(item)}
+                                  onChange={() => toggleSymptom(item)}
+                                />
+                                <span>{item}</span>
+                              </label>
+                            )
+                          )}
                         </div>
+                      </div>
 
-                        <div className="form-group">
-                          <label htmlFor="brand">Thương hiệu</label>
-                          <select
-                            id="brand"
-                            value={brand}
-                            onChange={(e) => setBrand(e.target.value)}
-                          >
-                            <option>Apple</option>
-                            <option>Samsung</option>
-                            <option>Dell</option>
-                            <option>Xiaomi</option>
-                            <option>Ecovacs</option>
-                          </select>
-                        </div>
-
-                        <div className="form-group full">
-                          <label htmlFor="model">Model / dòng máy</label>
-                          <input
-                            id="model"
-                            type="text"
-                            value={model}
-                            placeholder="Ví dụ: iPhone 12, Dell Inspiron 14..."
-                            onChange={(e) => setModel(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-group full">
-                          <label htmlFor="issueTitle">Tiêu đề vấn đề</label>
-                          <input
-                            id="issueTitle"
-                            type="text"
-                            value={issueTitle}
-                            placeholder="Ví dụ: Màn hình sọc xanh và cảm ứng chậm"
-                            onChange={(e) => setIssueTitle(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-group full">
-                          <label>Nhóm lỗi liên quan</label>
-                          <div className="pill-row">
-                            {["Màn hình", "Cảm ứng", "Pin", "Camera", "Nguồn", "Tản nhiệt"].map(
-                              (item) => (
-                                <label className="pill" key={item}>
-                                  <input
-                                    type="checkbox"
-                                    checked={symptoms.includes(item)}
-                                    onChange={() => toggleSymptom(item)}
-                                  />
-                                  <span>{item}</span>
-                                </label>
-                              )
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="form-group full">
-                          <label htmlFor="description">Mô tả chi tiết</label>
-                          <textarea
-                            id="description"
-                            value={description}
-                            placeholder="Mô tả lỗi xuất hiện khi nào, tần suất, có rơi vỡ hay vào nước không..."
-                            onChange={(e) => setDescription(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-group full">
-                          <label>Hình thức tiếp nhận</label>
-                          <div className="pill-row">
-                            {["Mang đến cửa hàng", "Nhận tận nơi", "Kiểm tra tại chỗ"].map(
-                              (item) => (
-                                <label className="pill" key={item}>
-                                  <input
-                                    type="radio"
-                                    name="serviceMode"
-                                    value={item}
-                                    checked={serviceMode === item}
-                                    onChange={(e) => setServiceMode(e.target.value)}
-                                  />
-                                  <span>{item}</span>
-                                </label>
-                              )
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="form-group">
-                          <label htmlFor="budget">Ngân sách dự kiến</label>
-                          <input
-                            id="budget"
-                            type="number"
-                            value={budget}
-                            onChange={(e) => setBudget(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label htmlFor="desiredDate">Ngày mong muốn</label>
-                          <input
-                            id="desiredDate"
-                            type="date"
-                            value={desiredDate}
-                            onChange={(e) => setDesiredDate(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label htmlFor="phone">Số điện thoại liên hệ</label>
-                          <input
-                            id="phone"
-                            type="text"
-                            value={phone}
-                            placeholder="09xxxxxxxx"
-                            onChange={(e) => setPhone(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label htmlFor="address">Địa chỉ nhận máy</label>
+                      {/* DÒNG 4: Địa chỉ (chiếm 2 cột) - Ngân sách (chiếm 1 cột) */}
+                      <div className="form-group" style={{ margin: 0, position: "relative", gridColumn: "span 2" }}>
+                        <label htmlFor="address">Địa chỉ của bạn</label>
+                        <div className="search-shell" style={{ width: "100%", margin: 0, padding: "0 12px", border: "1px solid #dbe2ea", borderRadius: "12px", background: "#fff", display: "flex", alignItems: "center" }}>
+                          <span style={{ color: "#94a3b8", paddingRight: "8px" }}>📍</span>
                           <input
                             id="address"
                             type="text"
                             value={address}
-                            placeholder="Dùng khi pickup hoặc kiểm tra tận nơi"
-                            onChange={(e) => setAddress(e.target.value)}
+                            placeholder="Nhập địa chỉ (VD: 109 Nguyễn Thuật)..."
+                            onChange={(e) => searchAddress(e.target.value)}
+                            onFocus={() => addressSuggestions.length > 0 && setShowAddressDropdown(true)}
+                            autoComplete="off"
+                            style={{ border: "none", outline: "none", padding: "10px 0", width: "100%", background: "transparent" }}
                           />
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={getCurrentLocation}
-                            disabled={loadingLocation}
+                          {isSearchingAddress && <span style={{fontSize: "12px", color: "#64748b", whiteSpace: "nowrap"}}>Đang tìm...</span>}
+                        </div>
+
+                        {/* Dropdown Gợi ý địa chỉ từ API */}
+                        {showAddressDropdown && addressSuggestions.length > 0 && (
+                          <div className="address-dropdown" style={{
+                            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
+                            backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "12px",
+                            marginTop: "4px", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                            maxHeight: "200px", overflowY: "auto"
+                          }}>
+                            {addressSuggestions.map((item, index) => {
+                              const nameParts = item.display_name.split(",");
+                              const mainText = nameParts[0];
+                              const subText = nameParts.slice(1).join(",").trim();
+
+                              return (
+                                <div key={index} onClick={() => handleSelectAddress(item)} style={{
+                                  padding: "10px 16px", borderBottom: "1px solid #f1f5f9", cursor: "pointer",
+                                  display: "flex", alignItems: "flex-start", gap: "12px"
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                                >
+                                  <span style={{ color: "#94a3b8", marginTop: "2px" }}>⚲</span>
+                                  <div>
+                                    <strong style={{ display: "block", color: "#0f172a", fontSize: "14px" }}>{mainText}</strong>
+                                    <span style={{ color: "#64748b", fontSize: "13px" }}>{subText}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label htmlFor="budget">Ngân sách dự kiến (VND)</label>
+                        <input
+                          id="budget"
+                          type="number"
+                          value={budget}
+                          onChange={(e) => setBudget(e.target.value)}
+                        />
+                      </div>
+
+                      {/* DÒNG 5: Hình thức tiếp nhận (chiếm 2 cột) - Ngày mong muốn (chiếm 1 cột) */}
+                      <div className="form-group" style={{ margin: 0, gridColumn: "span 2" }}>
+                        <label>Hình thức tiếp nhận</label>
+                        <div className="pill-row">
+                          {["Mang đến cửa hàng", "Nhận tận nơi", "Kiểm tra tại chỗ"].map(
+                            (item) => (
+                              <label className="pill" key={item}>
+                                <input
+                                  type="radio"
+                                  name="serviceMode"
+                                  value={item}
+                                  checked={serviceMode === item}
+                                  onChange={(e) => setServiceMode(e.target.value)}
+                                />
+                                <span>{item}</span>
+                              </label>
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label htmlFor="desiredDate">Ngày mong muốn</label>
+                        <input
+                          id="desiredDate"
+                          type="date"
+                          value={desiredDate}
+                          onChange={(e) => setDesiredDate(e.target.value)}
+                        />
+                      </div>
+
+                      {/* DÒNG 6: Mô tả chi tiết (chiếm 2 cột) - Tải ảnh (chiếm 1 cột) */}
+                      <div className="form-group" style={{ margin: 0, gridColumn: "span 2" }}>
+                        <label htmlFor="description">Mô tả chi tiết</label>
+                        <textarea
+                          id="description"
+                          value={description}
+                          placeholder="Mô tả lỗi xuất hiện khi nào, tần suất, có rơi vỡ hay vào nước không..."
+                          onChange={(e) => setDescription(e.target.value)}
+                          style={{ height: "100px", resize: "none" }}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Hình ảnh thiết bị (Không bắt buộc)</label>
+                        {!imageFile ? (
+                          <div className="image-upload-box" style={{ 
+                            border: "2px dashed #cbd5e1", padding: "16px", textAlign: "center", 
+                            borderRadius: "12px", cursor: "pointer", backgroundColor: "#f8fafc", transition: "all 0.2s",
+                            height: "100px", display: "flex", alignItems: "center", justifyItems: "center"
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.borderColor = "#3b82f6"}
+                          onMouseOut={(e) => e.currentTarget.style.borderColor = "#cbd5e1"}
                           >
-                            {loadingLocation ? "Đang lấy vị trí..." : "📍 Lấy vị trí hiện tại"}
-                          </button>
-                        </div>
+                            <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} id="file-upload" />
+                            <label htmlFor="file-upload" style={{ cursor: "pointer", display: "block", width: "100%" }}>
+                              <div style={{ fontSize: "24px", marginBottom: "4px" }}>📸</div>
+                              <span style={{ fontWeight: "500", color: "#0f172a", fontSize: "13px" }}>Tải ảnh lên</span>
+                            </label>
+                          </div>
+                        ) : (
+                          <div style={{ position: "relative", display: "inline-block", padding: "4px", border: "1px solid #e2e8f0", borderRadius: "12px", backgroundColor: "#f8fafc", height: "100px", width: "100%" }}>
+                            <img src={imageFile} alt="Preview" style={{ height: "100%", width: "100%", borderRadius: "8px", objectFit: "cover", display: "block" }} />
+                            <button type="button" onClick={removeImage} style={{ 
+                              position: "absolute", top: "-8px", right: "-8px", background: "#ef4444", 
+                              color: "white", border: "none", borderRadius: "50%", width: "24px", height: "24px", cursor: "pointer",
+                              display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 4px rgba(0,0,0,0.2)", fontSize: "12px"
+                            }}>✕</button>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="hero-actions mt-22">
-                        <button
-                          className="btn btn-primary"
-                          type="button"
-                          onClick={handleOpenStoreSelection}
-                        >
-                          Gửi yêu cầu
-                        </button>
-                        <button className="btn btn-secondary" type="button" onClick={resetForm}>
-                          Làm mới form
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-
-                  <aside className="aside-card">
-                    <div className="section-head">
-                      <div>
-                        <span className="eyebrow">TÓM TẮT</span>
-                        <h3 className="section-title">Bản xem trước yêu cầu</h3>
-                      </div>
                     </div>
 
-                    <div className="summary-box">
-                      <div className="summary-list">
-                        <div className="summary-row">
-                          <span>Thiết bị</span>
-                          <strong>
-                            {deviceType} · {brand}
-                          </strong>
-                        </div>
-                        <div className="summary-row">
-                          <span>Model</span>
-                          <strong>{previewModel}</strong>
-                        </div>
-                        <div className="summary-row">
-                          <span>Nhóm lỗi</span>
-                          <strong>{previewSymptoms}</strong>
-                        </div>
-                        <div className="summary-row">
-                          <span>Hình thức</span>
-                          <strong>{serviceMode}</strong>
-                        </div>
-                        <div className="summary-row">
-                          <span>Khoảng giá tham khảo</span>
-                          <strong>{previewBudget}</strong>
-                        </div>
-                      </div>
+                    <div className="hero-actions" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "16px", marginTop: "16px", display: "flex", justifyContent: "flex-end" }}>
+                      <button className="btn btn-secondary" type="button" onClick={resetForm} style={{ marginRight: "12px" }}>
+                        Làm mới form
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        type="button"
+                        onClick={handleOpenSummary}
+                      >
+                        Tiếp tục
+                      </button>
                     </div>
-                  </aside>
+                  </form>
                 </div>
               </div>
 
-              {isModalOpen && (
+              {/* BƯỚC 1: MODAL TÓM TẮT YÊU CẦU */}
+              {showSummaryModal && (
                 <div className="modal-overlay" style={{
                   position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                  backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-                  padding: '20px'
+                  backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: "blur(4px)"
                 }}>
                   <div className="modal-content" style={{
                     backgroundColor: 'white', padding: '30px', borderRadius: '24px',
-                    width: '100%', maxWidth: '600px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+                    width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
                   }}>
-                    <h2 style={{ marginBottom: '10px', color: '#111' }}>Chọn Cửa Hàng</h2>
-                    <p className="muted" style={{ marginBottom: '20px', color: '#666' }}>Dưới đây là các cửa hàng đã xác minh. Hãy chọn nơi bạn muốn gửi máy.</p>
+                    <div style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: "16px", marginBottom: "20px" }}>
+                      <h2 style={{ margin: 0, color: '#0f172a' }}>Tóm tắt yêu cầu</h2>
+                      <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "14px" }}>Kiểm tra lại thông tin trước khi chọn cửa hàng</p>
+                    </div>
+                    
+                    <div className="summary-list" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <span style={{ color: "#64748b", minWidth: "100px" }}>Thiết bị:</span>
+                        <strong style={{ textAlign: "right", color: "#0f172a" }}>{deviceType} · {brand}<br/>{previewModel}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <span style={{ color: "#64748b", minWidth: "100px" }}>Vấn đề:</span>
+                        <strong style={{ textAlign: "right", color: "#0f172a" }}>{issueTitle}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <span style={{ color: "#64748b", minWidth: "100px" }}>Nhóm lỗi:</span>
+                        <strong style={{ textAlign: "right", color: "#0f172a" }}>{previewSymptoms}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <span style={{ color: "#64748b", minWidth: "100px" }}>Hình thức:</span>
+                        <strong style={{ textAlign: "right", color: "#0f172a" }}>{serviceMode}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <span style={{ color: "#64748b", minWidth: "100px" }}>Địa chỉ:</span>
+                        <strong style={{ textAlign: "right", maxWidth: "70%", color: "#0f172a", lineHeight: "1.4" }}>{address}</strong>
+                      </div>
+                      {imageFile && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <span style={{ color: "#64748b", minWidth: "100px" }}>Ảnh báo lỗi:</span>
+                          <img src={imageFile} alt="Attached" style={{ height: "60px", borderRadius: "6px", border: "1px solid #e2e8f0", objectFit: "cover" }} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: "flex", gap: "12px", marginTop: '32px' }}>
+                      <button className="btn btn-secondary" type="button" onClick={() => setShowSummaryModal(false)} style={{ flex: 1 }}>
+                        Sửa lại
+                      </button>
+                      <button className="btn btn-primary" type="button" style={{ flex: 1.5 }} onClick={proceedToStoreSelection}>
+                        Xác nhận & Chọn cửa hàng
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* BƯỚC 2: MODAL CHỌN CỬA HÀNG */}
+              {isModalOpen && (
+                <div className="modal-overlay" style={{
+                  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+                  padding: '20px', backdropFilter: "blur(4px)"
+                }}>
+                  <div className="modal-content" style={{
+                    backgroundColor: 'white', padding: '30px', borderRadius: '24px',
+                    width: '100%', maxWidth: '600px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+                  }}>
+                    <h2 style={{ marginBottom: '10px', color: '#0f172a' }}>Chọn Cửa Hàng</h2>
+                    <p className="muted" style={{ marginBottom: '20px', color: '#64748b' }}>Dưới đây là các cửa hàng đã xác minh. Hãy chọn nơi bạn muốn gửi máy để hoàn tất đơn.</p>
                     
                     <div className="store-list" style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {verifiedStores.map(store => (
                         <div key={store.id} className="store-item" style={{
-                          padding: '16px', borderRadius: '16px', border: '1px solid #eee',
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                        }}>
+                          padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          transition: "border-color 0.2s"
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.borderColor = "#cbd5e1"}
+                        onMouseOut={(e) => e.currentTarget.style.borderColor = "#e2e8f0"}
+                        >
                           <div>
-                            <strong style={{ display: 'block', fontSize: '16px', color: '#111' }}>{store.store_name}</strong>
-                            <span className="muted" style={{ fontSize: '13px', color: '#666' }}>{store.address || "Chưa có địa chỉ"} · ★ {store.google_rating || 0}</span>
+                            <strong style={{ display: 'block', fontSize: '16px', color: '#0f172a' }}>{store.store_name}</strong>
+                            <span className="muted" style={{ fontSize: '13px', color: '#64748b' }}>{store.address || "Chưa có địa chỉ"} · ★ {store.google_rating || 0}</span>
                           </div>
-                          <button className="btn btn-primary" type="button" onClick={() => submitRepairRequestWithStore(store.id)}>Chọn</button>
+                          <button className="btn btn-primary" type="button" onClick={() => submitRepairRequestWithStore(store.id)}>Gửi đơn</button>
                         </div>
                       ))}
                     </div>

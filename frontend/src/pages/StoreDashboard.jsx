@@ -206,7 +206,8 @@ export default function StoreDashboard() {
               budget: parsedDetail.budget || dbData.budget || "",
               desiredDate: parsedDetail.desiredDate || dbData.desired_date || "",
               phone: parsedDetail.phone || dbData.phone || "",
-              address: parsedDetail.address || dbData.location || ""
+              address: parsedDetail.address || dbData.location || "",
+              image: dbData.image || "" // 🚀 THÊM DÒNG NÀY ĐỂ LẤY ẢNH TỪ DATABASE
             }
           });
         }
@@ -807,6 +808,25 @@ export default function StoreDashboard() {
                 </div>
               </div>
               <div><label style={labelStyle}>Mô tả chi tiết</label><textarea readOnly value={selectedRequest.detail.description} rows="3" style={{...detailInputStyle, backgroundColor: "#f8fafc", resize: "none"}} /></div>
+              {/* 🚀 THÊM KHU VỰC HIỂN THỊ ẢNH ĐÍNH KÈM Ở ĐÂY */}
+              {selectedRequest.detail.image && (
+                <div style={{ marginTop: "8px" }}>
+                  <label style={{...labelStyle, marginBottom: "8px"}}>Hình ảnh đính kèm từ khách</label>
+                  <img 
+                    src={selectedRequest.detail.image} 
+                    alt="Hình ảnh thiết bị lỗi" 
+                    style={{ 
+                      width: "100%", 
+                      maxHeight: "350px", 
+                      objectFit: "contain", 
+                      borderRadius: "12px", 
+                      border: "1px solid #cbd5e1",
+                      backgroundColor: "#f8fafc"
+                    }} 
+                  />
+                </div>
+              )}
+              {/* 🚀 KẾT THÚC KHU VỰC HIỂN THỊ ẢNH */}
               <div style={{ height: "1px", backgroundColor: "#e2e8f0", margin: "4px 0" }}></div>
               <div>
                 <label style={{...labelStyle, marginBottom: "12px"}}>Hình thức tiếp nhận</label>
