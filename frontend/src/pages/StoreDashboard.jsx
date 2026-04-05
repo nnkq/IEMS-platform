@@ -1,7 +1,19 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // 🚀 Dùng để chuyển trang khi Đăng xuất
 
 export default function StoreDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Hồ sơ");
+
+  // ==========================================
+  // 🚀 HÀM XỬ LÝ ĐĂNG XUẤT
+  // ==========================================
+  const handleLogout = () => {
+    if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi cửa hàng?")) {
+      localStorage.clear(); // Xóa sạch token và thông tin user
+      navigate("/login"); // Đá về trang đăng nhập
+    }
+  };
 
   // ==========================================
   // 1. STATE & API: THÔNG TIN HỒ SƠ & SẢN PHẨM
@@ -444,6 +456,45 @@ export default function StoreDashboard() {
             );
           })}
         </div>
+
+        {/* 🚀 NÚT ĐĂNG XUẤT (ĐÃ FIX ICON TO RÕ NÉT) */}
+        <div style={{ marginTop: "auto", borderTop: "1px solid rgba(51, 65, 85, 0.5)", paddingTop: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", color: "white", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
+                    ST
+                </div>
+                <div>
+                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "bold", color: "white" }}>Store</h4>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#22c55e" }}></span>
+                        <span style={{ fontSize: "12px", color: "#22c55e", fontWeight: "500" }}>Đang hoạt động</span>
+                    </div>
+                </div>
+            </div>
+            <button
+                onClick={handleLogout}
+                title="Đăng xuất"
+                style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "12px", backgroundColor: "rgba(30, 41, 59, 0.5)", color: "#f87171", border: "none", cursor: "pointer", transition: "all 0.2s" }}
+                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.2)"; e.currentTarget.style.color = "#ef4444"; }}
+                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "rgba(30, 41, 59, 0.5)"; e.currentTarget.style.color = "#f87171"; }}
+            >
+                {/* Đã thêm minWidth, minHeight và flexShrink: 0 để chống mờ/bóp méo */}
+                <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    style={{ width: "20px", height: "20px", minWidth: "20px", minHeight: "20px", flexShrink: 0 }} 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2.5" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </button>
+        </div>
       </div>
 
       {/* ===== KHU VỰC NỘI DUNG CHÍNH ===== */}
@@ -506,7 +557,6 @@ export default function StoreDashboard() {
                       <td style={{ padding: "16px", color: "#ef4444" }}>{req.issue}</td>
                       <td style={{ padding: "16px", textAlign: "center" }} onClick={(e) => e.stopPropagation() }>
                         <button onClick={() => handleRequest(req.id)} style={{ padding: "8px 16px", backgroundColor: "#f8fafc", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginRight: "8px" }}>Xem chi tiết</button>
-                        {/* 🚀 ĐÃ SỬA: Thay vì nhận đơn ngay, thì gọi hàm mở Popup Giao Việc */}
                         <button onClick={() => handleAcceptClick(req.id)} style={{ padding: "8px 16px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginRight: "8px" }}>Nhận đơn</button>
                         <button onClick={() => handleReject(req.id)} style={{ padding: "8px 16px", backgroundColor: "white", color: "#ef4444", border: "1px solid #fca5a5", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Từ chối</button>
                       </td>
@@ -554,7 +604,7 @@ export default function StoreDashboard() {
           </div>
         )}
 
-        {/* 🚀 TAB MỚI: QUẢN LÝ NHÂN VIÊN */}
+        {/* TAB MỚI: QUẢN LÝ NHÂN VIÊN */}
         {activeTab === "Nhân viên" && (
           <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "32px" }}>
