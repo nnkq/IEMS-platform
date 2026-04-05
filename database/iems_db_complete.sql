@@ -301,3 +301,18 @@ SET FOREIGN_KEY_CHECKS = 1;
 SET SQL_SAFE_UPDATES    = 1;
 
 SELECT 'iems_db created successfully!' AS result;
+
+-------------------------------------------------------------
+-- QUang thếm cột store_id vào bảng repair_requests để liên kết với cửa hàng (store) nếu khách chọn cửa hàng cụ thể khi tạo yêu cầu sửa chữa
+------------------------------------------------------------- 
+USE iems_db;
+
+-- Thêm cột store_id (cho phép NULL phòng trường hợp khách không chọn store ngay)
+ALTER TABLE repair_requests 
+ADD COLUMN store_id INT NULL AFTER user_id;
+
+-- (Tùy chọn) Thêm khóa ngoại liên kết với bảng stores để đảm bảo tính toàn vẹn dữ liệu
+ALTER TABLE repair_requests 
+ADD CONSTRAINT fk_repair_requests_store 
+FOREIGN KEY (store_id) REFERENCES stores(id);
+
