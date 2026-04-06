@@ -78,7 +78,9 @@ export default function StoreDashboard() {
 
   // 🚀 STATE MỚI: HIỆN THÔNG BÁO KHI ĐƯỢC ADMIN PHÊ DUYỆT
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [storeStatus, setStoreStatus] = useState("");
+
 
   // Tự động tải dữ liệu từ DB lên
   useEffect(() => {
@@ -102,6 +104,13 @@ export default function StoreDashboard() {
               setShowApprovalModal(true);
               localStorage.setItem(`welcome_shown_${data.id}`, 'true');
             }
+
+            // 🚀 Kiểm tra xem có bị admin từ chối không (dùng localStorage để hiện 1 lần duy nhất)
+            if (data.status === 'rejected' && !localStorage.getItem(`rejection_shown_${data.id}`)) {
+              setShowRejectionModal(true);
+              localStorage.setItem(`rejection_shown_${data.id}`, 'true');
+            }
+
           }
         })
         .catch((err) => console.error("Lỗi tải hồ sơ:", err));
@@ -176,7 +185,11 @@ export default function StoreDashboard() {
         body: JSON.stringify({ userId: userData.id, ...storeInfo, latitude: storeLocation.lat, longitude: storeLocation.lng }),
       });
       const data = await response.json();
-      if (response.ok) alert("✅ Đã gửi yêu cầu đến Admin - Vui lòng chờ Admin duyệt!");
+      if (response.ok) {
+        alert("✅ Đã gửi yêu cầu đến Admin - Vui lòng chờ Admin duyệt!");
+        localStorage.removeItem(`rejection_shown_${userData.id}`); // Xóa trạng thái để nếu bị từ chối tiếp sẽ hiện được Modal
+        setStoreStatus("pending");
+      }
       else alert("❌ Lỗi từ Database: " + (data.error || "Không rõ nguyên nhân"));
     } catch (error) { alert("❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!"); }
   };
@@ -960,6 +973,51 @@ export default function StoreDashboard() {
           </div>
         </div>
       )}
+  
+      {/* ========================================== */}
+      {/* 🚀 MODAL THÔNG BÁO KHI BỊ ADMIN TỪ CHỐI      */}
+      {/* ========================================== */}
+      {showRejectionModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.75)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, backdropFilter: "blur(6px)" }}>
+          <div style={{ backgroundColor: "white", width: "450px", borderRadius: "24px", padding: "40px", textAlign: "center", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)", border: "1px solid rgba(255, 255, 255, 0.3)", position: "relative", overflow: "hidden" }}>
+            {/* Phông nền trang trí */}
+            <div style={{ position: "absolute", top: "-50px", right: "-50px", width: "150px", height: "150px", background: "linear-gradient(135deg, #f8717133, #ef444400)", borderRadius: "50%" }}></div>
+            
+            <div style={{ width: "80px", height: "80px", backgroundColor: "#fee2e2", color: "#ef4444", borderRadius: "50%", display: "flex", justifyContent: "center", alignItems: "center", margin: "0 auto 24px auto", boxShadow: "0 4px 15px rgba(239, 68, 68, 0.2)" }}>
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: "40px", height: "40px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+            </div>
+            
+            <h2 style={{ color: "#0f172a", fontSize: "22px", fontWeight: "800", marginBottom: "16px" }}>Rất tiếc! ❌</h2>
+            <p style={{ color: "#475569", fontSize: "16px", lineHeight: "1.6", marginBottom: "32px", padding: "0 10px" }}>
+              Bạn đã bị <strong>Admin từ chối</strong> - Vui lòng nhập lại thông tin cửa hàng để được chấp nhận phê duyệt!
+            </p>
+
+            <button 
+              onClick={() => setShowRejectionModal(false)} 
+              style={{ 
+                width: "100%", 
+                padding: "16px", 
+                backgroundColor: "#ef4444", 
+                color: "white", 
+                border: "none", 
+                borderRadius: "14px", 
+                fontWeight: "bold", 
+                fontSize: "16px", 
+                cursor: "pointer", 
+                boxShadow: "0 10px 20px -5px rgba(239, 68, 68, 0.4)",
+                transition: "transform 0.2s"
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"}
+              onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              Cập nhật lại thông tin
+            </button>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginTop: "20px" }}>Nếu có thắc mắc vui lòng liên hệ Admin IEMS.</p>
+          </div>
+        </div>
+      )}
+
+
     </div>
   );
 }
