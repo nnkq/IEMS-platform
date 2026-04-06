@@ -76,6 +76,10 @@ export default function StoreDashboard() {
   const [requestToAssign, setRequestToAssign] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
 
+  // 🚀 STATE MỚI: HIỆN THÔNG BÁO KHI ĐƯỢC ADMIN PHÊ DUYỆT
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [storeStatus, setStoreStatus] = useState("");
+
   // Tự động tải dữ liệu từ DB lên
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("user"));
@@ -91,6 +95,13 @@ export default function StoreDashboard() {
               openTime: data.open_time || "", closeTime: data.close_time || ""
             });
             setStoreLocation({ lat: data.latitude ?? null, lng: data.longitude ?? null });
+            setStoreStatus(data.status || "");
+
+            // 🚀 Kiểm tra xem có vừa được admin duyệt không (dùng localStorage để hiện 1 lần duy nhất)
+            if (data.status === 'approved' && !localStorage.getItem(`welcome_shown_${data.id}`)) {
+              setShowApprovalModal(true);
+              localStorage.setItem(`welcome_shown_${data.id}`, 'true');
+            }
           }
         })
         .catch((err) => console.error("Lỗi tải hồ sơ:", err));
@@ -165,7 +176,7 @@ export default function StoreDashboard() {
         body: JSON.stringify({ userId: userData.id, ...storeInfo, latitude: storeLocation.lat, longitude: storeLocation.lng }),
       });
       const data = await response.json();
-      if (response.ok) alert("✅ Đã lưu thông tin hồ sơ cửa hàng thành công!");
+      if (response.ok) alert("✅ Đã gửi yêu cầu đến Admin - Vui lòng chờ Admin duyệt!");
       else alert("❌ Lỗi từ Database: " + (data.error || "Không rõ nguyên nhân"));
     } catch (error) { alert("❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!"); }
   };
@@ -901,6 +912,51 @@ export default function StoreDashboard() {
               <button onClick={() => handleReject(selectedRequest.id)} style={{ padding: "10px 20px", backgroundColor: "white", color: "#ef4444", border: "1px solid #fca5a5", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Từ chối đơn</button>
               <button onClick={() => { setSelectedRequest(null); handleAcceptClick(selectedRequest.id); }} style={{ padding: "10px 24px", backgroundColor: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", boxShadow: "0 4px 6px rgba(59, 130, 246, 0.3)" }}>Chấp nhận sửa</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* 🚀 MODAL CHÚC MỪNG ĐƯỢC ADMIN PHÊ DUYỆT      */}
+      {/* ========================================== */}
+      {showApprovalModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.75)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, backdropFilter: "blur(6px)" }}>
+          <div style={{ backgroundColor: "white", width: "450px", borderRadius: "24px", padding: "40px", textAlign: "center", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)", border: "1px solid rgba(255, 255, 255, 0.3)", position: "relative", overflow: "hidden" }}>
+            {/* Phông nền trang trí */}
+            <div style={{ position: "absolute", top: "-50px", right: "-50px", width: "150px", height: "150px", background: "linear-gradient(135deg, #3b82f633, #60a5fa00)", borderRadius: "50%" }}></div>
+            <div style={{ position: "absolute", bottom: "-50px", left: "-50px", width: "150px", height: "150px", background: "linear-gradient(135deg, #10b98122, #34d39900)", borderRadius: "50%" }}></div>
+
+            <div style={{ width: "80px", height: "80px", backgroundColor: "#dcfce7", color: "#16a34a", borderRadius: "50%", display: "flex", justifyContent: "center", alignItems: "center", margin: "0 auto 24px auto", boxShadow: "0 4px 15px rgba(22, 163, 74, 0.2)" }}>
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" style={{ width: "40px", height: "40px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" /></svg>
+            </div>
+            
+            <h2 style={{ color: "#0f172a", fontSize: "24px", fontWeight: "800", marginBottom: "16px" }}>Tuyệt vời! 🎉</h2>
+            <p style={{ color: "#475569", fontSize: "16px", lineHeight: "1.6", marginBottom: "32px", padding: "0 10px" }}>
+              Bạn đã được <strong>Admin chấp nhận</strong> - Bây giờ đã trở thành đối tác của chúng tôi! 
+              Hãy bắt đầu nhận các đơn hàng sửa chữa đầu tiên nhé.
+            </p>
+
+            <button 
+              onClick={() => setShowApprovalModal(false)} 
+              style={{ 
+                width: "100%", 
+                padding: "16px", 
+                backgroundColor: "#2563eb", 
+                color: "white", 
+                border: "none", 
+                borderRadius: "14px", 
+                fontWeight: "bold", 
+                fontSize: "16px", 
+                cursor: "pointer", 
+                boxShadow: "0 10px 20px -5px rgba(37, 99, 235, 0.4)",
+                transition: "transform 0.2s"
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"}
+              onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              🚀 Bắt đầu ngay
+            </button>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginTop: "20px" }}>IEMS Ecosystem • Cộng đồng sửa chữa thông minh</p>
           </div>
         </div>
       )}

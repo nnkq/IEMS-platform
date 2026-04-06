@@ -3,13 +3,13 @@ const db = require('../config/db');
 // 1. Hàm lấy thông tin hồ sơ cửa hàng
 exports.getStoreProfile = (req, res) => {
     const userId = req.params.userId;
-    
+
     db.query('SELECT * FROM stores WHERE user_id = ?', [userId], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
-        
+
         // Nếu chưa có hồ sơ, trả về rỗng để web tự hiện form trống
-        if (results.length === 0) return res.status(200).json(null); 
-        
+        if (results.length === 0) return res.status(200).json(null);
+
         res.status(200).json(results[0]);
     });
 };
