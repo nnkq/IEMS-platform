@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // 🚀 Dùng để chuyển trang khi Đăng xuất
-
+import { useNavigate } from "react-router-dom"; 
+import StoreOwnerChatPanel from "../components/StoreOwnerChatPanel";
 export default function StoreDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Hồ sơ");
+  const currentStoreUser = JSON.parse(localStorage.getItem("user") || "{}");
 
   // ==========================================
   // 🚀 HÀM XỬ LÝ ĐĂNG XUẤT
@@ -19,7 +20,14 @@ export default function StoreDashboard() {
   // 1. STATE & API: THÔNG TIN HỒ SƠ & SẢN PHẨM
   // ==========================================
   const [storeInfo, setStoreInfo] = useState({
-    storeName: "", phone: "", address: "", description: "", openTime: "", closeTime: ""
+    id: null,
+    userId: null,
+    storeName: "",
+    phone: "",
+    address: "",
+    description: "",
+    openTime: "",
+    closeTime: ""
   });
   const [products, setProducts] = useState([]);
   
@@ -92,9 +100,14 @@ export default function StoreDashboard() {
         .then((data) => {
           if (data) {
             setStoreInfo({
-              storeName: data.store_name || "", phone: data.phone || "",
-              address: data.address || "", description: data.description || "",
-              openTime: data.open_time || "", closeTime: data.close_time || ""
+              id: data.id || null,
+              userId: data.user_id || userData.id || null,
+              storeName: data.store_name || "",
+              phone: data.phone || "",
+              address: data.address || "",
+              description: data.description || "",
+              openTime: data.open_time || "",
+              closeTime: data.close_time || ""
             });
             setStoreLocation({ lat: data.latitude ?? null, lng: data.longitude ?? null });
             setStoreStatus(data.status || "");
@@ -121,55 +134,11 @@ export default function StoreDashboard() {
         .then((data) => setProducts(Array.isArray(data) ? data : []))
         .catch((err) => console.error("Lỗi tải sản phẩm:", err));
 
-      // 🚀 Tải Danh sách Nhân viên của Cửa hàng
-      fetch(`http://localhost:5000/api/employees/${userData.id}`)
-        .then((res) => res.json())
-        .then((data) => setEmployees(Array.isArray(data) ? data : []))
-        .catch((err) => console.error("Lỗi tải nhân viên:", err));
-
       // Tải Gói quảng bá
       fetch(`http://localhost:5000/api/subscriptions/${userData.id}`)
         .then((res) => res.json())
         .then((data) => { if (data && data.package_name) setCurrentPackage(data.package_name); })
         .catch((err) => console.error("Lỗi tải gói:", err));
-
-      // Tải Danh sách đơn hàng (Có gắn chìa khóa storeId)
-      fetch(`http://localhost:5000/api/repair-requests/store-orders/${userData.id}?storeId=${userData.id}`)
-        .then((res) => res.json())
-        .then((data) => { 
-            if (Array.isArray(data) && data.length > 0) {
-              const mappedRequests = data.map(req => {
-                let parsedDetail = {};
-                try { 
-                  parsedDetail = typeof req.detail_json === 'string' ? JSON.parse(req.detail_json) : (req.detail_json || {}); 
-                } catch(e) { console.error(e); }
-                
-                return {
-                  id: req.id,
-                  customer: req.customer_name || `Khách hàng (ID: ${req.user_id || '?'})`,
-                  device: req.device_name || req.brand || req.device_type || "Thiết bị chưa rõ",
-                  issue: req.issue_description || req.title || "Không có mô tả lỗi",
-                  status: req.status, 
-                  employee_name: req.employee_name || null, // Thêm hiển thị tên nhân viên phụ trách nếu có
-                  detail: {
-                    deviceType: parsedDetail.deviceType || "",
-                    brand: parsedDetail.brand || "",
-                    model: parsedDetail.model || "",
-                    title: parsedDetail.title || "",
-                    categories: parsedDetail.categories || [],
-                    description: parsedDetail.description || "",
-                    receiveMethod: parsedDetail.receiveMethod || "",
-                    budget: parsedDetail.budget || "",
-                    desiredDate: parsedDetail.desiredDate || "",
-                    phone: parsedDetail.phone || "",
-                    address: parsedDetail.address || ""
-                  }
-                };
-              });
-              setRequests(mappedRequests);
-            }
-        })
-        .catch((err) => console.error("Lỗi tải danh sách yêu cầu:", err));
     }
   }, []);
 
@@ -179,19 +148,39 @@ export default function StoreDashboard() {
     e.preventDefault();
     const userData = JSON.parse(localStorage.getItem("user"));
     if (!userData || !userData.id) return alert("Lỗi: Không tìm thấy ID tài khoản!");
+
+    const payload = {
+      storeName: storeInfo.storeName,
+      phone: storeInfo.phone,
+      address: storeInfo.address,
+      description: storeInfo.description,
+      openTime: storeInfo.openTime,
+      closeTime: storeInfo.closeTime,
+      userId: userData.id,
+      latitude: storeLocation.lat,
+      longitude: storeLocation.lng
+    };
+
     try {
       const response = await fetch("http://localhost:5000/api/stores/profile", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userData.id, ...storeInfo, latitude: storeLocation.lat, longitude: storeLocation.lng }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
+
       const data = await response.json();
+
       if (response.ok) {
         alert("✅ Đã gửi yêu cầu đến Admin - Vui lòng chờ Admin duyệt!");
-        localStorage.removeItem(`rejection_shown_${userData.id}`); // Xóa trạng thái để nếu bị từ chối tiếp sẽ hiện được Modal
+        localStorage.removeItem(`rejection_shown_${userData.id}`);
+        setStoreInfo((prev) => ({ ...prev, userId: userData.id }));
         setStoreStatus("pending");
+      } else {
+        alert("❌ Lỗi từ Database: " + (data.error || "Không rõ nguyên nhân"));
       }
-      else alert("❌ Lỗi từ Database: " + (data.error || "Không rõ nguyên nhân"));
-    } catch (error) { alert("❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!"); }
+    } catch (error) {
+      alert("❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!");
+    }
   };
 
   // ==========================================
@@ -199,6 +188,62 @@ export default function StoreDashboard() {
   // ==========================================
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
+
+  const mapStoreRequest = (req) => {
+    let parsedDetail = {};
+
+    try {
+      parsedDetail = typeof req.detail_json === "string"
+        ? JSON.parse(req.detail_json)
+        : (req.detail_json || {});
+    } catch (e) {
+      console.error("Lỗi parse detail_json:", e);
+    }
+
+    return {
+      id: req.id,
+      customer: req.customer_name || `Khách hàng (ID: ${req.user_id || "?"})`,
+      device: req.device_name || req.brand || req.device_type || "Thiết bị chưa rõ",
+      issue: req.issue_description || req.title || "Không có mô tả lỗi",
+      status: req.status,
+      employee_name: req.employee_name || null,
+      detail: {
+        deviceType: parsedDetail.deviceType || "",
+        brand: parsedDetail.brand || "",
+        model: parsedDetail.model || "",
+        title: parsedDetail.title || "",
+        categories: parsedDetail.categories || [],
+        description: parsedDetail.description || "",
+        receiveMethod: parsedDetail.receiveMethod || "",
+        budget: parsedDetail.budget || "",
+        desiredDate: parsedDetail.desiredDate || "",
+        phone: parsedDetail.phone || "",
+        address: parsedDetail.address || ""
+      }
+    };
+  };
+
+  const loadStoreRequests = async (realStoreId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/repair-requests/store-orders/${realStoreId}?storeId=${realStoreId}`);
+      const data = await res.json();
+      setRequests(Array.isArray(data) ? data.map(mapStoreRequest) : []);
+    } catch (err) {
+      console.error("Lỗi tải danh sách yêu cầu:", err);
+      setRequests([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!storeInfo?.id) return;
+
+    fetch(`http://localhost:5000/api/employees/${storeInfo.id}`)
+      .then((res) => res.json())
+      .then((data) => setEmployees(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Lỗi tải nhân viên:", err));
+
+    loadStoreRequests(storeInfo.id);
+  }, [storeInfo.id]);
   
   const handleRequest = async (id) => {
     try {
@@ -383,12 +428,13 @@ export default function StoreDashboard() {
     e.preventDefault();
     const userData = JSON.parse(localStorage.getItem("user"));
     if (!userData || !userData.id) return alert("Lỗi đăng nhập!");
+    if (!storeInfo?.id) return alert("Cửa hàng chưa có hồ sơ hoặc chưa lấy được ID cửa hàng!");
     if (!newEmployee.name || !newEmployee.specialty) return alert("Vui lòng nhập Tên và Chuyên môn!");
 
     try {
       const res = await fetch("http://localhost:5000/api/employees", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId: userData.id, ...newEmployee })
+        body: JSON.stringify({ storeId: storeInfo.id, ...newEmployee })
       });
       const data = await res.json();
       if (res.ok) {
@@ -458,7 +504,10 @@ export default function StoreDashboard() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#f8fafc", fontFamily: "Inter, sans-serif", position: "relative" }}>
-      
+      <StoreOwnerChatPanel
+        storeId={storeInfo?.id || null}
+        storeName={storeInfo?.storeName || "Cửa hàng của tôi"}
+      />
       {/* ===== MENU BÊN TRÁI ===== */}
       <div style={{ width: "280px", backgroundColor: "#0f172a", color: "white", padding: "24px 16px", display: "flex", flexDirection: "column" }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '40px', padding: '0 8px' }}>

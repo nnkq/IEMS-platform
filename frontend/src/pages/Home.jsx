@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import { getHomeDashboard, searchHome } from "../api/homeApi";
 import { createRepairRequest, getMyRepairRequests } from "../api/repairApi";
+import StoreChatPanel from "../components/StoreChatPanel";
+import { createOrGetConversationByRequest } from "../api/chatApi";
 
 const pageMeta = {
   home: {
@@ -187,6 +189,16 @@ export default function Home() {
 
       const res = await createRepairRequest(payload);
       console.log("create result:", res.data);
+
+      const localUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      if (res.data?.request_id && localUser?.id && selectedStoreId) {
+        await createOrGetConversationByRequest({
+          repair_request_id: res.data.request_id,
+          user_id: localUser.id,
+          store_id: selectedStoreId,
+        });
+      }
 
       await loadTrackingRequests();
 
@@ -1749,6 +1761,7 @@ export default function Home() {
             </section>
           )}
 
+
           {activePage === "chatbot" && (
             <section className="page active">
               <div className="page-grid">
@@ -2035,6 +2048,10 @@ export default function Home() {
               </div>
             </section>
           )}
+
+          <StoreChatPanel
+            viewerName={profileForm.name || user.name || "Khách hàng"}
+          />
         </main>
       </div>
     </div>
