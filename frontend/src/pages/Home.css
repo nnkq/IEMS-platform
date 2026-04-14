@@ -184,6 +184,7 @@ img {
   place-items: center;
   background: rgba(255, 255, 255, 0.08);
   font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
 .iems-root .nav-item.active .nav-icon {
@@ -191,16 +192,24 @@ img {
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
 }
 
+.iems-root .nav-copy {
+  min-width: 0;
+}
+
 .iems-root .nav-copy strong {
   display: block;
   font-size: 0.98rem;
   margin-bottom: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .nav-copy span {
   display: block;
   font-size: 0.8rem;
   color: #94a3b8;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .nav-item.active .nav-copy span {
@@ -223,11 +232,11 @@ img {
   justify-content: space-between;
   gap: 16px;
   padding: 18px 20px;
-  background: rgba(255, 255, 255, 0.72);
   background: #fff;
   border: 1px solid rgba(219, 228, 238, 0.95);
   box-shadow: var(--shadow-soft);
   margin-bottom: 22px;
+  min-width: 0;
 }
 
 .iems-root .topbar-left {
@@ -247,16 +256,24 @@ img {
   cursor: pointer;
 }
 
+.iems-root .topbar-copy {
+  min-width: 0;
+}
+
 .iems-root .topbar-copy h1 {
   margin: 0;
   font-size: 1.32rem;
   line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .topbar-copy p {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 0.96rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .topbar-actions {
@@ -354,12 +371,14 @@ img {
   display: grid;
   gap: 18px;
   align-content: start;
+  min-width: 0;
 }
 
 .iems-root .eyebrow {
   display: inline-flex;
   align-items: center;
   width: max-content;
+  max-width: 100%;
   padding: 8px 12px;
   border-radius: 999px;
   background: #eaf1ff;
@@ -380,6 +399,8 @@ img {
 
 .iems-root .hero-copy h2 {
   font-size: clamp(2rem, 3.4vw, 2.85rem);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .hero-copy p,
@@ -434,6 +455,7 @@ img {
 .iems-root .hero-side {
   display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .iems-root .stat-grid,
@@ -455,12 +477,15 @@ img {
   background: linear-gradient(180deg, #f8fbff, #fff);
   box-shadow: var(--shadow-soft);
   min-height: 145px;
+  min-width: 0;
 }
 
 .iems-root .stat-card span {
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 700;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .stat-card strong {
@@ -469,6 +494,8 @@ img {
   font-size: 2rem;
   line-height: 1;
   color: var(--primary);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .glow-card {
@@ -485,6 +512,8 @@ img {
 
 .iems-root .surface {
   padding: 24px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .iems-root .section-head {
@@ -493,16 +522,25 @@ img {
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 18px;
+  min-width: 0;
+}
+
+.iems-root .section-head > * {
+  min-width: 0;
 }
 
 .iems-root .section-title {
   font-size: clamp(1.35rem, 2vw, 1.75rem);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .section-head p {
   margin: 0;
   max-width: 360px;
   color: var(--muted);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .request-card,
@@ -513,6 +551,7 @@ img {
   border: 1px solid var(--line);
   background: #fff;
   box-shadow: var(--shadow-soft);
+  min-width: 0;
 }
 
 .iems-root .request-card,
@@ -533,6 +572,8 @@ img {
   border: 0;
   cursor: pointer;
   padding: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .iems-root .request-layout,
@@ -562,6 +603,7 @@ img {
 
 .iems-root .home-layout {
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.92fr);
+  min-width: 0;
 }
 
 .iems-root .form-grid {
@@ -653,11 +695,13 @@ img {
 .iems-root .summary-box {
   padding: 18px;
   background: linear-gradient(180deg, #f8fbff, #fff);
+  min-width: 0;
 }
 
 .iems-root .summary-list {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .iems-root .summary-row {
@@ -665,17 +709,26 @@ img {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  align-items: center;
+  align-items: flex-start;
   background: #f8fbff;
+  min-width: 0;
 }
 
 .iems-root .summary-row span {
   color: var(--muted);
+  flex: 1 1 40%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .summary-row strong {
   text-align: right;
-  max-width: 56%;
+  flex: 1 1 60%;
+  max-width: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .note-banner {
@@ -701,6 +754,14 @@ img {
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
+  min-width: 0;
+}
+
+.iems-root .store-card-head > *,
+.iems-root .request-card-head > *,
+.iems-root .bubble-head > *,
+.iems-root .request-title-row > * {
+  min-width: 0;
 }
 
 .iems-root .rating-badge {
@@ -710,6 +771,7 @@ img {
   color: #c2410c;
   font-weight: 900;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .iems-root .chip,
@@ -717,7 +779,7 @@ img {
 .iems-root .status-chip {
   display: inline-flex;
   align-items: center;
-  width: max-content;
+  max-width: 100%;
   border-radius: 999px;
   font-weight: 700;
 }
@@ -728,6 +790,8 @@ img {
   background: #f1f5f9;
   color: #334155;
   font-size: 0.84rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .status-chip {
@@ -853,6 +917,7 @@ img {
   box-shadow: var(--shadow-soft);
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .iems-root .bubble.ai {
@@ -877,6 +942,8 @@ img {
 
 .iems-root .bubble p {
   margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .iems-root .chat-composer {
@@ -1011,6 +1078,7 @@ img {
 .iems-root .side-stack {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .iems-root .side-stack {
@@ -1057,6 +1125,58 @@ img {
   margin-bottom: 18px;
 }
 
+.iems-root .search-result-box {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(219, 228, 238, 0.95);
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+}
+
+.iems-root .search-result-group {
+  min-width: 0;
+}
+
+.iems-root .search-result-group h4 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.iems-root .search-result-item {
+  padding: 10px 12px;
+  border: 1px solid #dbe4ee;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  background: #f8fafc;
+  min-width: 0;
+}
+
+.iems-root .search-result-item strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.iems-root .search-result-item span {
+  color: #64748b;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.iems-root .search-result-empty {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
 @media (max-width: 1200px) {
   .iems-root .hero-card,
   .iems-root .request-layout,
@@ -1072,6 +1192,12 @@ img {
   .iems-root .metrics-grid,
   .iems-root .detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .iems-root .search-result-box {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1178,50 +1304,8 @@ img {
   .iems-root .bubble {
     width: 100%;
   }
-  .iems-root .search-result-box {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 22px;
-  padding: 18px;
-  border-radius: 24px;
-  border: 1px solid rgba(219, 228, 238, 0.95);
-  background: #fff;
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
-}
 
-.iems-root .search-result-group h4 {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-}
-
-.iems-root .search-result-item {
-  padding: 10px 12px;
-  border: 1px solid #dbe4ee;
-  border-radius: 12px;
-  margin-bottom: 10px;
-  background: #f8fafc;
-}
-
-.iems-root .search-result-item strong {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 0.92rem;
-}
-
-.iems-root .search-result-item span {
-  color: #64748b;
-  font-size: 0.82rem;
-}
-
-.iems-root .search-result-empty {
-  color: #64748b;
-  font-size: 0.85rem;
-}
-
-@media (max-width: 1024px) {
-  .iems-root .search-result-box {
-    grid-template-columns: 1fr;
+  .iems-root .align-right {
+    text-align: left;
   }
-}
 }

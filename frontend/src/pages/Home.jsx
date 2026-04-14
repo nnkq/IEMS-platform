@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import { getHomeDashboard, searchHome } from "../api/homeApi";
-import { createRepairRequest, getMyRepairRequests } from "../api/repairApi";
+import {
+  createRepairRequest,
+  getMyRepairRequests,
+  getReviewForRequest,
+  submitReviewForRequest,
+} from "../api/repairApi";
 import StoreChatPanel from "../components/StoreChatPanel";
 import { createOrGetConversationByRequest } from "../api/chatApi";
 
@@ -85,7 +90,7 @@ function statusLabel(status) {
 
 function statusClass(status) {
   if (status === "IN_PROGRESS") return "status-warning";
-  if (status === "COMPLETED") return "status-success"; 
+  if (status === "COMPLETED") return "status-success";
   if (status === "REJECTED") return "status-error";
   return "status-accent";
 }
@@ -122,120 +127,21 @@ function buildInitials(name = "") {
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // 🚀 ĐÃ THÊM: STATE CHO POPUP CHI TIẾT ĐƠN Ở TAB TRACKING
   const [selectedTrackedRequest, setSelectedTrackedRequest] = useState(null);
+
+  const [reviewModal, setReviewModal] = useState({
+    open: false,
+    item: null,
+  });
+  const [reviewForm, setReviewForm] = useState({
+    rating: 5,
+    comment: "",
+  });
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   const [selectedStoreDetail, setSelectedStoreDetail] = useState(null);
   const [storeProducts, setStoreProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
-
-  const handleViewStoreDetail = async (store) => {
-    setSelectedStoreDetail(store);
-    setLoadingProducts(true);
-    try {
-      const storeOwnerId = store.user_id || store.id; 
-      const res = await fetch(`http://localhost:5000/api/products/${storeOwnerId}`);
-      const data = await res.json();
-      setStoreProducts(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Lỗi lấy sản phẩm cửa hàng:", error);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
-
-  const handleOpenSummary = () => {
-    if (!issueTitle.trim() || !description.trim()) {
-      alert("Vui lòng nhập tiêu đề và mô tả lỗi");
-      return;
-    }
-    if (!userLocation.lat || !userLocation.lng) {
-      alert("Vui lòng chọn một địa chỉ từ danh sách gợi ý.");
-      return;
-    }
-    // Mở modal tóm tắt thay vì cửa hàng
-    setShowSummaryModal(true);
-  };
-
-  // Nút này sẽ nằm trong modal Tóm tắt
-  const proceedToStoreSelection = () => {
-    setShowSummaryModal(false);
-    setIsModalOpen(true); // Mở modal chọn cửa hàng
-  };
-
-  const submitRepairRequestWithStore = async (selectedStoreId) => {
-    try {
-      const payload = {
-        device_id: null,
-        store_id: selectedStoreId,
-        title: issueTitle.trim(),
-        description: description.trim(),
-        budget: budget || null,
-        location: address || null,
-        latitude: userLocation.lat,
-        longitude: userLocation.lng,
-        phone: phone || null,
-        desired_date: desiredDate || null,
-        service_mode: serviceMode || null,
-        device_type: deviceType || null,
-        brand: brand || null,
-        model: model || null,
-        symptoms: symptoms.join(", "),
-        image: imageFile || null,
-      };
-
-      console.log("payload:", payload);
-
-      const res = await createRepairRequest(payload);
-      console.log("create result:", res.data);
-
-      const localUser = JSON.parse(localStorage.getItem("user") || "{}");
-
-      if (res.data?.request_id && localUser?.id && selectedStoreId) {
-        await createOrGetConversationByRequest({
-          repair_request_id: res.data.request_id,
-          user_id: localUser.id,
-          store_id: selectedStoreId,
-        });
-      }
-
-      await loadTrackingRequests();
-
-      alert(res.data?.message || "Tạo yêu cầu sửa chữa thành công!");
-
-      resetForm();
-      setIsModalOpen(false); 
-      setActivePage("tracking");
-    } catch (error) {
-      console.error("Create request error:", error);
-      console.error("Response data:", error.response?.data);
-      alert(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
-          "Không thể tạo yêu cầu sửa chữa"
-      );
-    }
-  };
-
-  const loadTrackingRequests = async (isBackground = false) => {
-    try {
-      if (!isBackground) setTrackingLoading(true);
-      setTrackingError("");
-
-      const res = await getMyRepairRequests();
-      setTrackingRequests(res.data?.requests || []);
-    } catch (error) {
-      console.error("Lỗi lấy danh sách yêu cầu:", error);
-      if (!isBackground) {
-        setTrackingError(
-          error.response?.data?.message || "Không lấy được danh sách yêu cầu"
-        );
-      }
-    } finally {
-      if (!isBackground) setTrackingLoading(false);
-    }
-  };
 
   const [activePage, setActivePage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -282,6 +188,7 @@ export default function Home() {
   const [trackingRequests, setTrackingRequests] = useState([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackingError, setTrackingError] = useState("");
+
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([
     {
@@ -303,6 +210,14 @@ export default function Home() {
       text: "Tình trạng này thường liên quan đến màn hình OLED hoặc cáp kết nối bị lỏng sau va đập. Bạn nên sao lưu dữ liệu và tránh tiếp tục đè nén màn hình trước khi mang đi kiểm tra.",
     },
   ]);
+
+  const [imageFile, setImageFile] = useState("");
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+
+  const searchTimeout = useRef(null);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -361,8 +276,7 @@ export default function Home() {
   useEffect(() => {
     let interval;
     if (activePage === "tracking") {
-      loadTrackingRequests(); 
-      
+      loadTrackingRequests();
       interval = setInterval(() => {
         loadTrackingRequests(true);
       }, 3000);
@@ -383,13 +297,13 @@ export default function Home() {
     };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("role");
-    sessionStorage.clear();
-    window.location.href = "/login";
-  };
+  const counters = dashboardData?.counters || {};
+  const recentRequests = dashboardData?.recentRequests || [];
+  const pendingQuotes = dashboardData?.pendingQuotes || [];
+  const savedDevices = dashboardData?.savedDevices || [];
+  const verifiedStores = dashboardData?.verifiedStores || [];
+  const user = dashboardData?.user || {};
+  const header = dashboardData?.header || {};
 
   const previewBudget = useMemo(() => {
     const min = Math.max(Number(budget || 0) * 0.8, 200000);
@@ -400,18 +314,18 @@ export default function Home() {
   const previewModel = model.trim() || "Chưa nhập model";
   const previewSymptoms = symptoms.length ? symptoms.join(", ") : "Chưa chọn";
 
-  const counters = dashboardData?.counters || {};
-  const recentRequests = dashboardData?.recentRequests || [];
-  const pendingQuotes = dashboardData?.pendingQuotes || [];
-  const savedDevices = dashboardData?.savedDevices || [];
-  const verifiedStores = dashboardData?.verifiedStores || [];
-  const user = dashboardData?.user || {};
-  const header = dashboardData?.header || {};
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    sessionStorage.clear();
+    window.location.href = "/login";
+  };
 
   const openPage = (page) => {
     setActivePage(page);
     setSidebarOpen(false);
-    setSelectedStoreDetail(null); 
+    setSelectedStoreDetail(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -521,6 +435,10 @@ export default function Home() {
     setAddress("");
     setServiceMode("Mang đến cửa hàng");
     setSymptoms(["Màn hình", "Cảm ứng"]);
+    setImageFile("");
+    setUserLocation({ lat: null, lng: null });
+    setAddressSuggestions([]);
+    setShowAddressDropdown(false);
   };
 
   const getCurrentLocation = () => {
@@ -600,19 +518,49 @@ export default function Home() {
     const data = await res.json();
     console.log("Stores gần:", data);
   };
-  // --- STATE MỚI THÊM ---
-  const [imageFile, setImageFile] = useState(""); // Lưu ảnh dạng Base64
-  const [showSummaryModal, setShowSummaryModal] = useState(false); // Modal tóm tắt
-  
-  // State cho Autocomplete Địa chỉ
-  const searchTimeout = useRef(null);
-  const [addressSuggestions, setAddressSuggestions] = useState([]);
-  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
 
-  // Hàm chuyển file ảnh sang Base64 để gửi API
+  const searchAddress = (text) => {
+    setAddress(text);
+
+    if (text.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+      return;
+    }
+
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+
+    searchTimeout.current = setTimeout(async () => {
+      setIsSearchingAddress(true);
+      try {
+        const searchQuery = `${text}, Đà Nẵng, Việt Nam`;
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            searchQuery
+          )}&limit=5&addressdetails=1`
+        );
+        const data = await res.json();
+
+        setAddressSuggestions(data);
+        setShowAddressDropdown(true);
+      } catch (error) {
+        console.error("Lỗi tìm địa chỉ:", error);
+      } finally {
+        setIsSearchingAddress(false);
+      }
+    }, 500);
+  };
+
+  const handleSelectAddress = (item) => {
+    setAddress(item.display_name);
+    setUserLocation({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
+    setShowAddressDropdown(false);
+  };
+
   const handleImageUpload = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -622,50 +570,194 @@ export default function Home() {
     }
   };
 
-  // Hàm bỏ ảnh đã chọn
   const removeImage = () => setImageFile("");
 
-  // Hàm gọi API tìm kiếm địa chỉ (Dùng OpenStreetMap Nominatim - Miễn phí, không cần Key)
-  // Đã ưu tiên khu vực Đà Nẵng theo ngữ cảnh hiện tại.
-  // Hàm gọi API tìm kiếm địa chỉ (Đã bổ sung Debounce chống Spam API)
-  const searchAddress = (text) => {
-    setAddress(text);
-    
-    // 1. Chặn gọi API nếu gõ quá ngắn
-    if (text.length < 3) {
-      setAddressSuggestions([]);
-      setShowAddressDropdown(false);
+  const loadTrackingRequests = async (isBackground = false) => {
+    try {
+      if (!isBackground) setTrackingLoading(true);
+      setTrackingError("");
+
+      const res = await getMyRepairRequests();
+      setTrackingRequests(res.data?.requests || []);
+    } catch (error) {
+      console.error("Lỗi lấy danh sách yêu cầu:", error);
+      if (!isBackground) {
+        setTrackingError(
+          error.response?.data?.message || "Không lấy được danh sách yêu cầu"
+        );
+      }
+    } finally {
+      if (!isBackground) setTrackingLoading(false);
+    }
+  };
+
+  const openReviewModal = async (item) => {
+    try {
+      setReviewLoading(true);
+
+      const res = await getReviewForRequest(item.id);
+      const serverReview = res.data?.review;
+
+      if (res.data?.hasReview && serverReview) {
+        alert(`Đơn này đã được đánh giá ${serverReview.rating}/5 sao rồi.`);
+        return;
+      }
+
+      if (!res.data?.canReview) {
+        alert("Chỉ đánh giá được khi đơn đã hoàn thành.");
+        return;
+      }
+
+      setReviewForm({
+        rating: 5,
+        comment: "",
+      });
+
+      setReviewModal({
+        open: true,
+        item: {
+          ...item,
+          store_name: res.data?.store?.name || item.store_name || "Cửa hàng",
+        },
+      });
+    } catch (error) {
+      console.error("Lỗi mở form đánh giá:", error);
+      alert(error.response?.data?.message || "Không mở được form đánh giá");
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewModal.item?.id) return;
+
+    try {
+      setReviewLoading(true);
+
+      await submitReviewForRequest(reviewModal.item.id, {
+        rating: Number(reviewForm.rating),
+        comment: reviewForm.comment,
+      });
+
+      alert("Đánh giá cửa hàng thành công!");
+
+      setReviewModal({
+        open: false,
+        item: null,
+      });
+
+      setReviewForm({
+        rating: 5,
+        comment: "",
+      });
+
+      await loadTrackingRequests();
+    } catch (error) {
+      console.error("Lỗi gửi đánh giá:", error);
+      alert(error.response?.data?.message || "Gửi đánh giá thất bại");
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const handleViewStoreDetail = async (store) => {
+    setSelectedStoreDetail(store);
+    setLoadingProducts(true);
+    try {
+      const storeOwnerId = store.user_id || store.id;
+      const res = await fetch(`http://localhost:5000/api/products/${storeOwnerId}`);
+      const data = await res.json();
+      setStoreProducts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Lỗi lấy sản phẩm cửa hàng:", error);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const handleOpenSummary = () => {
+    if (!issueTitle.trim() || !description.trim()) {
+      alert("Vui lòng nhập tiêu đề và mô tả lỗi");
+      return;
+    }
+    if (!userLocation.lat || !userLocation.lng) {
+      alert("Vui lòng chọn một địa chỉ từ danh sách gợi ý.");
+      return;
+    }
+    setShowSummaryModal(true);
+  };
+
+  const proceedToStoreSelection = () => {
+    setShowSummaryModal(false);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenStoreSelection = () => {
+    if (!issueTitle.trim() || !description.trim()) {
+      alert("Vui lòng nhập tiêu đề và mô tả lỗi trước");
+      openPage("request");
       return;
     }
 
-    // 2. XÓA lệnh gọi API cũ nếu người dùng vẫn đang gõ liên tục
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
+    if (!userLocation.lat || !userLocation.lng) {
+      alert("Vui lòng chọn địa chỉ hợp lệ trước");
+      openPage("request");
+      return;
     }
 
-    // 3. DEBOUNCE: Thiết lập chờ 500ms (nửa giây) sau khi người dùng DỪNG GÕ mới gọi API
-    searchTimeout.current = setTimeout(async () => {
-      setIsSearchingAddress(true);
-      try {
-        const searchQuery = `${text}, Đà Nẵng, Việt Nam`;
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`);
-        const data = await res.json();
-        
-        setAddressSuggestions(data);
-        setShowAddressDropdown(true);
-      } catch (error) {
-        console.error("Lỗi tìm địa chỉ:", error);
-      } finally {
-        setIsSearchingAddress(false);
-      }
-    }, 500); // 500ms là thời gian chờ
+    setIsModalOpen(true);
   };
 
-  const handleSelectAddress = (item) => {
-    setAddress(item.display_name);
-    setUserLocation({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
-    setShowAddressDropdown(false);
+  const submitRepairRequestWithStore = async (selectedStoreId) => {
+    try {
+      const payload = {
+        device_id: null,
+        store_id: selectedStoreId,
+        title: issueTitle.trim(),
+        description: description.trim(),
+        budget: budget || null,
+        location: address || null,
+        latitude: userLocation.lat,
+        longitude: userLocation.lng,
+        phone: phone || null,
+        desired_date: desiredDate || null,
+        service_mode: serviceMode || null,
+        device_type: deviceType || null,
+        brand: brand || null,
+        model: model || null,
+        symptoms: symptoms.join(", "),
+        image: imageFile || null,
+      };
+
+      const res = await createRepairRequest(payload);
+      const localUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      if (res.data?.request_id && localUser?.id && selectedStoreId) {
+        await createOrGetConversationByRequest({
+          repair_request_id: res.data.request_id,
+          user_id: localUser.id,
+          store_id: selectedStoreId,
+        });
+      }
+
+      await loadTrackingRequests();
+
+      alert(res.data?.message || "Tạo yêu cầu sửa chữa thành công!");
+
+      resetForm();
+      setIsModalOpen(false);
+      setActivePage("tracking");
+    } catch (error) {
+      console.error("Create request error:", error);
+      console.error("Response data:", error.response?.data);
+      alert(
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Không thể tạo yêu cầu sửa chữa"
+      );
+    }
   };
+
   return (
     <div className="iems-root">
       <div
@@ -740,17 +832,56 @@ export default function Home() {
                   type="button"
                   className="avatar-button"
                   onClick={() => setMenuOpen((prev) => !prev)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    border: "1px solid #dbe4ee",
+                    background: "#fff",
+                    padding: "8px 12px 8px 8px",
+                    borderRadius: 999,
+                    cursor: "pointer",
+                  }}
                 >
-                  <div className="avatar">{user.initials || "U"}</div>
-                  <div className="user-info">
-                    <p className="user-name">{user.name || "Chưa có dữ liệu"}</p>
-                    <p className="user-role">{user.roleLabel || "Chưa có vai trò"}</p>
+                  <div className="avatar">{user.initials || buildInitials(user.name || "U")}</div>
+                  <div className="user-info" style={{ textAlign: "left" }}>
+                    <p className="user-name" style={{ margin: 0, fontWeight: 700 }}>
+                      {user.name || "Chưa có dữ liệu"}
+                    </p>
+                    <p className="user-role" style={{ margin: 0, color: "#64748b", fontSize: 13 }}>
+                      {user.roleLabel || "Người dùng"}
+                    </p>
                   </div>
                 </button>
 
                 {menuOpen && (
-                  <div className="dropdown-menu">
-                    <button type="button" className="logout-btn" onClick={handleLogout}>
+                  <div
+                    className="dropdown-menu"
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: "calc(100% + 8px)",
+                      background: "#fff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 16,
+                      padding: 8,
+                      boxShadow: "0 12px 30px rgba(15,23,42,0.12)",
+                      zIndex: 20,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="logout-btn"
+                      onClick={handleLogout}
+                      style={{
+                        border: 0,
+                        background: "#fff",
+                        cursor: "pointer",
+                        padding: "10px 14px",
+                        borderRadius: 12,
+                        width: "100%",
+                      }}
+                    >
                       Đăng xuất
                     </button>
                   </div>
@@ -858,8 +989,7 @@ export default function Home() {
                     <h2>Theo dõi dữ liệu thật từ backend ngay trên trang chủ.</h2>
                     <p>
                       Phần này đang lấy trực tiếp từ API dashboard. Nếu backend không có dữ liệu
-                      thì giao diện sẽ hiện rỗng hoặc hiện lỗi thật, không còn dữ liệu mẫu che đi
-                      nữa.
+                      thì giao diện sẽ hiện rỗng hoặc hiện lỗi thật.
                     </p>
 
                     <div className="hero-actions">
@@ -1080,24 +1210,29 @@ export default function Home() {
             <section className="page active">
               <div className="page-grid">
                 <div style={{ marginBottom: "16px" }}>
-                  <h2 className="page-title" style={{ margin: "0 0 8px 0" }}>Tạo yêu cầu mới</h2>
+                  <h2 className="page-title" style={{ margin: "0 0 8px 0" }}>
+                    Tạo yêu cầu mới
+                  </h2>
                   <p className="muted" style={{ margin: 0 }}>
                     Điền thông tin tình trạng máy của bạn. Hệ thống sẽ giúp bạn tìm cửa hàng phù hợp nhất.
                   </p>
                 </div>
 
-                {/* Đã bỏ maxWidth, set width 100% để full màn hình */}
                 <div className="surface" style={{ width: "100%", padding: "20px" }}>
-                  
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
                     }}
                   >
-                    {/* SỬ DỤNG CSS GRID ĐỂ CHIA 3 CỘT - GIẢM CHIỀU CAO FORM ĐỂ KHÔNG CẦN SCROLL */}
-                    <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", alignItems: "start" }}>
-                      
-                      {/* DÒNG 1: Loại thiết bị - Thương hiệu - Model (3 cột) */}
+                    <div
+                      className="form-grid"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(3, 1fr)",
+                        gap: "16px",
+                        alignItems: "start",
+                      }}
+                    >
                       <div className="form-group" style={{ margin: 0 }}>
                         <label htmlFor="deviceType">Loại thiết bị</label>
                         <select
@@ -1138,7 +1273,6 @@ export default function Home() {
                         />
                       </div>
 
-                      {/* DÒNG 2: Tiêu đề vấn đề (chiếm 2 cột) - SĐT (chiếm 1 cột) */}
                       <div className="form-group" style={{ margin: 0, gridColumn: "span 2" }}>
                         <label htmlFor="issueTitle">Tiêu đề vấn đề</label>
                         <input
@@ -1161,7 +1295,6 @@ export default function Home() {
                         />
                       </div>
 
-                      {/* DÒNG 3: Nhóm lỗi liên quan (Chiếm full 3 cột) */}
                       <div className="form-group" style={{ margin: 0, gridColumn: "span 3" }}>
                         <label>Nhóm lỗi liên quan</label>
                         <div className="pill-row">
@@ -1180,10 +1313,24 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* DÒNG 4: Địa chỉ (chiếm 2 cột) - Ngân sách (chiếm 1 cột) */}
-                      <div className="form-group" style={{ margin: 0, position: "relative", gridColumn: "span 2" }}>
+                      <div
+                        className="form-group"
+                        style={{ margin: 0, position: "relative", gridColumn: "span 2" }}
+                      >
                         <label htmlFor="address">Địa chỉ của bạn</label>
-                        <div className="search-shell" style={{ width: "100%", margin: 0, padding: "0 12px", border: "1px solid #dbe2ea", borderRadius: "12px", background: "#fff", display: "flex", alignItems: "center" }}>
+                        <div
+                          className="search-shell"
+                          style={{
+                            width: "100%",
+                            margin: 0,
+                            padding: "0 12px",
+                            border: "1px solid #dbe2ea",
+                            borderRadius: "12px",
+                            background: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
                           <span style={{ color: "#94a3b8", paddingRight: "8px" }}>📍</span>
                           <input
                             id="address"
@@ -1191,38 +1338,87 @@ export default function Home() {
                             value={address}
                             placeholder="Nhập địa chỉ (VD: 109 Nguyễn Thuật)..."
                             onChange={(e) => searchAddress(e.target.value)}
-                            onFocus={() => addressSuggestions.length > 0 && setShowAddressDropdown(true)}
+                            onFocus={() =>
+                              addressSuggestions.length > 0 && setShowAddressDropdown(true)
+                            }
                             autoComplete="off"
-                            style={{ border: "none", outline: "none", padding: "10px 0", width: "100%", background: "transparent" }}
+                            style={{
+                              border: "none",
+                              outline: "none",
+                              padding: "10px 0",
+                              width: "100%",
+                              background: "transparent",
+                            }}
                           />
-                          {isSearchingAddress && <span style={{fontSize: "12px", color: "#64748b", whiteSpace: "nowrap"}}>Đang tìm...</span>}
+                          {isSearchingAddress && (
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: "#64748b",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Đang tìm...
+                            </span>
+                          )}
                         </div>
 
-                        {/* Dropdown Gợi ý địa chỉ từ API */}
                         {showAddressDropdown && addressSuggestions.length > 0 && (
-                          <div className="address-dropdown" style={{
-                            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
-                            backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "12px",
-                            marginTop: "4px", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                            maxHeight: "200px", overflowY: "auto"
-                          }}>
+                          <div
+                            className="address-dropdown"
+                            style={{
+                              position: "absolute",
+                              top: "100%",
+                              left: 0,
+                              right: 0,
+                              zIndex: 10,
+                              backgroundColor: "white",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              marginTop: "4px",
+                              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                              maxHeight: "200px",
+                              overflowY: "auto",
+                            }}
+                          >
                             {addressSuggestions.map((item, index) => {
                               const nameParts = item.display_name.split(",");
                               const mainText = nameParts[0];
                               const subText = nameParts.slice(1).join(",").trim();
 
                               return (
-                                <div key={index} onClick={() => handleSelectAddress(item)} style={{
-                                  padding: "10px 16px", borderBottom: "1px solid #f1f5f9", cursor: "pointer",
-                                  display: "flex", alignItems: "flex-start", gap: "12px"
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"}
-                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                                <div
+                                  key={index}
+                                  onClick={() => handleSelectAddress(item)}
+                                  style={{
+                                    padding: "10px 16px",
+                                    borderBottom: "1px solid #f1f5f9",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: "12px",
+                                  }}
+                                  onMouseOver={(e) =>
+                                    (e.currentTarget.style.backgroundColor = "#f8fafc")
+                                  }
+                                  onMouseOut={(e) =>
+                                    (e.currentTarget.style.backgroundColor = "transparent")
+                                  }
                                 >
                                   <span style={{ color: "#94a3b8", marginTop: "2px" }}>⚲</span>
                                   <div>
-                                    <strong style={{ display: "block", color: "#0f172a", fontSize: "14px" }}>{mainText}</strong>
-                                    <span style={{ color: "#64748b", fontSize: "13px" }}>{subText}</span>
+                                    <strong
+                                      style={{
+                                        display: "block",
+                                        color: "#0f172a",
+                                        fontSize: "14px",
+                                      }}
+                                    >
+                                      {mainText}
+                                    </strong>
+                                    <span style={{ color: "#64748b", fontSize: "13px" }}>
+                                      {subText}
+                                    </span>
                                   </div>
                                 </div>
                               );
@@ -1239,9 +1435,11 @@ export default function Home() {
                           value={budget}
                           onChange={(e) => setBudget(e.target.value)}
                         />
+                        <span className="muted" style={{ fontSize: 13 }}>
+                          Khoảng dự kiến: {previewBudget}
+                        </span>
                       </div>
 
-                      {/* DÒNG 5: Hình thức tiếp nhận (chiếm 2 cột) - Ngày mong muốn (chiếm 1 cột) */}
                       <div className="form-group" style={{ margin: 0, gridColumn: "span 2" }}>
                         <label>Hình thức tiếp nhận</label>
                         <div className="pill-row">
@@ -1272,7 +1470,6 @@ export default function Home() {
                         />
                       </div>
 
-                      {/* DÒNG 6: Mô tả chi tiết (chiếm 2 cột) - Tải ảnh (chiếm 1 cột) */}
                       <div className="form-group" style={{ margin: 0, gridColumn: "span 2" }}>
                         <label htmlFor="description">Mô tả chi tiết</label>
                         <textarea
@@ -1287,70 +1484,190 @@ export default function Home() {
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Hình ảnh thiết bị (Không bắt buộc)</label>
                         {!imageFile ? (
-                          <div className="image-upload-box" style={{ 
-                            border: "2px dashed #cbd5e1", padding: "16px", textAlign: "center", 
-                            borderRadius: "12px", cursor: "pointer", backgroundColor: "#f8fafc", transition: "all 0.2s",
-                            height: "100px", display: "flex", alignItems: "center", justifyItems: "center"
-                          }}
-                          onMouseOver={(e) => e.currentTarget.style.borderColor = "#3b82f6"}
-                          onMouseOut={(e) => e.currentTarget.style.borderColor = "#cbd5e1"}
+                          <div
+                            className="image-upload-box"
+                            style={{
+                              border: "2px dashed #cbd5e1",
+                              padding: "16px",
+                              textAlign: "center",
+                              borderRadius: "12px",
+                              cursor: "pointer",
+                              backgroundColor: "#f8fafc",
+                              transition: "all 0.2s",
+                              height: "100px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyItems: "center",
+                            }}
+                            onMouseOver={(e) =>
+                              (e.currentTarget.style.borderColor = "#3b82f6")
+                            }
+                            onMouseOut={(e) =>
+                              (e.currentTarget.style.borderColor = "#cbd5e1")
+                            }
                           >
-                            <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} id="file-upload" />
-                            <label htmlFor="file-upload" style={{ cursor: "pointer", display: "block", width: "100%" }}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              style={{ display: "none" }}
+                              id="file-upload"
+                            />
+                            <label
+                              htmlFor="file-upload"
+                              style={{ cursor: "pointer", display: "block", width: "100%" }}
+                            >
                               <div style={{ fontSize: "24px", marginBottom: "4px" }}>📸</div>
-                              <span style={{ fontWeight: "500", color: "#0f172a", fontSize: "13px" }}>Tải ảnh lên</span>
+                              <span
+                                style={{
+                                  fontWeight: "500",
+                                  color: "#0f172a",
+                                  fontSize: "13px",
+                                }}
+                              >
+                                Tải ảnh lên
+                              </span>
                             </label>
                           </div>
                         ) : (
-                          <div style={{ position: "relative", display: "inline-block", padding: "4px", border: "1px solid #e2e8f0", borderRadius: "12px", backgroundColor: "#f8fafc", height: "100px", width: "100%" }}>
-                            <img src={imageFile} alt="Preview" style={{ height: "100%", width: "100%", borderRadius: "8px", objectFit: "cover", display: "block" }} />
-                            <button type="button" onClick={removeImage} style={{ 
-                              position: "absolute", top: "-8px", right: "-8px", background: "#ef4444", 
-                              color: "white", border: "none", borderRadius: "50%", width: "24px", height: "24px", cursor: "pointer",
-                              display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 4px rgba(0,0,0,0.2)", fontSize: "12px"
-                            }}>✕</button>
+                          <div
+                            style={{
+                              position: "relative",
+                              display: "inline-block",
+                              padding: "4px",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              backgroundColor: "#f8fafc",
+                              height: "100px",
+                              width: "100%",
+                            }}
+                          >
+                            <img
+                              src={imageFile}
+                              alt="Preview"
+                              style={{
+                                height: "100%",
+                                width: "100%",
+                                borderRadius: "8px",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={removeImage}
+                              style={{
+                                position: "absolute",
+                                top: "-8px",
+                                right: "-8px",
+                                background: "#ef4444",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "50%",
+                                width: "24px",
+                                height: "24px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                                fontSize: "12px",
+                              }}
+                            >
+                              ✕
+                            </button>
                           </div>
                         )}
                       </div>
-
                     </div>
 
-                    <div className="hero-actions" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "16px", marginTop: "16px", display: "flex", justifyContent: "flex-end" }}>
-                      <button className="btn btn-secondary" type="button" onClick={resetForm} style={{ marginRight: "12px" }}>
-                        Làm mới form
-                      </button>
-                      <button
-                        className="btn btn-primary"
-                        type="button"
-                        onClick={handleOpenSummary}
-                      >
-                        Tiếp tục
-                      </button>
+                    <div
+                      className="hero-actions"
+                      style={{
+                        borderTop: "1px solid #e2e8f0",
+                        paddingTop: "16px",
+                        marginTop: "16px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        <button className="btn btn-secondary" type="button" onClick={getCurrentLocation}>
+                          {loadingLocation ? "Đang lấy GPS..." : "Lấy vị trí hiện tại"}
+                        </button>
+                        <button className="btn btn-secondary" type="button" onClick={fetchNearbyStores}>
+                          Gợi ý cửa hàng gần
+                        </button>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        <button className="btn btn-secondary" type="button" onClick={resetForm}>
+                          Làm mới form
+                        </button>
+                        <button className="btn btn-primary" type="button" onClick={handleOpenSummary}>
+                          Tiếp tục
+                        </button>
+                      </div>
                     </div>
                   </form>
                 </div>
               </div>
 
-              {/* BƯỚC 1: MODAL TÓM TẮT YÊU CẦU */}
               {showSummaryModal && (
-                <div className="modal-overlay" style={{
-                  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                  backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: "blur(4px)"
-                }}>
-                  <div className="modal-content" style={{
-                    backgroundColor: 'white', padding: '30px', borderRadius: '24px',
-                    width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
-                  }}>
-                    <div style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: "16px", marginBottom: "20px" }}>
-                      <h2 style={{ margin: 0, color: '#0f172a' }}>Tóm tắt yêu cầu</h2>
-                      <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "14px" }}>Kiểm tra lại thông tin trước khi chọn cửa hàng</p>
+                <div
+                  className="modal-overlay"
+                  style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(15, 23, 42, 0.7)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1000,
+                    padding: "20px",
+                    backdropFilter: "blur(4px)",
+                  }}
+                >
+                  <div
+                    className="modal-content"
+                    style={{
+                      backgroundColor: "white",
+                      padding: "30px",
+                      borderRadius: "24px",
+                      width: "100%",
+                      maxWidth: "500px",
+                      boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        borderBottom: "1px solid #e2e8f0",
+                        paddingBottom: "16px",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      <h2 style={{ margin: 0, color: "#0f172a" }}>Tóm tắt yêu cầu</h2>
+                      <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "14px" }}>
+                        Kiểm tra lại thông tin trước khi chọn cửa hàng
+                      </p>
                     </div>
-                    
-                    <div className="summary-list" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+                    <div
+                      className="summary-list"
+                      style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+                    >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <span style={{ color: "#64748b", minWidth: "100px" }}>Thiết bị:</span>
-                        <strong style={{ textAlign: "right", color: "#0f172a" }}>{deviceType} · {brand}<br/>{previewModel}</strong>
+                        <strong style={{ textAlign: "right", color: "#0f172a" }}>
+                          {deviceType} · {brand}
+                          <br />
+                          {previewModel}
+                        </strong>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <span style={{ color: "#64748b", minWidth: "100px" }}>Vấn đề:</span>
@@ -1366,21 +1683,49 @@ export default function Home() {
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <span style={{ color: "#64748b", minWidth: "100px" }}>Địa chỉ:</span>
-                        <strong style={{ textAlign: "right", maxWidth: "70%", color: "#0f172a", lineHeight: "1.4" }}>{address}</strong>
+                        <strong
+                          style={{
+                            textAlign: "right",
+                            maxWidth: "70%",
+                            color: "#0f172a",
+                            lineHeight: "1.4",
+                          }}
+                        >
+                          {address}
+                        </strong>
                       </div>
                       {imageFile && (
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <span style={{ color: "#64748b", minWidth: "100px" }}>Ảnh báo lỗi:</span>
-                          <img src={imageFile} alt="Attached" style={{ height: "60px", borderRadius: "6px", border: "1px solid #e2e8f0", objectFit: "cover" }} />
+                          <img
+                            src={imageFile}
+                            alt="Attached"
+                            style={{
+                              height: "60px",
+                              borderRadius: "6px",
+                              border: "1px solid #e2e8f0",
+                              objectFit: "cover",
+                            }}
+                          />
                         </div>
                       )}
                     </div>
 
-                    <div style={{ display: "flex", gap: "12px", marginTop: '32px' }}>
-                      <button className="btn btn-secondary" type="button" onClick={() => setShowSummaryModal(false)} style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: "12px", marginTop: "32px" }}>
+                      <button
+                        className="btn btn-secondary"
+                        type="button"
+                        onClick={() => setShowSummaryModal(false)}
+                        style={{ flex: 1 }}
+                      >
                         Sửa lại
                       </button>
-                      <button className="btn btn-primary" type="button" style={{ flex: 1.5 }} onClick={proceedToStoreSelection}>
+                      <button
+                        className="btn btn-primary"
+                        type="button"
+                        style={{ flex: 1.5 }}
+                        onClick={proceedToStoreSelection}
+                      >
                         Xác nhận & Chọn cửa hàng
                       </button>
                     </div>
@@ -1388,41 +1733,103 @@ export default function Home() {
                 </div>
               )}
 
-              {/* BƯỚC 2: MODAL CHỌN CỬA HÀNG */}
               {isModalOpen && (
-                <div className="modal-overlay" style={{
-                  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                  backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-                  padding: '20px', backdropFilter: "blur(4px)"
-                }}>
-                  <div className="modal-content" style={{
-                    backgroundColor: 'white', padding: '30px', borderRadius: '24px',
-                    width: '100%', maxWidth: '600px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
-                  }}>
-                    <h2 style={{ marginBottom: '10px', color: '#0f172a' }}>Chọn Cửa Hàng</h2>
-                    <p className="muted" style={{ marginBottom: '20px', color: '#64748b' }}>Dưới đây là các cửa hàng đã xác minh. Hãy chọn nơi bạn muốn gửi máy để hoàn tất đơn.</p>
-                    
-                    <div className="store-list" style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {verifiedStores.map(store => (
-                        <div key={store.id} className="store-item" style={{
-                          padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0',
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          transition: "border-color 0.2s"
-                        }}
-                        onMouseOver={(e) => e.currentTarget.style.borderColor = "#cbd5e1"}
-                        onMouseOut={(e) => e.currentTarget.style.borderColor = "#e2e8f0"}
+                <div
+                  className="modal-overlay"
+                  style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(15, 23, 42, 0.7)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1000,
+                    padding: "20px",
+                    backdropFilter: "blur(4px)",
+                  }}
+                >
+                  <div
+                    className="modal-content"
+                    style={{
+                      backgroundColor: "white",
+                      padding: "30px",
+                      borderRadius: "24px",
+                      width: "100%",
+                      maxWidth: "600px",
+                      boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+                    }}
+                  >
+                    <h2 style={{ marginBottom: "10px", color: "#0f172a" }}>Chọn Cửa Hàng</h2>
+                    <p className="muted" style={{ marginBottom: "20px", color: "#64748b" }}>
+                      Dưới đây là các cửa hàng đã xác minh. Hãy chọn nơi bạn muốn gửi máy để hoàn tất đơn.
+                    </p>
+
+                    <div
+                      className="store-list"
+                      style={{
+                        maxHeight: "400px",
+                        overflowY: "auto",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                      }}
+                    >
+                      {verifiedStores.map((store) => (
+                        <div
+                          key={store.id}
+                          className="store-item"
+                          style={{
+                            padding: "16px",
+                            borderRadius: "16px",
+                            border: "1px solid #e2e8f0",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 16,
+                            transition: "border-color 0.2s",
+                          }}
+                          onMouseOver={(e) => (e.currentTarget.style.borderColor = "#cbd5e1")}
+                          onMouseOut={(e) => (e.currentTarget.style.borderColor = "#e2e8f0")}
                         >
                           <div>
-                            <strong style={{ display: 'block', fontSize: '16px', color: '#0f172a' }}>{store.store_name}</strong>
-                            <span className="muted" style={{ fontSize: '13px', color: '#64748b' }}>{store.address || "Chưa có địa chỉ"} · ★ {store.google_rating || 0}</span>
+                            <strong
+                              style={{
+                                display: "block",
+                                fontSize: "16px",
+                                color: "#0f172a",
+                              }}
+                            >
+                              {store.store_name}
+                            </strong>
+                            <span
+                              className="muted"
+                              style={{ fontSize: "13px", color: "#64748b" }}
+                            >
+                              {store.address || "Chưa có địa chỉ"} · ★ {store.google_rating || 0}
+                            </span>
                           </div>
-                          <button className="btn btn-primary" type="button" onClick={() => submitRepairRequestWithStore(store.id)}>Gửi đơn</button>
+                          <button
+                            className="btn btn-primary"
+                            type="button"
+                            onClick={() => submitRepairRequestWithStore(store.id)}
+                          >
+                            Gửi đơn
+                          </button>
                         </div>
                       ))}
                     </div>
-                    
-                    <button className="btn btn-secondary" type="button" style={{ marginTop: '20px', width: '100%' }} onClick={() => setIsModalOpen(false)}>Hủy bỏ</button>
+
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      style={{ marginTop: "20px", width: "100%" }}
+                      onClick={() => setIsModalOpen(false)}
+                    >
+                      Hủy bỏ
+                    </button>
                   </div>
                 </div>
               )}
@@ -1435,16 +1842,19 @@ export default function Home() {
                 <div>
                   <span className="eyebrow">CỬA HÀNG</span>
                   <h2 className="page-title">
-                    {selectedStoreDetail ? `Cửa hàng: ${selectedStoreDetail.store_name}` : "Danh sách cửa hàng từ backend"}
+                    {selectedStoreDetail
+                      ? `Cửa hàng: ${selectedStoreDetail.store_name}`
+                      : "Danh sách cửa hàng từ backend"}
                   </h2>
                   <p className="muted">
-                    {selectedStoreDetail ? "Danh sách các dịch vụ và sản phẩm đang cung cấp." : "Phần này đang bind theo danh sách cửa hàng approved từ API dashboard."}
+                    {selectedStoreDetail
+                      ? "Danh sách các dịch vụ và sản phẩm đang cung cấp."
+                      : "Phần này đang bind theo danh sách cửa hàng approved từ API dashboard."}
                   </p>
                 </div>
 
                 <div className="stores-layout">
                   <div className="surface">
-                    
                     {!selectedStoreDetail ? (
                       <>
                         <div className="section-head">
@@ -1480,13 +1890,19 @@ export default function Home() {
                               </div>
 
                               <div className="card-actions">
-                                <button className="btn btn-primary" onClick={() => handleViewStoreDetail(store)}>
+                                <button
+                                  className="btn btn-primary"
+                                  onClick={() => handleViewStoreDetail(store)}
+                                >
                                   Xem mặt hàng
                                 </button>
-                                <button className="btn btn-secondary" onClick={() => {
-                                  openPage("request");
-                                  setTimeout(() => handleOpenStoreSelection(), 100);
-                                }}>
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => {
+                                    openPage("request");
+                                    setTimeout(() => handleOpenStoreSelection(), 100);
+                                  }}
+                                >
                                   Gửi yêu cầu
                                 </button>
                               </div>
@@ -1495,53 +1911,119 @@ export default function Home() {
                         </div>
                       </>
                     ) : (
-                      
                       <>
-                        <div className="section-head" style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: "16px" }}>
+                        <div
+                          className="section-head"
+                          style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: "16px" }}
+                        >
                           <div>
-                            <button 
-                              className="mini-link" 
+                            <button
+                              className="mini-link"
                               onClick={() => setSelectedStoreDetail(null)}
                               style={{ fontSize: "15px", fontWeight: "bold" }}
                             >
                               ← Quay lại danh sách
                             </button>
-                            <h3 className="section-title" style={{ marginTop: "12px" }}>Các dịch vụ & Sản phẩm nổi bật</h3>
+                            <h3 className="section-title" style={{ marginTop: "12px" }}>
+                              Các dịch vụ & Sản phẩm nổi bật
+                            </h3>
                           </div>
                         </div>
 
                         {loadingProducts ? (
-                          <div className="note-banner" style={{ marginTop: "20px" }}>Đang tải danh sách mặt hàng...</div>
+                          <div className="note-banner" style={{ marginTop: "20px" }}>
+                            Đang tải danh sách mặt hàng...
+                          </div>
                         ) : (
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginTop: '24px' }}>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                              gap: "16px",
+                              marginTop: "24px",
+                            }}
+                          >
                             {storeProducts.length === 0 && (
-                              <div className="note-banner" style={{ gridColumn: "1 / -1" }}>Cửa hàng này chưa đăng tải mặt hàng nào.</div>
+                              <div className="note-banner" style={{ gridColumn: "1 / -1" }}>
+                                Cửa hàng này chưa đăng tải mặt hàng nào.
+                              </div>
                             )}
-                            
-                            {storeProducts.map(prod => (
-                              <div key={prod.id} style={{ border: '1px solid #e2e8f0', borderRadius: '16px', padding: '16px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                                <img 
-                                  src={prod.image || "https://placehold.co/150x150?text=No+Image"} 
+
+                            {storeProducts.map((prod) => (
+                              <div
+                                key={prod.id}
+                                style={{
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: "16px",
+                                  padding: "16px",
+                                  backgroundColor: "#fff",
+                                  boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                                }}
+                              >
+                                <img
+                                  src={prod.image || "https://placehold.co/150x150?text=No+Image"}
                                   alt={prod.name}
-                                  style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '8px', marginBottom: '12px', border: '1px solid #f1f5f9' }} 
+                                  style={{
+                                    width: "100%",
+                                    height: "140px",
+                                    objectFit: "cover",
+                                    borderRadius: "8px",
+                                    marginBottom: "12px",
+                                    border: "1px solid #f1f5f9",
+                                  }}
                                 />
-                                <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#0f172a' }}>{prod.name}</h4>
-                                <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", backgroundColor: prod.type === "Dịch vụ" ? "#dbeafe" : "#fef3c7", color: prod.type === "Dịch vụ" ? "#2563eb" : "#d97706" }}>
+                                <h4
+                                  style={{
+                                    margin: "0 0 8px 0",
+                                    fontSize: "15px",
+                                    color: "#0f172a",
+                                  }}
+                                >
+                                  {prod.name}
+                                </h4>
+                                <span
+                                  style={{
+                                    padding: "4px 10px",
+                                    borderRadius: "20px",
+                                    fontSize: "12px",
+                                    fontWeight: "bold",
+                                    backgroundColor:
+                                      prod.type === "Dịch vụ" ? "#dbeafe" : "#fef3c7",
+                                    color: prod.type === "Dịch vụ" ? "#2563eb" : "#d97706",
+                                  }}
+                                >
                                   {prod.type}
                                 </span>
-                                <div style={{ marginTop: '12px', fontWeight: 'bold', color: '#ef4444', fontSize: '16px' }}>
+                                <div
+                                  style={{
+                                    marginTop: "12px",
+                                    fontWeight: "bold",
+                                    color: "#ef4444",
+                                    fontSize: "16px",
+                                  }}
+                                >
                                   {formatVND(prod.price)}
                                 </div>
                               </div>
                             ))}
                           </div>
                         )}
-                        
+
                         <div style={{ marginTop: "32px", textAlign: "center" }}>
-                          <button className="btn btn-primary" style={{ padding: "12px 32px" }} onClick={() => {
-                             openPage("request");
-                             setTimeout(() => submitRepairRequestWithStore(selectedStoreDetail.id), 500); 
-                          }}>
+                          <button
+                            className="btn btn-primary"
+                            style={{ padding: "12px 32px" }}
+                            onClick={() => {
+                              openPage("request");
+                              setTimeout(() => {
+                                if (!issueTitle.trim() || !description.trim() || !userLocation.lat) {
+                                  alert("Hãy nhập thông tin yêu cầu và địa chỉ trước rồi mới gửi đơn.");
+                                  return;
+                                }
+                                submitRepairRequestWithStore(selectedStoreDetail.id);
+                              }, 500);
+                            }}
+                          >
                             Bấm để gửi yêu cầu sửa chữa cho {selectedStoreDetail.store_name}
                           </button>
                         </div>
@@ -1664,18 +2146,49 @@ export default function Home() {
                           <h3>{item.device_name || item.title}</h3>
                           <p className="muted">{item.description || "Không có mô tả"}</p>
                         </div>
+
                         <div style={{ textAlign: "right" }}>
                           <strong>{item.budget ? formatVND(item.budget) : "Chưa có giá"}</strong>
-                          <div className="muted" style={{ marginBottom: "8px" }}>{formatDateTime(item.created_at)}</div>
-                          
-                          {/* 🚀 ĐÃ THÊM: NÚT XEM CHI TIẾT */}
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: "6px 12px", fontSize: "13px" }}
-                            onClick={() => setSelectedTrackedRequest(item)}
+                          <div className="muted" style={{ marginBottom: "8px" }}>
+                            {formatDateTime(item.created_at)}
+                          </div>
+
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "8px",
+                              justifyContent: "flex-end",
+                              flexWrap: "wrap",
+                            }}
                           >
-                            Xem chi tiết
-                          </button>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "13px" }}
+                              onClick={() => setSelectedTrackedRequest(item)}
+                            >
+                              Xem chi tiết
+                            </button>
+
+                            {item.status === "COMPLETED" && !item.has_review && (
+                              <button
+                                className="btn btn-primary"
+                                style={{ padding: "6px 12px", fontSize: "13px" }}
+                                onClick={() => openReviewModal(item)}
+                                disabled={reviewLoading}
+                              >
+                                Đánh giá
+                              </button>
+                            )}
+
+                            {item.status === "COMPLETED" && item.has_review && (
+                              <span
+                                className="status-chip status-success"
+                                style={{ padding: "8px 12px" }}
+                              >
+                                Đã đánh giá {item.review?.rating || 0}/5 ★
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -1702,85 +2215,297 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 🚀 ĐÃ THÊM: MODAL CHI TIẾT ĐƠN HÀNG Ở TAB THEO DÕI */}
               {selectedTrackedRequest && (
-                <div className="modal-overlay" style={{
-                  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                  backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-                  padding: '20px', backdropFilter: "blur(4px)"
-                }}>
-                  <div className="modal-content" style={{
-                    backgroundColor: 'white', padding: '32px', borderRadius: '24px',
-                    width: '100%', maxWidth: '600px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                    maxHeight: '90vh', overflowY: 'auto'
-                  }}>
-                    <h2 style={{ marginTop: 0, color: '#0f172a' }}>Chi tiết đơn hàng #RQ-{selectedTrackedRequest.id}</h2>
-                    
-                    <div style={{ backgroundColor: "#f8fafc", padding: "16px", borderRadius: "12px", marginBottom: "20px", border: "1px solid #e2e8f0" }}>
-                      <h4 style={{ margin: "0 0 12px 0", color: "#334155" }}>Thông tin khách báo:</h4>
-                      <p style={{ margin: "0 0 8px 0" }}><strong>Thiết bị:</strong> {selectedTrackedRequest.device_name}</p>
-                      <p style={{ margin: "0 0 8px 0", color: "#ef4444" }}><strong>Lỗi gặp phải:</strong> {selectedTrackedRequest.title}</p>
-                      <p style={{ margin: 0 }}><strong>Mô tả chi tiết:</strong> {selectedTrackedRequest.description}</p>
-                    </div>
+                <div
+                  className="modal-overlay"
+                  style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(15, 23, 42, 0.7)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1000,
+                    padding: "20px",
+                    backdropFilter: "blur(4px)",
+                  }}
+                  onClick={() => setSelectedTrackedRequest(null)}
+                >
+                  <div
+                    className="modal-content"
+                    style={{
+                      backgroundColor: "white",
+                      padding: "32px",
+                      borderRadius: "24px",
+                      width: "100%",
+                      maxWidth: "600px",
+                      boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+                      maxHeight: "90vh",
+                      overflowY: "auto",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h2 style={{ marginTop: 0, color: "#0f172a" }}>
+                      Chi tiết đơn hàng #RQ-{selectedTrackedRequest.id}
+                    </h2>
 
-                    <div style={{ backgroundColor: selectedTrackedRequest.technician_note ? "#fffbeb" : "#f1f5f9", padding: "20px", borderRadius: "12px", border: selectedTrackedRequest.technician_note ? "1px solid #fde68a" : "1px dashed #cbd5e1" }}>
-                      <h4 style={{ margin: "0 0 12px 0", color: selectedTrackedRequest.technician_note ? "#d97706" : "#64748b", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ fontSize: "18px" }}>👨‍🔧</span> Báo cáo của Kỹ thuật viên
-                      </h4>
-                      
-                      {selectedTrackedRequest.technician_note ? (
-                        <>
-                          <div style={{ color: '#0f172a', fontSize: '15px', lineHeight: '1.6' }}>
-                            {selectedTrackedRequest.technician_note}
-                          </div>
-                          {selectedTrackedRequest.extra_cost > 0 && (
-                            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #fcd34d', color: '#ef4444', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span>Phí sửa chữa phát sinh:</span>
-                              <span style={{ fontSize: '16px' }}>+ {formatVND(selectedTrackedRequest.extra_cost)}</span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <p style={{ margin: 0, color: "#94a3b8", fontStyle: "italic" }}>
-                          Thợ kỹ thuật chưa cập nhật báo cáo cho đơn hàng này.
-                        </p>
-                      )}
-                    </div>
-
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ marginTop: '24px', width: '100%', padding: '14px' }} 
-                      onClick={() => setSelectedTrackedRequest(null)}
+                    <div
+                      style={{
+                        backgroundColor: "#f8fafc",
+                        padding: "16px",
+                        borderRadius: "12px",
+                        marginBottom: "20px",
+                        border: "1px solid #e2e8f0",
+                      }}
                     >
-                      Đóng chi tiết
-                    </button>
+                      <h4 style={{ margin: "0 0 12px 0", color: "#334155" }}>
+                        Thông tin khách báo:
+                      </h4>
+                      <p style={{ margin: "0 0 8px 0" }}>
+                        <strong>Thiết bị:</strong> {selectedTrackedRequest.device_name}
+                      </p>
+                      <p style={{ margin: "0 0 8px 0", color: "#ef4444" }}>
+                        <strong>Lỗi gặp phải:</strong> {selectedTrackedRequest.title}
+                      </p>
+                      <p style={{ margin: 0 }}>
+                        <strong>Mô tả chi tiết:</strong> {selectedTrackedRequest.description}
+                      </p>
+                    </div>
+
+                    <div
+                      style={{
+                        backgroundColor: selectedTrackedRequest.technician_note ? "#fffbeb" : "#f1f5f9",
+                        padding: "20px",
+                        borderRadius: "12px",
+                        border: "1px solid #e2e8f0",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      <h4 style={{ margin: "0 0 12px 0", color: "#334155" }}>
+                        Ghi chú kỹ thuật / cửa hàng
+                      </h4>
+                      <p style={{ margin: 0, color: "#334155", lineHeight: 1.6 }}>
+                        {selectedTrackedRequest.technician_note ||
+                          "Cửa hàng chưa cập nhật ghi chú kỹ thuật cho đơn này."}
+                      </p>
+                    </div>
+
+                    <div className="summary-box">
+                      <div className="summary-list">
+                        <div className="summary-row">
+                          <span>Trạng thái</span>
+                          <strong>{statusLabel(selectedTrackedRequest.status)}</strong>
+                        </div>
+                        <div className="summary-row">
+                          <span>Ngân sách / Chi phí</span>
+                          <strong>
+                            {selectedTrackedRequest.extra_cost
+                              ? formatVND(selectedTrackedRequest.extra_cost)
+                              : selectedTrackedRequest.budget
+                              ? formatVND(selectedTrackedRequest.budget)
+                              : "Chưa có"}
+                          </strong>
+                        </div>
+                        <div className="summary-row">
+                          <span>Địa điểm</span>
+                          <strong>{selectedTrackedRequest.location || "Chưa có"}</strong>
+                        </div>
+                        <div className="summary-row">
+                          <span>Ngày tạo</span>
+                          <strong>{formatDateTime(selectedTrackedRequest.created_at)}</strong>
+                        </div>
+                        <div className="summary-row">
+                          <span>Cửa hàng</span>
+                          <strong>{selectedTrackedRequest.store_name || "Chưa xác định"}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedTrackedRequest.image && (
+                      <div style={{ marginTop: 20 }}>
+                        <h4 style={{ marginBottom: 12 }}>Ảnh khách đã gửi</h4>
+                        <img
+                          src={selectedTrackedRequest.image}
+                          alt="Repair request"
+                          style={{
+                            width: "100%",
+                            maxHeight: 260,
+                            objectFit: "cover",
+                            borderRadius: 16,
+                            border: "1px solid #e2e8f0",
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: 24, textAlign: "right" }}>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => setSelectedTrackedRequest(null)}
+                      >
+                        Đóng
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {reviewModal.open && reviewModal.item && (
+                <div
+                  className="modal-overlay"
+                  style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(15, 23, 42, 0.7)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1000,
+                    padding: "20px",
+                    backdropFilter: "blur(4px)",
+                  }}
+                  onClick={() => {
+                    if (reviewLoading) return;
+                    setReviewModal({ open: false, item: null });
+                  }}
+                >
+                  <div
+                    className="modal-content"
+                    style={{
+                      backgroundColor: "white",
+                      padding: "30px",
+                      borderRadius: "24px",
+                      width: "100%",
+                      maxWidth: "560px",
+                      boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      style={{
+                        borderBottom: "1px solid #e2e8f0",
+                        paddingBottom: "16px",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      <h2 style={{ margin: 0, color: "#0f172a" }}>Đánh giá cửa hàng</h2>
+                      <p style={{ margin: "6px 0 0 0", color: "#64748b", fontSize: "14px" }}>
+                        Bạn đang đánh giá đơn RQ-{reviewModal.item.id} tại{" "}
+                        {reviewModal.item.store_name || "cửa hàng"}.
+                      </p>
+                    </div>
+
+                    <div style={{ display: "grid", gap: "18px" }}>
+                      <div>
+                        <label
+                          style={{
+                            fontWeight: 700,
+                            display: "block",
+                            marginBottom: "10px",
+                          }}
+                        >
+                          Chọn số sao
+                        </label>
+
+                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              className={
+                                Number(reviewForm.rating) === star
+                                  ? "btn btn-primary"
+                                  : "btn btn-secondary"
+                              }
+                              onClick={() =>
+                                setReviewForm((prev) => ({
+                                  ...prev,
+                                  rating: star,
+                                }))
+                              }
+                            >
+                              {star} ★
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Nhận xét</label>
+                        <textarea
+                          value={reviewForm.comment}
+                          onChange={(e) =>
+                            setReviewForm((prev) => ({
+                              ...prev,
+                              comment: e.target.value,
+                            }))
+                          }
+                          placeholder="Ví dụ: cửa hàng sửa nhanh, tư vấn rõ ràng, thái độ tốt..."
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "12px",
+                          justifyContent: "flex-end",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => {
+                            if (reviewLoading) return;
+                            setReviewModal({ open: false, item: null });
+                          }}
+                        >
+                          Đóng
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={handleSubmitReview}
+                          disabled={reviewLoading}
+                        >
+                          {reviewLoading ? "Đang gửi..." : "Gửi đánh giá"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
             </section>
           )}
 
-
           {activePage === "chatbot" && (
             <section className="page active">
               <div className="page-grid">
                 <div>
                   <span className="eyebrow">CHATBOT AI</span>
-                  <h2 className="page-title">Màn hình hội thoại</h2>
-                  <p className="muted">Phần này vẫn là giao diện mẫu, chưa nối backend AI.</p>
+                  <h2 className="page-title">Chẩn đoán sơ bộ thiết bị</h2>
+                  <p className="muted">
+                    Bạn có thể nhập triệu chứng để nhận gợi ý ban đầu trước khi tạo yêu cầu sửa chữa.
+                  </p>
                 </div>
 
                 <div className="chat-layout">
-                  <aside className="aside-card">
+                  <div className="surface">
                     <div className="section-head">
                       <div>
-                        <span className="eyebrow">PROMPT NHANH</span>
-                        <h3 className="section-title">Câu hỏi gợi ý</h3>
+                        <span className="eyebrow">GỢI Ý NHANH</span>
+                        <h3 className="section-title">Prompt mẫu</h3>
                       </div>
                     </div>
 
-                    <div className="prompt-list prompt-grid">
+                    <div className="prompt-grid" style={{ gap: 12 }}>
                       {quickPrompts.map((prompt) => (
                         <button
                           key={prompt}
@@ -1791,12 +2516,15 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
-                  </aside>
+
+                  </div>
 
                   <div className="surface chat-card">
-                    <div className="note-banner">
-                      Chẩn đoán AI chỉ mang tính tham khảo. Kết quả cuối cùng vẫn cần kỹ thuật
-                      viên xác nhận.
+                    <div className="section-head">
+                      <div>
+                        <span className="eyebrow">HỘI THOẠI</span>
+                        <h3 className="section-title">IEMS AI Assistant</h3>
+                      </div>
                     </div>
 
                     <div className="chat-stream">
@@ -1804,7 +2532,7 @@ export default function Home() {
                         <div key={`${msg.role}-${index}`} className={`bubble ${msg.role}`}>
                           <div className="bubble-head">
                             <strong>{msg.title}</strong>
-                            <span className={msg.role === "ai" ? "muted" : ""}>{msg.time}</span>
+                            <span className="muted">{msg.time}</span>
                           </div>
                           <p>{msg.text}</p>
                         </div>
@@ -1815,19 +2543,14 @@ export default function Home() {
                       <textarea
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Nhập triệu chứng thiết bị để nhận gợi ý sơ bộ..."
+                        placeholder="Nhập triệu chứng thiết bị của bạn..."
                       />
-                      <div className="card-actions">
-                        <button className="btn btn-primary" onClick={() => sendChatMessage(chatInput)}>
-                          Gửi cho AI
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+                        <button className="btn btn-secondary" onClick={() => setChatInput("")}>
+                          Xóa
                         </button>
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() =>
-                            setChatInput("Laptop nóng lên rất nhanh sau 10 phút sử dụng")
-                          }
-                        >
-                          Chèn ví dụ
+                        <button className="btn btn-primary" onClick={() => sendChatMessage(chatInput)}>
+                          Gửi
                         </button>
                       </div>
                     </div>
@@ -1842,176 +2565,122 @@ export default function Home() {
               <div className="page-grid">
                 <div>
                   <span className="eyebrow">HỒ SƠ</span>
-                  <h2 className="page-title">Thông tin người dùng đang lấy từ backend</h2>
+                  <h2 className="page-title">Tài khoản và cài đặt cá nhân</h2>
+                  <p className="muted">
+                    Quản lý thông tin tài khoản, số điện thoại và các dữ liệu đã lưu.
+                  </p>
                 </div>
 
                 <div className="profile-layout">
-                  <aside className="profile-card">
-                    <div className="profile-avatar">{user.initials || "U"}</div>
+                  <div className="profile-card">
+                    <div className="profile-avatar">
+                      {user.initials || buildInitials(user.name || "U")}
+                    </div>
+                    <h3 style={{ marginBottom: 8 }}>{user.name || "Chưa có tên"}</h3>
+                    <p className="muted">{user.email || "Chưa có email"}</p>
 
-                    {!isEditingProfile ? (
-                      <>
-                        <h3>{user.name || "Chưa có tên"}</h3>
-                        <p className="muted">{user.email || "Chưa có email"}</p>
-                        <p className="muted">{user.roleLabel || "Chưa có vai trò"}</p>
+                    <div className="profile-meta">
+                      <div className="profile-meta-item">
+                        <strong>Số điện thoại</strong>
+                        <span>{user.phone || "Chưa cập nhật"}</span>
+                      </div>
+                      <div className="profile-meta-item">
+                        <strong>Thiết bị đã lưu</strong>
+                        <span>{savedDevices.length}</span>
+                      </div>
+                      <div className="profile-meta-item">
+                        <strong>Yêu cầu đã tạo</strong>
+                        <span>{counters.totalRequests || 0}</span>
+                      </div>
+                    </div>
+                  </div>
 
-                        <div className="profile-meta">
-                          <div className="profile-meta-item">
-                            <strong>Số điện thoại</strong>
-                            <span className="muted">{user.phone || "Chưa cập nhật"}</span>
-                          </div>
-                          <div className="profile-meta-item">
-                            <strong>Thiết bị đã lưu</strong>
-                            <span className="muted">
-                              {savedDevices.length > 0
-                                ? savedDevices.map((item) => item.name).join(" · ")
-                                : "Chưa có dữ liệu"}
-                            </span>
-                          </div>
-                          <div className="profile-meta-item">
-                            <strong>Thông báo chưa đọc</strong>
-                            <span className="muted">{counters.unreadNotifications || 0}</span>
-                          </div>
+                  <div className="settings-grid">
+                    <div className="setting-card">
+                      <div className="section-head">
+                        <div>
+                          <span className="eyebrow">THÔNG TIN CÁ NHÂN</span>
+                          <h3 className="section-title">Cập nhật hồ sơ</h3>
                         </div>
-
-                        <div style={{ marginTop: 20 }}>
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => {
-                              setProfileForm({
-                                name: user.name || "",
-                                phone: user.phone || "",
-                              });
-                              setProfileMessage("");
-                              setIsEditingProfile(true);
-                            }}
-                          >
-                            Chỉnh sửa hồ sơ
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <h3>Chỉnh sửa hồ sơ</h3>
-                        <p className="muted">{user.email || "Chưa có email"}</p>
-                        <p className="muted">{user.roleLabel || "Chưa có vai trò"}</p>
-
-                        <div className="profile-meta">
-                          <div className="profile-meta-item">
-                            <strong>Họ và tên</strong>
-                            <input
-                              type="text"
-                              name="name"
-                              value={profileForm.name}
-                              onChange={handleProfileInputChange}
-                              placeholder="Nhập họ và tên"
-                              style={{
-                                marginTop: 8,
-                                width: "100%",
-                                padding: "12px 14px",
-                                borderRadius: 12,
-                                border: "1px solid #dbe2ea",
-                                outline: "none",
-                              }}
-                            />
-                          </div>
-
-                          <div className="profile-meta-item">
-                            <strong>Số điện thoại</strong>
-                            <input
-                              type="text"
-                              name="phone"
-                              value={profileForm.phone}
-                              onChange={handleProfileInputChange}
-                              placeholder="Nhập số điện thoại"
-                              style={{
-                                marginTop: 8,
-                                width: "100%",
-                                padding: "12px 14px",
-                                borderRadius: 12,
-                                border: "1px solid #dbe2ea",
-                                outline: "none",
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            marginTop: 20,
-                            display: "flex",
-                            gap: 12,
-                            flexWrap: "wrap",
-                          }}
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => setIsEditingProfile((prev) => !prev)}
                         >
+                          {isEditingProfile ? "Hủy" : "Chỉnh sửa"}
+                        </button>
+                      </div>
+
+                      <div className="form-grid">
+                        <div className="form-group">
+                          <label>Họ và tên</label>
+                          <input
+                            name="name"
+                            value={profileForm.name}
+                            onChange={handleProfileInputChange}
+                            disabled={!isEditingProfile}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Số điện thoại</label>
+                          <input
+                            name="phone"
+                            value={profileForm.phone}
+                            onChange={handleProfileInputChange}
+                            disabled={!isEditingProfile}
+                          />
+                        </div>
+                      </div>
+
+                      {profileMessage && (
+                        <div
+                          className={
+                            profileMessage.toLowerCase().includes("thành công")
+                              ? "note-banner success"
+                              : "note-banner"
+                          }
+                          style={{ marginTop: 16 }}
+                        >
+                          {profileMessage}
+                        </div>
+                      )}
+
+                      {isEditingProfile && (
+                        <div style={{ marginTop: 16, textAlign: "right" }}>
                           <button
-                            type="button"
                             className="btn btn-primary"
                             onClick={handleSaveProfile}
                             disabled={profileSaving}
                           >
                             {profileSaving ? "Đang lưu..." : "Lưu thay đổi"}
                           </button>
-
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={() => {
-                              setIsEditingProfile(false);
-                              setProfileMessage("");
-                              setProfileForm({
-                                name: user.name || "",
-                                phone: user.phone || "",
-                              });
-                            }}
-                          >
-                            Hủy
-                          </button>
                         </div>
-                      </>
-                    )}
+                      )}
+                    </div>
 
-                    {profileMessage && (
-                      <div
-                        style={{
-                          marginTop: 14,
-                          padding: 12,
-                          borderRadius: 12,
-                          background: "#eff6ff",
-                          border: "1px solid #bfdbfe",
-                          color: "#1d4ed8",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {profileMessage}
-                      </div>
-                    )}
-                  </aside>
-
-                  <div className="settings-grid">
                     <div className="setting-card">
                       <div className="section-head">
                         <div>
-                          <span className="eyebrow">THỐNG KÊ</span>
-                          <h3 className="section-title">Tài khoản của bạn</h3>
+                          <span className="eyebrow">THIẾT BỊ ĐÃ LƯU</span>
+                          <h3 className="section-title">Danh sách thiết bị</h3>
                         </div>
                       </div>
 
                       <div className="summary-box">
                         <div className="summary-list">
-                          <div className="summary-row">
-                            <span>Tổng yêu cầu</span>
-                            <strong>{counters.totalRequests || 0}</strong>
-                          </div>
-                          <div className="summary-row">
-                            <span>Đang xử lý</span>
-                            <strong>{counters.activeRequests || 0}</strong>
-                          </div>
-                          <div className="summary-row">
-                            <span>Đã hoàn tất</span>
-                            <strong>{counters.completedRequests || 0}</strong>
-                          </div>
+                          {savedDevices.length === 0 && (
+                            <div className="summary-row">
+                              <span>Thiết bị</span>
+                              <strong>Chưa có dữ liệu</strong>
+                            </div>
+                          )}
+
+                          {savedDevices.map((item) => (
+                            <div key={`profile-saved-${item.id}`} className="summary-row">
+                              <span>{item.category || "Thiết bị"}</span>
+                              <strong>{item.name}</strong>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -2019,40 +2688,36 @@ export default function Home() {
                     <div className="setting-card">
                       <div className="section-head">
                         <div>
-                          <span className="eyebrow">DỮ LIỆU BACKEND</span>
-                          <h3 className="section-title">Thiết bị và cửa hàng</h3>
+                          <span className="eyebrow">THÔNG TIN KHÁC</span>
+                          <h3 className="section-title">Tổng quan tài khoản</h3>
                         </div>
                       </div>
 
                       <div className="summary-box">
                         <div className="summary-list">
                           <div className="summary-row">
-                            <span>Thiết bị đã lưu</span>
-                            <strong>{counters.savedDevices || 0}</strong>
+                            <span>Thông báo chưa đọc</span>
+                            <strong>{counters.unreadNotifications || 0}</strong>
                           </div>
                           <div className="summary-row">
-                            <span>Cửa hàng approved</span>
-                            <strong>{counters.verifiedStores || 0}</strong>
-                          </div>
-                          <div className="summary-row">
-                            <span>Quote chờ phản hồi</span>
+                            <span>Báo giá chờ phản hồi</span>
                             <strong>{counters.pendingQuotes || 0}</strong>
+                          </div>
+                          <div className="summary-row">
+                            <span>Đơn đang xử lý</span>
+                            <strong>{counters.activeRequests || 0}</strong>
                           </div>
                         </div>
                       </div>
-
-                      <div className="space-12" />
                     </div>
                   </div>
                 </div>
               </div>
             </section>
           )}
-
-          <StoreChatPanel
-            viewerName={profileForm.name || user.name || "Khách hàng"}
-          />
         </main>
+
+        <StoreChatPanel />
       </div>
     </div>
   );

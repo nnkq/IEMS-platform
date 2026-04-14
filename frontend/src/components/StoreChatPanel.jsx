@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  getUserConversations,
+  getStoreConversations,
   getConversationMessages,
   sendChatMessageApi,
   markConversationRead,
@@ -35,7 +35,7 @@ function formatBubbleTime(value) {
 
 function buildAvatarLabel(name = "") {
   const clean = name.trim();
-  if (!clean) return "CH";
+  if (!clean) return "KH";
   return clean
     .split(/\s+/)
     .filter(Boolean)
@@ -44,7 +44,10 @@ function buildAvatarLabel(name = "") {
     .join("");
 }
 
-export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
+export default function StoreOwnerChatPanel({
+  storeId,
+  storeName = "Cửa hàng của tôi",
+}) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [threads, setThreads] = useState([]);
@@ -57,7 +60,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
   const bottomRef = useRef(null);
 
   const localUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const userId = localUser?.id || null;
+  const resolvedStoreId = storeId || localUser?.id || null;
 
   useEffect(() => {
     setMounted(true);
@@ -75,11 +78,11 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
   }, []);
 
   const loadThreads = async () => {
-    if (!userId) return;
+    if (!resolvedStoreId) return;
 
     try {
       setLoadingThreads(true);
-      const res = await getUserConversations(userId);
+      const res = await getStoreConversations(resolvedStoreId);
       const conversationList = Array.isArray(res.data) ? res.data : [];
       setThreads(conversationList);
 
@@ -87,7 +90,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
         setActiveThreadId(conversationList[0].conversation_id);
       }
     } catch (error) {
-      console.error("Lỗi lấy danh sách hội thoại user:", error);
+      console.error("Lỗi lấy danh sách hội thoại store:", error);
     } finally {
       setLoadingThreads(false);
     }
@@ -103,9 +106,9 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
       const messageList = Array.isArray(res.data) ? res.data : [];
       setMessages(messageList);
 
-      await markConversationRead(conversationId, "user");
+      await markConversationRead(conversationId, "store");
     } catch (error) {
-      console.error("Lỗi lấy tin nhắn conversation:", error);
+      console.error("Lỗi lấy tin nhắn conversation store:", error);
     } finally {
       setLoadingMessages(false);
     }
@@ -113,14 +116,14 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
 
   useEffect(() => {
     if (!isOpen) return;
-    loadThreads();
 
+    loadThreads();
     const timer = setInterval(() => {
       loadThreads();
     }, 3000);
 
     return () => clearInterval(timer);
-  }, [isOpen, userId]);
+  }, [isOpen, resolvedStoreId]);
 
   useEffect(() => {
     if (!isOpen || !activeThreadId) return;
@@ -144,7 +147,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
 
     return threads.filter((thread) => {
       const content = [
-        thread.store_name,
+        thread.customer_name,
         thread.title,
         thread.brand,
         thread.model,
@@ -180,19 +183,19 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
   );
 
   const quickReplies = [
-    "Cho mình xin báo giá sơ bộ với ạ.",
-    "Mình có thể mang máy qua trong chiều nay không?",
-    "Shop còn linh kiện sẵn không ạ?",
+    "Dạ em đã nhận thông tin của anh/chị ạ.",
+    "Anh/chị vui lòng gửi thêm hình ảnh giúp em nhé.",
+    "Cửa hàng có thể kiểm tra máy trong hôm nay ạ.",
   ];
 
   const handleSendMessage = async () => {
-    if (!draft.trim() || !activeThreadId || !userId) return;
+    if (!draft.trim() || !activeThreadId || !resolvedStoreId) return;
 
     try {
       await sendChatMessageApi({
         conversation_id: activeThreadId,
-        sender_role: "user",
-        sender_id: userId,
+        sender_role: "store",
+        sender_id: resolvedStoreId,
         message: draft.trim(),
       });
 
@@ -200,7 +203,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
       await loadMessages(activeThreadId);
       await loadThreads();
     } catch (error) {
-      console.error("Lỗi gửi tin nhắn user:", error);
+      console.error("Lỗi gửi tin nhắn store:", error);
       alert("Không gửi được tin nhắn");
     }
   };
@@ -222,7 +225,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
             type="button"
             className="iems-floating-chat__launcher"
             onClick={() => setIsOpen(true)}
-            aria-label="Mở chat cửa hàng"
+            aria-label="Mở chat khách hàng"
           >
             <span className="iems-floating-chat__launcher-icon">💬</span>
             {totalUnread > 0 && (
@@ -236,18 +239,30 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
         <div className={`iems-floating-chat__panel ${isOpen ? "show" : ""}`}>
           <div className="iems-floating-chat__header">
             <div className="iems-floating-chat__header-copy">
-              <strong>Chat cửa hàng</strong>
-              <span>Trao đổi trực tiếp với cửa hàng đang xử lý yêu cầu của bạn</span>
+              <strong>Chat khách hàng</strong>
+              <span>Trao đổi trực tiếp với khách đang gửi yêu cầu sửa chữa</span>
             </div>
 
             <button
-              type="button"
-              className="iems-floating-chat__close"
-              onClick={() => setIsOpen(false)}
-              aria-label="Đóng chat"
-            >
-              ×
-            </button>
+  type="button"
+  className="iems-floating-chat__close"
+  onClick={() => setIsOpen(false)}
+  aria-label="Đóng chat"
+>
+  <svg
+    viewBox="0 0 24 24"
+    className="iems-floating-chat__close-icon"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <path
+      d="M6 6L18 18M18 6L6 18"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+    />
+  </svg>
+</button>
           </div>
 
           <div className="iems-floating-chat__body">
@@ -257,7 +272,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
                   type="text"
                   value={searchText}
                   onChange={(event) => setSearchText(event.target.value)}
-                  placeholder="Tìm cửa hàng hoặc thiết bị"
+                  placeholder="Tìm khách hàng hoặc thiết bị"
                 />
               </div>
 
@@ -286,12 +301,12 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
                         onClick={() => setActiveThreadId(thread.conversation_id)}
                       >
                         <div className="iems-floating-chat__thread-avatar">
-                          {buildAvatarLabel(thread.store_name || "Store")}
+                          {buildAvatarLabel(thread.customer_name || "KH")}
                         </div>
 
                         <div className="iems-floating-chat__thread-content">
                           <div className="iems-floating-chat__thread-top">
-                            <strong>{thread.store_name || "Cửa hàng"}</strong>
+                            <strong>{thread.customer_name || "Khách hàng"}</strong>
                             <span>{formatThreadTime(thread.last_message_time)}</span>
                           </div>
 
@@ -325,11 +340,11 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
                   <div className="iems-floating-chat__chat-head">
                     <div className="iems-floating-chat__chat-identity">
                       <div className="iems-floating-chat__chat-avatar">
-                        {buildAvatarLabel(activeThread.store_name || "Store")}
+                        {buildAvatarLabel(activeThread.customer_name || "KH")}
                       </div>
 
                       <div>
-                        <strong>{activeThread.store_name || "Cửa hàng"}</strong>
+                        <strong>{activeThread.customer_name || "Khách hàng"}</strong>
                         <span>Yêu cầu #{activeThread.repair_request_id}</span>
                       </div>
                     </div>
@@ -354,7 +369,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
                       </div>
                     ) : messages.length > 0 ? (
                       messages.map((message) => {
-                        const isMine = message.sender_role === "user";
+                        const isMine = message.sender_role === "store";
 
                         return (
                           <div
@@ -366,8 +381,8 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
                             <div className="iems-floating-chat__bubble-head">
                               <strong>
                                 {isMine
-                                  ? viewerName
-                                  : activeThread.store_name || "Cửa hàng"}
+                                  ? storeName || "Cửa hàng"
+                                  : activeThread.customer_name || "Khách hàng"}
                               </strong>
                               <span>{formatBubbleTime(message.created_at)}</span>
                             </div>
@@ -379,7 +394,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
                       <div className="iems-floating-chat__empty-main">
                         <div className="iems-floating-chat__empty-icon">💬</div>
                         <strong>Chưa có tin nhắn</strong>
-                        <p>Hãy gửi tin nhắn đầu tiên cho cửa hàng.</p>
+                        <p>Hãy phản hồi khách hàng để bắt đầu cuộc trò chuyện.</p>
                       </div>
                     )}
                     <div ref={bottomRef} />
@@ -401,7 +416,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
                     <textarea
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
-                      placeholder="Nhập tin nhắn cho cửa hàng..."
+                      placeholder="Nhập phản hồi cho khách hàng..."
                       onKeyDown={(event) => {
                         if (event.key === "Enter" && !event.shiftKey) {
                           event.preventDefault();
@@ -432,7 +447,7 @@ export default function StoreChatPanel({ viewerName = "Khách hàng" }) {
                 <div className="iems-floating-chat__empty-main">
                   <div className="iems-floating-chat__empty-icon">💬</div>
                   <strong>Chưa có hội thoại</strong>
-                  <p>Tạo yêu cầu sửa chữa trước để bắt đầu chat với cửa hàng.</p>
+                  <p>Hội thoại sẽ xuất hiện khi user tạo yêu cầu và được gắn với store.</p>
                 </div>
               )}
             </section>
