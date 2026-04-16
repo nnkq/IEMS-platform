@@ -20,6 +20,7 @@ const mapRoutes = require('./src/routes/map.routes');
 const userRoutes = require('./src/routes/user.routes');
 const adminRoutes = require('./src/routes/admin.routes');
 const chatRoutes = require('./src/routes/chat.routes');
+const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -129,6 +130,7 @@ app.use('/api/map', mapRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // ==========================================
 // API: QUẢN LÝ NHÂN VIÊN (KỸ THUẬT VIÊN)
@@ -152,7 +154,6 @@ app.get('/api/employees/:storeId', (req, res) => {
 app.post('/api/employees', (req, res) => {
   const { storeId, name, specialty, phone } = req.body;
 
-  // Gán cứng mật khẩu mặc định theo luồng Đồ án
   const defaultPassword = 'abc123';
 
   const sql =
@@ -215,7 +216,7 @@ app.get('/api/technician/orders/:employeeId', (req, res) => {
   });
 });
 
-// 2. Thợ cập nhật đơn (ghi chú tình trạng, báo giá, hoàn thành)
+// 2. Thợ cập nhật đơn
 app.put('/api/technician/orders/:id', async (req, res) => {
   const reqId = req.params.id;
   const { status, technician_note, quote_price, estimated_time, quote_message } =
@@ -310,7 +311,7 @@ app.put('/api/technician/orders/:id', async (req, res) => {
   }
 });
 
-// 3. ĐĂNG NHẬP CHO KỸ THUẬT VIÊN (TECHNICIAN)
+// 3. Đăng nhập cho kỹ thuật viên
 app.post('/api/technician/login', (req, res) => {
   const { phone, password } = req.body;
 

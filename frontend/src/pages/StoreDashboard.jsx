@@ -31,10 +31,11 @@ export default function StoreDashboard() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [storeLocation, setStoreLocation] = useState({ lat: null, lng: null });
 
-  const [currentPackage, setCurrentPackage] = useState("FREE");
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPackageToBuy, setSelectedPackageToBuy] = useState(null);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+const [currentPackage, setCurrentPackage] = useState("FREE");
+const [showPaymentModal, setShowPaymentModal] = useState(false);
+const [selectedPackageToBuy, setSelectedPackageToBuy] = useState(null);
+const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("VNPAY");
+const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const [employees, setEmployees] = useState([]);
   const [showAddEmployeeForm, setShowAddEmployeeForm] = useState(false);
@@ -107,10 +108,34 @@ export default function StoreDashboard() {
     }).format(Number(value || 0));
   };
 
-  const formatDateTime = (value) => {
-    if (!value) return "Chưa có";
-    return new Date(value).toLocaleString("vi-VN");
-  };
+const formatDateTime = (value) => {
+  if (!value) return "Chưa có";
+  return new Date(value).toLocaleString("vi-VN");
+};
+
+const getPackagePrice = (packageName) => {
+  if (packageName === "VERIFIED") return 500000;
+  if (packageName === "PREMIUM") return 1000000;
+  return 0;
+};
+
+const loadCurrentSubscription = async () => {
+  const userData = JSON.parse(localStorage.getItem("user") || "{}");
+  if (!userData?.id) return;
+
+  try {
+    const res = await fetch(`http://localhost:5000/api/subscriptions/${userData.id}`);
+    const data = await res.json();
+
+    if (data && data.package_name) {
+      setCurrentPackage(data.package_name);
+    } else {
+      setCurrentPackage("FREE");
+    }
+  } catch (err) {
+    console.error("Lỗi tải gói:", err);
+  }
+};
 
   const CheckIcon = ({ color = "#10b981" }) => (
     <svg
@@ -216,12 +241,7 @@ export default function StoreDashboard() {
       .then((data) => setProducts(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Lỗi tải sản phẩm:", err));
 
-    fetch(`http://localhost:5000/api/subscriptions/${userData.id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.package_name) setCurrentPackage(data.package_name);
-      })
-      .catch((err) => console.error("Lỗi tải gói:", err));
+loadCurrentSubscription();
   }, []);
 
   useEffect(() => {
@@ -617,38 +637,57 @@ export default function StoreDashboard() {
     }
   };
 
-  const handleOpenPayment = (packageName) => {
-    setSelectedPackageToBuy(packageName);
-    setShowPaymentModal(true);
-  };
+const handleOpenPayment = (packageName) => {
+  setSelectedPackageToBuy(packageName);
+  setSelectedPaymentMethod("VNPAY");
+  setShowPaymentModal(true);
+};
 
-  const handleConfirmPayment = () => {
-    setIsProcessingPayment(true);
-    setTimeout(async () => {
-      const userData = JSON.parse(localStorage.getItem("user"));
-      try {
-        const res = await fetch("http://localhost:5000/api/subscriptions/upgrade", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: userData.id,
-            packageName: selectedPackageToBuy,
-            durationDays: 30,
-          }),
-        });
-        if (res.ok) {
-          setCurrentPackage(selectedPackageToBuy);
-          setIsProcessingPayment(false);
-          setShowPaymentModal(false);
-          alert(`🎉 Chúc mừng! Cửa hàng đã được nâng cấp lên gói ${selectedPackageToBuy}`);
-        }
-      } catch (err) {
+const handleConfirmPayment = () => {
+  if (!selectedPackageToBuy) {
+    alert("Vui lòng chọn gói cần thanh toán.");
+    return;
+  }
+
+  setIsProcessingPayment(true);
+
+  setTimeout(async () => {
+    const userData = JSON.parse(localStorage.getItem("user") || "{}");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/subscriptions/upgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData.id,
+          packageName: selectedPackageToBuy,
+          durationDays: 30,
+          paymentMethod: selectedPaymentMethod,
+          paymentType: "FULL",
+          isMockPayment: true,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        await loadCurrentSubscription();
         setIsProcessingPayment(false);
-        alert("Lỗi kết nối nâng cấp gói!");
-      }
-    }, 2000);
-  };
+        setShowPaymentModal(false);
 
+        alert(
+          `🎉 Thanh toán ảo thành công!\nGói: ${data.package_name}\nMã GD: ${data.transaction_code || "TEST"}`
+        );
+      } else {
+        setIsProcessingPayment(false);
+        alert(data.error || "Thanh toán thất bại");
+      }
+    } catch (err) {
+      setIsProcessingPayment(false);
+      alert("Lỗi kết nối nâng cấp gói!");
+    }
+  }, 1200);
+};
   const menuItems = [
     {
       id: "Hồ sơ",
@@ -2016,45 +2055,166 @@ export default function StoreDashboard() {
         </div>
       )}
 
-      {showPaymentModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100, backdropFilter: "blur(4px)" }}>
-          <div style={{ backgroundColor: "white", width: "450px", borderRadius: "20px", padding: "32px", textAlign: "center" }}>
-            <h2 style={{ color: "#0f172a", marginTop: 0 }}>Thanh toán Gói Cước</h2>
-            <p style={{ color: "#64748b", marginBottom: "24px" }}>
-              Bạn đang đăng ký gói:{" "}
-              <strong style={{ color: selectedPackageToBuy === "PREMIUM" ? "#d97706" : "#3b82f6" }}>
-                {selectedPackageToBuy}
-              </strong>
-            </p>
+{showPaymentModal && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      backgroundColor: "rgba(15, 23, 42, 0.8)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 100,
+      backdropFilter: "blur(4px)",
+    }}
+  >
+    <div
+      style={{
+        backgroundColor: "white",
+        width: "480px",
+        borderRadius: "20px",
+        padding: "32px",
+        textAlign: "center",
+      }}
+    >
+      <h2 style={{ color: "#0f172a", marginTop: 0 }}>Thanh toán Gói Cước</h2>
 
-            <div style={{ padding: "20px", backgroundColor: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1", marginBottom: "24px" }}>
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=ThanhToan-${selectedPackageToBuy}`}
-                alt="QR thanh toán"
-                style={{ width: "220px", height: "220px", margin: "0 auto 16px auto", display: "block" }}
-              />
-              <p style={{ margin: 0, color: "#475569" }}>Quét QR để thanh toán mô phỏng</p>
-            </div>
+      <p style={{ color: "#64748b", marginBottom: "8px" }}>
+        Bạn đang đăng ký gói:{" "}
+        <strong
+          style={{
+            color: selectedPackageToBuy === "PREMIUM" ? "#d97706" : "#2563eb",
+          }}
+        >
+          {selectedPackageToBuy}
+        </strong>
+      </p>
 
-            <div style={{ display: "flex", gap: "12px" }}>
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                disabled={isProcessingPayment}
-                style={{ flex: 1, padding: "12px", borderRadius: "10px", border: "1px solid #cbd5e1", backgroundColor: "white", color: "#475569", fontWeight: "bold", cursor: isProcessingPayment ? "not-allowed" : "pointer" }}
-              >
-                Đóng
-              </button>
-              <button
-                onClick={handleConfirmPayment}
-                disabled={isProcessingPayment}
-                style={{ flex: 1.4, padding: "12px", borderRadius: "10px", border: "none", backgroundColor: "#2563eb", color: "white", fontWeight: "bold", cursor: isProcessingPayment ? "not-allowed" : "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}
-              >
-                {isProcessingPayment ? "Đang kiểm tra..." : "Tôi đã thanh toán"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div
+        style={{
+          marginBottom: "18px",
+          fontWeight: "700",
+          fontSize: "20px",
+          color: "#0f172a",
+        }}
+      >
+        {formatVND(getPackagePrice(selectedPackageToBuy))}
+      </div>
+
+      <div
+        style={{
+          textAlign: "left",
+          marginBottom: "18px",
+        }}
+      >
+        <label
+          style={{
+            display: "block",
+            marginBottom: "8px",
+            fontWeight: "bold",
+            color: "#0f172a",
+          }}
+        >
+          Chọn phương thức thanh toán
+        </label>
+
+        <select
+          value={selectedPaymentMethod}
+          onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+          disabled={isProcessingPayment}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "10px",
+            border: "1px solid #cbd5e1",
+            backgroundColor: "white",
+            fontSize: "15px",
+          }}
+        >
+          <option value="VNPAY">VNPAY</option>
+          <option value="MOMO">MOMO</option>
+          <option value="BANK_TRANSFER">Chuyển khoản ngân hàng</option>
+          <option value="CASH">Tiền mặt</option>
+        </select>
+      </div>
+
+      <div
+        style={{
+          padding: "20px",
+          backgroundColor: "#f8fafc",
+          borderRadius: "12px",
+          border: "1px dashed #cbd5e1",
+          marginBottom: "24px",
+        }}
+      >
+        <img
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=MockPay-${selectedPackageToBuy}-${selectedPaymentMethod}-${getPackagePrice(selectedPackageToBuy)}`}
+          alt="QR thanh toán"
+          style={{
+            width: "220px",
+            height: "220px",
+            margin: "0 auto 16px auto",
+            display: "block",
+          }}
+        />
+        <p style={{ margin: "0 0 6px 0", color: "#475569", fontWeight: "600" }}>
+          Quét QR để thanh toán mô phỏng
+        </p>
+        <p style={{ margin: 0, color: "#64748b", fontSize: "14px" }}>
+          Đây là chế độ test, bấm “Tôi đã thanh toán” để ghi nhận giao dịch ảo.
+        </p>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+        }}
+      >
+        <button
+          onClick={() => {
+            if (isProcessingPayment) return;
+            setShowPaymentModal(false);
+          }}
+          disabled={isProcessingPayment}
+          style={{
+            flex: 1,
+            padding: "12px",
+            borderRadius: "10px",
+            border: "1px solid #cbd5e1",
+            backgroundColor: "white",
+            color: "#475569",
+            fontWeight: "bold",
+            cursor: isProcessingPayment ? "not-allowed" : "pointer",
+          }}
+        >
+          Đóng
+        </button>
+
+        <button
+          onClick={handleConfirmPayment}
+          disabled={isProcessingPayment}
+          style={{
+            flex: 1.4,
+            padding: "12px",
+            borderRadius: "10px",
+            border: "none",
+            backgroundColor: "#2563eb",
+            color: "white",
+            fontWeight: "bold",
+            cursor: isProcessingPayment ? "not-allowed" : "pointer",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          {isProcessingPayment ? "Đang kiểm tra..." : "Tôi đã thanh toán"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {selectedRequest && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>

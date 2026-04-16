@@ -1,45 +1,53 @@
 const db = require('../config/db');
 
-// Tên gói -> subscription_id tương ứng trong bảng subscriptions
-// Nếu chưa có data mẫu, script sẽ tự insert khi cần
 const PACKAGE_MAP = {
   VERIFIED: { name: 'VERIFIED', price: 500000, job_delay_minutes: 30 },
-  PREMIUM:  { name: 'PREMIUM',  price: 1000000, job_delay_minutes: 0  },
-  FREE:     { name: 'FREE',     price: 0,       job_delay_minutes: 60 },
+  PREMIUM: { name: 'PREMIUM', price: 1000000, job_delay_minutes: 0 },
+  FREE: { name: 'FREE', price: 0, job_delay_minutes: 60 },
 };
 
-// Helper: tìm hoặc tạo subscription record theo tên gói
 const getOrCreateSubscriptionId = (packageName, cb) => {
-  const pkg = PACKAGE_MAP[packageName] || PACKAGE_MAP['FREE'];
-  db.query('SELECT id FROM subscriptions WHERE name = ? LIMIT 1', [pkg.name], (err, rows) => {
-    if (err) return cb(err);
-    if (rows.length > 0) return cb(null, rows[0].id);
-    db.query(
-      'INSERT INTO subscriptions (name, price, job_delay_minutes) VALUES (?, ?, ?)',
-      [pkg.name, pkg.price, pkg.job_delay_minutes],
-      (insErr, result) => {
-        if (insErr) return cb(insErr);
-        cb(null, result.insertId);
+  const pkg = PACKAGE_MAP[packageName] || PACKAGE_MAP.FREE;
+
+  db.query(
+    'SELECT id FROM subscriptions WHERE name = ? LIMIT 1',
+    [pkg.name],
+    (err, rows) => {
+      if (err) return cb(err);
+
+      if (rows.length > 0) {
+        return cb(null, rows[0].id, pkg);
       }
-    );
-  });
+
+      db.query(
+        'INSERT INTO subscriptions (name, price, job_delay_minutes) VALUES (?, ?, ?)',
+        [pkg.name, pkg.price, pkg.job_delay_minutes],
+        (insertErr, result) => {
+          if (insertErr) return cb(insertErr);
+          cb(null, result.insertId, pkg);
+        }
+      );
+    }
+  );
 };
 
-// Helper: lấy store_id từ user_id
-const getStoreIdByUserId = (userId, cb) => {
-  db.query('SELECT id FROM stores WHERE user_id = ? LIMIT 1', [userId], (err, rows) => {
-    if (err) return cb(err);
-    cb(null, rows.length > 0 ? rows[0].id : null);
-  });
+const getStoreByUserId = (userId, cb) => {
+  db.query(
+    'SELECT id, user_id, store_name FROM stores WHERE user_id = ? LIMIT 1',
+    [userId],
+    (err, rows) => {
+      if (err) return cb(err);
+      cb(null, rows.length > 0 ? rows[0] : null);
+    }
+  );
 };
 
-// 1. Lấy gói đăng ký hiện tại của cửa hàng (theo userId)
 exports.getSubscription = (req, res) => {
   const userId = req.params.userId;
 
-  getStoreIdByUserId(userId, (err, storeId) => {
+  getStoreByUserId(userId, (err, store) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (!storeId) return res.status(200).json(null);
+    if (!store) return res.status(200).json(null);
 
     const sql = `
       SELECT ss.*, s.name AS package_name, s.price, s.job_delay_minutes
@@ -50,61 +58,151 @@ exports.getSubscription = (req, res) => {
       ORDER BY ss.end_date DESC
       LIMIT 1
     `;
-    db.query(sql, [storeId], (queryErr, results) => {
+
+    db.query(sql, [store.id], (queryErr, results) => {
       if (queryErr) return res.status(500).json({ error: queryErr.message });
       res.status(200).json(results.length > 0 ? results[0] : null);
     });
   });
 };
 
-// 2. Nâng cấp / đăng ký gói mới
 exports.upgradeSubscription = (req, res) => {
-  const { userId, packageName, durationDays } = req.body;
+  const {
+    userId,
+    packageName,
+    durationDays,
+    paymentMethod,
+    paymentType,
+    isMockPayment,
+  } = req.body;
 
   if (!userId || !packageName) {
     return res.status(400).json({ error: 'Thiếu userId hoặc packageName' });
   }
 
-  getStoreIdByUserId(userId, (err, storeId) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!storeId) return res.status(404).json({ error: 'Không tìm thấy cửa hàng của user này' });
+  const selectedPackage = PACKAGE_MAP[packageName];
+  if (!selectedPackage) {
+    return res.status(400).json({ error: 'Gói không hợp lệ' });
+  }
 
-    getOrCreateSubscriptionId(packageName, (subErr, subscriptionId) => {
+  getStoreByUserId(userId, (storeErr, store) => {
+    if (storeErr) return res.status(500).json({ error: storeErr.message });
+    if (!store) {
+      return res.status(404).json({ error: 'Không tìm thấy cửa hàng của user này' });
+    }
+
+    getOrCreateSubscriptionId(packageName, (subErr, subscriptionId, pkg) => {
       if (subErr) return res.status(500).json({ error: subErr.message });
 
-      const days = durationDays || 30;
+      const days = Number(durationDays || 30);
       const startDate = new Date().toISOString().slice(0, 10);
       const endDateObj = new Date();
       endDateObj.setDate(endDateObj.getDate() + days);
       const endDate = endDateObj.toISOString().slice(0, 10);
 
-      // Kiểm tra đã có gói chưa
-      db.query('SELECT id FROM store_subscriptions WHERE store_id = ? LIMIT 1', [storeId], (selErr, selRows) => {
-        if (selErr) return res.status(500).json({ error: selErr.message });
+      const method = paymentMethod || 'VNPAY';
+      const type = paymentType || 'FULL';
+      const transactionCode = `TEST-${packageName}-${Date.now()}`;
+      const paymentStatus = isMockPayment === false ? 'PENDING' : 'PAID';
 
-        if (selRows.length > 0) {
-          // Đã có -> cập nhật
-          const updateSql = `
-            UPDATE store_subscriptions
-            SET subscription_id = ?, start_date = ?, end_date = ?
-            WHERE store_id = ?
-          `;
-          db.query(updateSql, [subscriptionId, startDate, endDate, storeId], (updateErr) => {
-            if (updateErr) return res.status(500).json({ error: updateErr.message });
-            res.status(200).json({ message: 'Nâng cấp gói thành công!', package_name: packageName });
-          });
-        } else {
-          // Chưa có -> tạo mới
-          const insertSql = `
-            INSERT INTO store_subscriptions (store_id, subscription_id, start_date, end_date)
-            VALUES (?, ?, ?, ?)
-          `;
-          db.query(insertSql, [storeId, subscriptionId, startDate, endDate], (insErr) => {
-            if (insErr) return res.status(500).json({ error: insErr.message });
-            res.status(201).json({ message: 'Đăng ký gói thành công!', package_name: packageName });
-          });
+      const paymentSql = `
+        INSERT INTO payments (
+          order_id,
+          user_id,
+          store_id,
+          amount,
+          payment_method,
+          payment_type,
+          status,
+          transaction_code
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      db.query(
+        paymentSql,
+        [null, userId, store.id, pkg.price, method, type, paymentStatus, transactionCode],
+        (paymentErr, paymentResult) => {
+          if (paymentErr) {
+            return res.status(500).json({ error: paymentErr.message });
+          }
+
+          if (paymentStatus !== 'PAID') {
+            return res.status(200).json({
+              message: 'Đã tạo giao dịch chờ thanh toán',
+              payment_id: paymentResult.insertId,
+              package_name: packageName,
+              payment_status: paymentStatus,
+            });
+          }
+
+          db.query(
+            'SELECT id FROM store_subscriptions WHERE store_id = ? LIMIT 1',
+            [store.id],
+            (selErr, selRows) => {
+              if (selErr) {
+                return res.status(500).json({ error: selErr.message });
+              }
+
+              const finishResponse = () => {
+                db.query(
+                  `INSERT INTO notifications (user_id, title, message, type)
+                   VALUES (?, ?, ?, 'PAYMENT')`,
+                  [
+                    userId,
+                    'Thanh toán gói quảng bá thành công',
+                    `Cửa hàng của bạn đã thanh toán thành công gói ${packageName}. Mã giao dịch: ${transactionCode}.`,
+                  ],
+                  () => {
+                    return res.status(200).json({
+                      message: 'Thanh toán ảo thành công và đã nâng cấp gói!',
+                      package_name: packageName,
+                      payment_id: paymentResult.insertId,
+                      payment_status: paymentStatus,
+                      transaction_code: transactionCode,
+                    });
+                  }
+                );
+              };
+
+              if (selRows.length > 0) {
+                const updateSql = `
+                  UPDATE store_subscriptions
+                  SET subscription_id = ?, start_date = ?, end_date = ?
+                  WHERE store_id = ?
+                `;
+
+                db.query(
+                  updateSql,
+                  [subscriptionId, startDate, endDate, store.id],
+                  (updateErr) => {
+                    if (updateErr) {
+                      return res.status(500).json({ error: updateErr.message });
+                    }
+                    finishResponse();
+                  }
+                );
+              } else {
+                const insertSql = `
+                  INSERT INTO store_subscriptions (store_id, subscription_id, start_date, end_date)
+                  VALUES (?, ?, ?, ?)
+                `;
+
+                db.query(
+                  insertSql,
+                  [store.id, subscriptionId, startDate, endDate],
+                  (insertSubErr) => {
+                    if (insertSubErr) {
+                      return res.status(500).json({ error: insertSubErr.message });
+                    }
+                    finishResponse();
+                  }
+                );
+              }
+            }
+          );
         }
-      });
+      );
     });
   });
 };
