@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import { getHomeDashboard, searchHome } from "../api/homeApi";
 import {
+  acceptQuoteForRequest,
+  confirmRepairCompleted,
   createRepairRequest,
   getMyRepairRequests,
   getReviewForRequest,
+  rejectQuoteForRequest,
   submitReviewForRequest,
 } from "../api/repairApi";
 import StoreChatPanel from "../components/StoreChatPanel";
@@ -75,6 +78,10 @@ function statusLabel(status) {
       return "Đã có báo giá";
     case "IN_PROGRESS":
       return "Đang sửa chữa ⚙️";
+    case "WAITING_STORE_CONFIRM":
+      return "Kỹ thuật viên đã sửa xong · chờ Store xác nhận";
+    case "WAITING_CUSTOMER_CONFIRM":
+      return "Store đã báo hoàn thành · chờ bạn xác nhận";
     case "COMPLETED":
       return "Đã hoàn thành ✅";
     case "CANCELLED":
@@ -89,7 +96,7 @@ function statusLabel(status) {
 }
 
 function statusClass(status) {
-  if (status === "IN_PROGRESS") return "status-warning";
+  if (status === "IN_PROGRESS" || status === "WAITING_STORE_CONFIRM" || status === "WAITING_CUSTOMER_CONFIRM") return "status-warning";
   if (status === "COMPLETED") return "status-success";
   if (status === "REJECTED") return "status-error";
   return "status-accent";
@@ -591,6 +598,54 @@ export default function Home() {
     }
   };
 
+  const handleAcceptQuote = async (requestId) => {
+    try {
+      const res = await acceptQuoteForRequest(requestId);
+      alert(res.data?.message || "Bạn đã đồng ý báo giá.");
+      await loadTrackingRequests();
+      if (selectedTrackedRequest?.id === requestId) {
+        setSelectedTrackedRequest(null);
+      }
+    } catch (error) {
+      console.error("Lỗi đồng ý báo giá:", error);
+      alert(error.response?.data?.message || "Không thể đồng ý báo giá");
+    }
+  };
+
+  const handleRejectQuote = async (requestId) => {
+    const ok = window.confirm("Bạn có chắc muốn từ chối báo giá này không?");
+    if (!ok) return;
+
+    try {
+      const res = await rejectQuoteForRequest(requestId);
+      alert(res.data?.message || "Bạn đã từ chối báo giá.");
+      await loadTrackingRequests();
+      if (selectedTrackedRequest?.id === requestId) {
+        setSelectedTrackedRequest(null);
+      }
+    } catch (error) {
+      console.error("Lỗi từ chối báo giá:", error);
+      alert(error.response?.data?.message || "Không thể từ chối báo giá");
+    }
+  };
+
+  const handleConfirmCompleted = async (requestId) => {
+    const ok = window.confirm("Bạn xác nhận cửa hàng đã sửa xong và bàn giao thiết bị cho bạn?");
+    if (!ok) return;
+
+    try {
+      const res = await confirmRepairCompleted(requestId);
+      alert(res.data?.message || "Bạn đã xác nhận hoàn thành.");
+      await loadTrackingRequests();
+      if (selectedTrackedRequest?.id === requestId) {
+        setSelectedTrackedRequest(null);
+      }
+    } catch (error) {
+      console.error("Lỗi xác nhận hoàn thành:", error);
+      alert(error.response?.data?.message || "Không thể xác nhận hoàn thành");
+    }
+  };
+
   const openReviewModal = async (item) => {
     try {
       setReviewLoading(true);
@@ -1022,7 +1077,7 @@ export default function Home() {
                       <div className="stat-card">
                         <span>Đang xử lý</span>
                         <strong>{String(counters.activeRequests || 0).padStart(2, "0")}</strong>
-                        <div className="muted">OPEN / QUOTED / IN_PROGRESS</div>
+                        <div className="muted">OPEN / QUOTED / IN_PROGRESS / WAITING</div>
                       </div>
 
                       <div className="stat-card">
@@ -2080,11 +2135,11 @@ export default function Home() {
                     <strong>
                       {
                         trackingRequests.filter((x) =>
-                          ["OPEN", "QUOTED", "IN_PROGRESS"].includes(x.status)
+                          ["OPEN", "QUOTED", "IN_PROGRESS", "WAITING_STORE_CONFIRM", "WAITING_CUSTOMER_CONFIRM"].includes(x.status)
                         ).length
                       }
                     </strong>
-                    <div className="muted">OPEN / QUOTED / IN_PROGRESS</div>
+                    <div className="muted">OPEN / QUOTED / IN_PROGRESS / WAITING</div>
                   </div>
                   <div className="stat-card">
                     <span>Đã hoàn tất</span>
@@ -2168,6 +2223,35 @@ export default function Home() {
                             >
                               Xem chi tiết
                             </button>
+
+                            {item.status === "QUOTED" && item.quote_status === "PENDING" && (
+                              <>
+                                <button
+                                  className="btn btn-primary"
+                                  style={{ padding: "6px 12px", fontSize: "13px" }}
+                                  onClick={() => handleAcceptQuote(item.id)}
+                                >
+                                  Đồng ý báo giá
+                                </button>
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: "6px 12px", fontSize: "13px", borderColor: "#fecaca", color: "#b91c1c" }}
+                                  onClick={() => handleRejectQuote(item.id)}
+                                >
+                                  Từ chối giá
+                                </button>
+                              </>
+                            )}
+
+                            {item.status === "WAITING_CUSTOMER_CONFIRM" && (
+                              <button
+                                className="btn btn-primary"
+                                style={{ padding: "6px 12px", fontSize: "13px" }}
+                                onClick={() => handleConfirmCompleted(item.id)}
+                              >
+                                Xác nhận đã hoàn thành
+                              </button>
+                            )}
 
                             {item.status === "COMPLETED" && !item.has_review && (
                               <button
@@ -2300,14 +2384,32 @@ export default function Home() {
                           <strong>{statusLabel(selectedTrackedRequest.status)}</strong>
                         </div>
                         <div className="summary-row">
-                          <span>Ngân sách / Chi phí</span>
+                          <span>Ngân sách khách dự kiến</span>
                           <strong>
-                            {selectedTrackedRequest.extra_cost
-                              ? formatVND(selectedTrackedRequest.extra_cost)
-                              : selectedTrackedRequest.budget
+                            {selectedTrackedRequest.budget
                               ? formatVND(selectedTrackedRequest.budget)
                               : "Chưa có"}
                           </strong>
+                        </div>
+                        <div className="summary-row">
+                          <span>Kỹ thuật viên phụ trách</span>
+                          <strong>{selectedTrackedRequest.employee_name || "Chưa giao kỹ thuật viên"}</strong>
+                        </div>
+                        <div className="summary-row">
+                          <span>Giá cửa hàng báo</span>
+                          <strong>
+                            {selectedTrackedRequest.quote_price
+                              ? formatVND(selectedTrackedRequest.quote_price)
+                              : "Chưa có"}
+                          </strong>
+                        </div>
+                        <div className="summary-row">
+                          <span>Thời gian dự kiến</span>
+                          <strong>{selectedTrackedRequest.quote_estimated_time || "Chưa có"}</strong>
+                        </div>
+                        <div className="summary-row">
+                          <span>Lời nhắn báo giá</span>
+                          <strong>{selectedTrackedRequest.quote_message || "Chưa có"}</strong>
                         </div>
                         <div className="summary-row">
                           <span>Địa điểm</span>
@@ -2341,7 +2443,26 @@ export default function Home() {
                       </div>
                     )}
 
-                    <div style={{ marginTop: 24, textAlign: "right" }}>
+                    <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end", gap: 12, flexWrap: "wrap" }}>
+                      {selectedTrackedRequest.status === "QUOTED" && selectedTrackedRequest.quote_status === "PENDING" && (
+                        <>
+                          <button className="btn btn-primary" onClick={() => handleAcceptQuote(selectedTrackedRequest.id)}>
+                            Đồng ý báo giá
+                          </button>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ borderColor: "#fecaca", color: "#b91c1c" }}
+                            onClick={() => handleRejectQuote(selectedTrackedRequest.id)}
+                          >
+                            Từ chối báo giá
+                          </button>
+                        </>
+                      )}
+                      {selectedTrackedRequest.status === "WAITING_CUSTOMER_CONFIRM" && (
+                        <button className="btn btn-primary" onClick={() => handleConfirmCompleted(selectedTrackedRequest.id)}>
+                          Xác nhận đã hoàn thành
+                        </button>
+                      )}
                       <button
                         className="btn btn-secondary"
                         onClick={() => setSelectedTrackedRequest(null)}

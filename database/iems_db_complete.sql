@@ -122,7 +122,7 @@ CREATE TABLE repair_requests (
   brand           VARCHAR(100)  NULL,
   model           VARCHAR(100)  NULL,
   symptoms        TEXT          NULL,
-  status          ENUM('OPEN','QUOTED','IN_PROGRESS','COMPLETED','CANCELLED','REJECTED') NOT NULL DEFAULT 'OPEN',
+  status          ENUM('OPEN','QUOTED','IN_PROGRESS','WAITING_STORE_CONFIRM','WAITING_CUSTOMER_CONFIRM','COMPLETED','CANCELLED','REJECTED') NOT NULL DEFAULT 'OPEN',
   employee_id     INT NULL,
   technician_note TEXT NULL,
   created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -330,6 +330,22 @@ CREATE TABLE products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_products_user ON products(user_id);
+
+-- ============================================================
+--  17. ALTER FOR OLD DATABASES ONLY
+--  Chỉ chạy đoạn này nếu bạn KHÔNG drop DB mà chỉ sửa DB cũ
+-- ============================================================
+ALTER TABLE repair_requests
+MODIFY COLUMN status ENUM(
+  'OPEN',
+  'QUOTED',
+  'IN_PROGRESS',
+  'WAITING_STORE_CONFIRM',
+  'WAITING_CUSTOMER_CONFIRM',
+  'COMPLETED',
+  'CANCELLED',
+  'REJECTED'
+) NOT NULL DEFAULT 'OPEN';
 
 SET FOREIGN_KEY_CHECKS = 1;
 SET SQL_SAFE_UPDATES   = 1;

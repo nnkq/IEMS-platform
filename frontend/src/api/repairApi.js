@@ -86,3 +86,45 @@ export const submitReviewForRequest = (requestId, data) => {
   );
   
 };
+
+export const acceptQuoteForRequest = (requestId) => {
+  const token = localStorage.getItem("token");
+
+  return axios.post(
+    `http://localhost:5000/api/repair-requests/${requestId}/quote/accept`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+};
+
+export const rejectQuoteForRequest = (requestId) => {
+  const token = localStorage.getItem("token");
+
+  return axios.post(
+    `http://localhost:5000/api/repair-requests/${requestId}/quote/reject`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+};
+
+export const confirmRepairCompleted = (requestId) => {
+  const token = localStorage.getItem("token");
+
+  return axios.post(
+    `http://localhost:5000/api/repair-requests/${requestId}/confirm-completed`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+};

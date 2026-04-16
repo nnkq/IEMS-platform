@@ -297,7 +297,13 @@ export default function StoreDashboard() {
       device: req.device_name || req.brand || req.device_type || "Thiết bị chưa rõ",
       issue: req.issue_description || req.title || "Không có mô tả lỗi",
       status: req.status,
+      employee_id: req.employee_id || null,
       employee_name: req.employee_name || null,
+      quote_id: req.quote_id || null,
+      quote_price: req.quote_price || 0,
+      quote_message: req.quote_message || "",
+      quote_estimated_time: req.quote_estimated_time || "",
+      quote_status: req.quote_status || null,
       detail: {
         deviceType: parsedDetail.deviceType || req.device_type || "",
         brand: parsedDetail.brand || req.brand || "",
@@ -396,6 +402,11 @@ export default function StoreDashboard() {
         device: dbData.device_name || dbData.brand || dbData.device_type || "Thiết bị",
         issue: dbData.issue_description || dbData.title || "",
         status: dbData.status,
+        employee_id: dbData.employee_id || null,
+        employee_name: dbData.employee_name || null,
+        quote_price: dbData.quote_price || 0,
+        quote_message: dbData.quote_message || "",
+        quote_estimated_time: dbData.quote_estimated_time || "",
         detail: {
           deviceType: parsedDetail.deviceType || dbData.device_type || "",
           brand: parsedDetail.brand || dbData.brand || "",
@@ -436,7 +447,7 @@ export default function StoreDashboard() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            status: "IN_PROGRESS",
+            status: "OPEN",
             employee_id: selectedEmployeeId === "OWNER" ? null : selectedEmployeeId,
           }),
         }
@@ -454,13 +465,13 @@ export default function StoreDashboard() {
         setRequests(
           requests.map((req) =>
             req.id === requestToAssign
-              ? { ...req, status: "IN_PROGRESS", employee_name: assignedName }
+              ? { ...req, status: "OPEN", employee_name: assignedName }
               : req
           )
         );
         setAssignModalOpen(false);
         setRequestToAssign(null);
-        alert(`✅ Đã giao đơn cho kỹ thuật viên: ${assignedName}`);
+        alert(`✅ Đã giao đơn cho kỹ thuật viên: ${assignedName}. Kỹ thuật viên sẽ kiểm tra và gửi báo giá cho khách trước khi sửa.`);
       } else {
         alert("Lỗi khi nhận đơn. Vui lòng thử lại.");
       }
@@ -495,17 +506,17 @@ export default function StoreDashboard() {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "COMPLETED" }),
+          body: JSON.stringify({ status: "WAITING_CUSTOMER_CONFIRM" }),
         }
       );
 
       if (res.ok) {
         setRequests(
           requests.map((req) =>
-            req.id === id ? { ...req, status: "COMPLETED" } : req
+            req.id === id ? { ...req, status: "WAITING_CUSTOMER_CONFIRM" } : req
           )
         );
-        alert("🎉 Đã hoàn thành! Thông báo đã gửi tới User.");
+        alert("🎉 Store đã báo hoàn thành cho khách hàng. Đang chờ khách xác nhận.");
       } else {
         const textError = await res.text();
         alert(`❌ Lỗi số ${res.status}: ${textError}`);
@@ -1117,7 +1128,7 @@ export default function StoreDashboard() {
                 </thead>
                 <tbody>
                   {requests
-                    .filter((req) => req.status === "OPEN")
+                    .filter((req) => req.status === "OPEN" && !req.employee_id)
                     .map((req) => (
                       <tr
                         key={req.id}
@@ -1177,7 +1188,7 @@ export default function StoreDashboard() {
                         </td>
                       </tr>
                     ))}
-                  {requests.filter((req) => req.status === "OPEN").length === 0 && (
+                  {requests.filter((req) => req.status === "OPEN" && !req.employee_id).length === 0 && (
                     <tr>
                       <td colSpan="4" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
                         Không có yêu cầu mới nào.
@@ -1220,7 +1231,15 @@ export default function StoreDashboard() {
                 </thead>
                 <tbody>
                   {requests
-                    .filter((req) => req.status === "IN_PROGRESS" || req.status === "COMPLETED")
+                    .filter(
+                      (req) =>
+                        (req.status === "OPEN" && req.employee_id) ||
+                        req.status === "QUOTED" ||
+                        req.status === "IN_PROGRESS" ||
+                        req.status === "WAITING_STORE_CONFIRM" ||
+                        req.status === "WAITING_CUSTOMER_CONFIRM" ||
+                        req.status === "COMPLETED"
+                    )
                     .map((req) => (
                       <tr key={req.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
                         <td style={{ padding: "16px", fontWeight: "bold", color: "#0f172a" }}>
@@ -1231,7 +1250,20 @@ export default function StoreDashboard() {
                           {req.employee_name || "Chủ cửa hàng"}
                         </td>
                         <td style={{ padding: "16px" }}>
-                          {req.status === "IN_PROGRESS" ? (
+                          {req.status === "OPEN" && req.employee_id ? (
+                            <span
+                              style={{
+                                padding: "6px 12px",
+                                backgroundColor: "#e0f2fe",
+                                color: "#0369a1",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              Đã giao kỹ thuật viên
+                            </span>
+                          ) : req.status === "QUOTED" ? (
                             <span
                               style={{
                                 padding: "6px 12px",
@@ -1242,7 +1274,46 @@ export default function StoreDashboard() {
                                 fontWeight: "bold",
                               }}
                             >
-                              Đang sửa chữa ⚙️
+                              Chờ khách duyệt báo giá
+                            </span>
+                          ) : req.status === "IN_PROGRESS" ? (
+                            <span
+                              style={{
+                                padding: "6px 12px",
+                                backgroundColor: "#dbeafe",
+                                color: "#2563eb",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              KTV đang sửa chữa ⚙️
+                            </span>
+                          ) : req.status === "WAITING_STORE_CONFIRM" ? (
+                            <span
+                              style={{
+                                padding: "6px 12px",
+                                backgroundColor: "#dcfce7",
+                                color: "#15803d",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              KTV đã báo sửa xong
+                            </span>
+                          ) : req.status === "WAITING_CUSTOMER_CONFIRM" ? (
+                            <span
+                              style={{
+                                padding: "6px 12px",
+                                backgroundColor: "#fef9c3",
+                                color: "#a16207",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              Chờ khách xác nhận hoàn thành
                             </span>
                           ) : (
                             <span
@@ -1255,12 +1326,12 @@ export default function StoreDashboard() {
                                 fontWeight: "bold",
                               }}
                             >
-                              Đã hoàn thành ✅
+                              Khách đã xác nhận ✅
                             </span>
                           )}
                         </td>
                         <td style={{ padding: "16px", textAlign: "center" }}>
-                          {req.status === "IN_PROGRESS" ? (
+                          {req.status === "WAITING_STORE_CONFIRM" ? (
                             <button
                               onClick={() => handleComplete(req.id)}
                               style={{
@@ -1273,17 +1344,33 @@ export default function StoreDashboard() {
                                 cursor: "pointer",
                               }}
                             >
-                              Báo hoàn thành
+                              Báo khách hoàn thành
                             </button>
+                          ) : req.status === "QUOTED" ? (
+                            <span style={{ color: "#d97706", fontSize: "13px", fontWeight: "bold" }}>
+                              Giá đã báo: {req.quote_price ? formatVND(req.quote_price) : "Chờ nhập"}
+                            </span>
+                          ) : req.status === "OPEN" && req.employee_id ? (
+                            <span style={{ color: "#0369a1", fontSize: "13px", fontWeight: "bold" }}>
+                              KTV đang kiểm tra máy
+                            </span>
+                          ) : req.status === "IN_PROGRESS" ? (
+                            <span style={{ color: "#2563eb", fontSize: "13px", fontWeight: "bold" }}>
+                              KTV đang sửa chữa
+                            </span>
+                          ) : req.status === "WAITING_CUSTOMER_CONFIRM" ? (
+                            <span style={{ color: "#a16207", fontSize: "13px", fontWeight: "bold" }}>
+                              Đã báo khách · chờ xác nhận
+                            </span>
                           ) : (
-                            <span style={{ color: "#94a3b8", fontSize: "14px", fontWeight: "bold" }}>
-                              Đã bàn giao
+                            <span style={{ color: "#059669", fontSize: "14px", fontWeight: "bold" }}>
+                              Đã bàn giao xong
                             </span>
                           )}
                         </td>
                       </tr>
                     ))}
-                  {requests.filter((req) => req.status === "IN_PROGRESS" || req.status === "COMPLETED").length === 0 && (
+                  {requests.filter((req) => (req.status === "OPEN" && req.employee_id) || req.status === "QUOTED" || req.status === "IN_PROGRESS" || req.status === "WAITING_STORE_CONFIRM" || req.status === "WAITING_CUSTOMER_CONFIRM" || req.status === "COMPLETED").length === 0 && (
                     <tr>
                       <td colSpan="5" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
                         Chưa có máy nào đang sửa.

@@ -18,6 +18,11 @@ function PrivateRoute({ children }) {
   return token ? children : <Navigate to="/login" replace />;
 }
 
+function TechnicianPrivateRoute({ children }) {
+  const techUser = localStorage.getItem("techUser");
+  return techUser ? children : <Navigate to="/tech-login" replace />;
+}
+
 function App() {
   return (
     <Routes>
@@ -65,9 +70,9 @@ function App() {
       <Route
         path="/technician"
         element={
-          <PrivateRoute>
+          <TechnicianPrivateRoute>
             <TechnicianDashboard />
-          </PrivateRoute>
+          </TechnicianPrivateRoute>
         }
       />
 

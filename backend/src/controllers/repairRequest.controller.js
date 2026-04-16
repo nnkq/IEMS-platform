@@ -188,6 +188,13 @@ exports.getMyRepairRequests = (req, res) => {
     SELECT
       rr.*,
       s.store_name,
+      e.name AS employee_name,
+      q.id AS quote_id,
+      q.price AS quote_price,
+      q.message AS quote_message,
+      q.estimated_time AS quote_estimated_time,
+      q.status AS quote_status,
+      q.created_at AS quote_created_at,
       o.id AS order_id,
       rv.id AS review_id,
       rv.rating AS review_rating,
@@ -195,6 +202,14 @@ exports.getMyRepairRequests = (req, res) => {
       rv.created_at AS review_created_at
     FROM repair_requests rr
     LEFT JOIN stores s ON s.id = rr.store_id
+    LEFT JOIN employees e ON e.id = rr.employee_id
+    LEFT JOIN quotes q ON q.id = (
+      SELECT q2.id
+      FROM quotes q2
+      WHERE q2.request_id = rr.id
+      ORDER BY q2.id DESC
+      LIMIT 1
+    )
     LEFT JOIN orders o ON o.request_id = rr.id
     LEFT JOIN reviews rv ON rv.order_id = o.id AND rv.user_id = rr.user_id
     WHERE rr.user_id = ?
@@ -217,6 +232,14 @@ exports.getMyRepairRequests = (req, res) => {
       location: row.location || '',
       store_id: row.store_id || null,
       store_name: row.store_name || 'Cửa hàng chưa xác định',
+      employee_id: row.employee_id || null,
+      employee_name: row.employee_name || null,
+      quote_id: row.quote_id || null,
+      quote_price: row.quote_price || 0,
+      quote_message: row.quote_message || '',
+      quote_estimated_time: row.quote_estimated_time || '',
+      quote_status: row.quote_status || null,
+      quote_created_at: row.quote_created_at || null,
       order_id: row.order_id || null,
       has_review: !!row.review_id,
       review: row.review_id
@@ -234,7 +257,6 @@ exports.getMyRepairRequests = (req, res) => {
         'Thiết bị chưa rõ',
       device_category: row.device_type || 'Chưa phân loại',
       technician_note: row.technician_note || null,
-      extra_cost: row.extra_cost || 0,
       image: row.image || null,
     }));
 
@@ -345,9 +367,26 @@ exports.getStoreRequests = (req, res) => {
   }
 
   const sql = `
-    SELECT r.*, e.name as employee_name
+    SELECT
+      r.*,
+      u.name AS customer_name,
+      e.name AS employee_name,
+      q.id AS quote_id,
+      q.price AS quote_price,
+      q.message AS quote_message,
+      q.estimated_time AS quote_estimated_time,
+      q.status AS quote_status,
+      q.created_at AS quote_created_at
     FROM repair_requests r
+    LEFT JOIN users u ON u.id = r.user_id
     LEFT JOIN employees e ON r.employee_id = e.id
+    LEFT JOIN quotes q ON q.id = (
+      SELECT q2.id
+      FROM quotes q2
+      WHERE q2.request_id = r.id
+      ORDER BY q2.id DESC
+      LIMIT 1
+    )
     WHERE r.store_id = ?
     ORDER BY r.created_at DESC
   `;
@@ -361,6 +400,10 @@ exports.getStoreRequests = (req, res) => {
 exports.updateRequestStatus = (req, res) => {
   const requestId = req.params.id;
   const { status, employee_id } = req.body;
+
+  if (!status) {
+    return res.status(400).json({ error: 'Thiếu status cập nhật' });
+  }
 
   let sql = 'UPDATE repair_requests SET status = ? WHERE id = ?';
   let params = [status, requestId];
@@ -377,7 +420,7 @@ exports.updateRequestStatus = (req, res) => {
       return res.status(404).json({ error: 'Không tìm thấy yêu cầu sửa chữa' });
     }
 
-    if (status === 'COMPLETED') {
+    if (status === 'WAITING_CUSTOMER_CONFIRM' || status === 'COMPLETED') {
       db.query(
         'SELECT id, user_id, store_id, budget, brand, model, device_type FROM repair_requests WHERE id = ?',
         [requestId],
@@ -394,48 +437,77 @@ exports.updateRequestStatus = (req, res) => {
             `${requestRow.brand || ''} ${requestRow.model || ''}`.trim() ||
             requestRow.device_type ||
             'Thiết bị';
-          const message = `🎉 Tuyệt vời! Thiết bị ${deviceName} của bạn đã được sửa chữa hoàn thành. Bạn có thể vào mục Theo dõi để đánh giá cửa hàng.`;
 
-          db.query(
-            'SELECT id FROM orders WHERE request_id = ? LIMIT 1',
-            [requestId],
-            (orderErr, orderRows) => {
-              if (orderErr) {
-                console.error('Lỗi kiểm tra order:', orderErr);
-              } else if (orderRows.length === 0) {
+          if (status === 'COMPLETED') {
+            const message = `🎉 Tuyệt vời! Thiết bị ${deviceName} của bạn đã được xác nhận hoàn thành. Bạn có thể vào mục Theo dõi để đánh giá cửa hàng.`;
+
+            db.query(
+              'SELECT q.id, q.price FROM quotes q WHERE q.request_id = ? AND q.status = "ACCEPTED" ORDER BY q.id DESC LIMIT 1',
+              [requestId],
+              (quoteErr, quoteRows) => {
+                if (quoteErr) {
+                  console.error('Lỗi kiểm tra quote:', quoteErr);
+                  return;
+                }
+
+                const acceptedQuote = quoteRows[0] || null;
+                const finalPrice = acceptedQuote?.price || requestRow.budget || 0;
+
                 db.query(
-                  `INSERT INTO orders (request_id, store_id, user_id, final_price, status, start_time, end_time)
-                   VALUES (?, ?, ?, ?, 'COMPLETED', NOW(), NOW())`,
-                  [requestId, storeId || null, customerId || null, requestRow.budget || 0],
-                  (insertOrderErr) => {
-                    if (insertOrderErr) console.error('Lỗi tạo order hoàn tất:', insertOrderErr);
-                  }
-                );
-              } else {
-                db.query(
-                  `UPDATE orders
-                   SET status = 'COMPLETED',
-                       end_time = NOW(),
-                       final_price = COALESCE(final_price, ?),
-                       store_id = COALESCE(store_id, ?),
-                       user_id = COALESCE(user_id, ?)
-                   WHERE request_id = ?`,
-                  [requestRow.budget || 0, storeId || null, customerId || null, requestId],
-                  (updateOrderErr) => {
-                    if (updateOrderErr) console.error('Lỗi cập nhật order hoàn tất:', updateOrderErr);
+                  'SELECT id FROM orders WHERE request_id = ? LIMIT 1',
+                  [requestId],
+                  (orderErr, orderRows) => {
+                    if (orderErr) {
+                      console.error('Lỗi kiểm tra order:', orderErr);
+                    } else if (orderRows.length === 0) {
+                      db.query(
+                        `INSERT INTO orders (request_id, store_id, quote_id, user_id, final_price, status, start_time, end_time)
+                         VALUES (?, ?, ?, ?, ?, 'COMPLETED', NOW(), NOW())`,
+                        [requestId, storeId || null, acceptedQuote?.id || null, customerId || null, finalPrice],
+                        (insertOrderErr) => {
+                          if (insertOrderErr) console.error('Lỗi tạo order hoàn tất:', insertOrderErr);
+                        }
+                      );
+                    } else {
+                      db.query(
+                        `UPDATE orders
+                         SET status = 'COMPLETED',
+                             end_time = NOW(),
+                             final_price = COALESCE(final_price, ?),
+                             quote_id = COALESCE(quote_id, ?),
+                             store_id = COALESCE(store_id, ?),
+                             user_id = COALESCE(user_id, ?)
+                         WHERE request_id = ?`,
+                        [finalPrice, acceptedQuote?.id || null, storeId || null, customerId || null, requestId],
+                        (updateOrderErr) => {
+                          if (updateOrderErr) console.error('Lỗi cập nhật order hoàn tất:', updateOrderErr);
+                        }
+                      );
+                    }
                   }
                 );
               }
-            }
-          );
+            );
 
-          db.query(
-            'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, "SYSTEM")',
-            [customerId, 'Sửa chữa hoàn tất', message],
-            (insErr) => {
-              if (insErr) console.error('Lỗi tạo thông báo:', insErr);
-            }
-          );
+            db.query(
+              'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, "SYSTEM")',
+              [customerId, 'Sửa chữa hoàn tất', message],
+              (insErr) => {
+                if (insErr) console.error('Lỗi tạo thông báo:', insErr);
+              }
+            );
+          }
+
+          if (status === 'WAITING_CUSTOMER_CONFIRM') {
+            const message = `📦 Store báo thiết bị ${deviceName} đã sửa xong và sẵn sàng bàn giao. Vui lòng vào mục Theo dõi để xác nhận đã hoàn thành.`;
+            db.query(
+              'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, "SYSTEM")',
+              [customerId, 'Store đã báo hoàn thành', message],
+              (insErr) => {
+                if (insErr) console.error('Lỗi tạo thông báo chờ khách xác nhận:', insErr);
+              }
+            );
+          }
         }
       );
     }
@@ -596,6 +668,195 @@ exports.submitReviewForRequest = (req, res) => {
       }
     );
   });
+};
+
+
+exports.confirmRepairCompletion = async (req, res) => {
+  try {
+    const requestId = Number(req.params.id);
+    const userId = req.user.id;
+
+    const rows = await queryAsync(
+      `
+      SELECT rr.id, rr.status, rr.user_id, rr.store_id, rr.budget, rr.brand, rr.model, rr.device_type, o.id AS order_id
+      FROM repair_requests rr
+      LEFT JOIN orders o ON o.request_id = rr.id
+      WHERE rr.id = ? AND rr.user_id = ?
+      LIMIT 1
+      `,
+      [requestId, userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu sửa chữa' });
+    }
+
+    const row = rows[0];
+
+    if (row.status !== 'WAITING_CUSTOMER_CONFIRM') {
+      return res.status(400).json({ success: false, message: 'Đơn này chưa ở bước chờ khách hàng xác nhận hoàn thành' });
+    }
+
+    await queryAsync('UPDATE repair_requests SET status = "COMPLETED" WHERE id = ?', [requestId]);
+
+    if (row.order_id) {
+      await queryAsync(
+        `UPDATE orders
+         SET status = 'COMPLETED',
+             end_time = COALESCE(end_time, NOW())
+         WHERE id = ?`,
+        [row.order_id]
+      );
+    }
+
+    const deviceName =
+      `${row.brand || ''} ${row.model || ''}`.trim() ||
+      row.device_type ||
+      'Thiết bị';
+
+    const storeRows = await queryAsync('SELECT user_id, store_name FROM stores WHERE id = ? LIMIT 1', [row.store_id]);
+    if (storeRows.length > 0 && storeRows[0].user_id) {
+      await queryAsync(
+        'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, "SYSTEM")',
+        [
+          storeRows[0].user_id,
+          'Khách đã xác nhận hoàn thành',
+          `Khách hàng đã xác nhận yêu cầu #RQ-${requestId} (${deviceName}) đã hoàn thành. Bạn có thể kết thúc đơn và nhận đánh giá.`,
+        ]
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Bạn đã xác nhận nhận máy và hoàn thành sửa chữa thành công.',
+    });
+  } catch (error) {
+    console.error('confirmRepairCompletion error:', error);
+    return res.status(500).json({ success: false, message: 'Lỗi xác nhận hoàn thành', error: error.message });
+  }
+};
+
+exports.acceptQuote = async (req, res) => {
+  try {
+    const requestId = Number(req.params.id);
+    const userId = req.user.id;
+
+    const rows = await queryAsync(
+      `
+      SELECT rr.id, rr.user_id, rr.store_id, rr.status, q.id AS quote_id, q.price, q.status AS quote_status
+      FROM repair_requests rr
+      INNER JOIN quotes q ON q.id = (
+        SELECT q2.id
+        FROM quotes q2
+        WHERE q2.request_id = rr.id
+        ORDER BY q2.id DESC
+        LIMIT 1
+      )
+      WHERE rr.id = ? AND rr.user_id = ?
+      LIMIT 1
+      `,
+      [requestId, userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu hoặc báo giá' });
+    }
+
+    const row = rows[0];
+    if (row.quote_status !== 'PENDING') {
+      return res.status(400).json({ success: false, message: 'Báo giá này không còn ở trạng thái chờ phản hồi' });
+    }
+
+    await queryAsync('UPDATE quotes SET status = "ACCEPTED" WHERE id = ?', [row.quote_id]);
+    await queryAsync('UPDATE repair_requests SET status = "IN_PROGRESS" WHERE id = ?', [requestId]);
+
+    const existingOrder = await queryAsync('SELECT id FROM orders WHERE request_id = ? LIMIT 1', [requestId]);
+    if (existingOrder.length > 0) {
+      await queryAsync(
+        `UPDATE orders
+         SET quote_id = ?, final_price = ?, status = 'IN_PROGRESS', start_time = COALESCE(start_time, NOW())
+         WHERE request_id = ?`,
+        [row.quote_id, row.price || 0, requestId]
+      );
+    } else {
+      await queryAsync(
+        `INSERT INTO orders (request_id, store_id, quote_id, user_id, final_price, status, start_time)
+         VALUES (?, ?, ?, ?, ?, 'IN_PROGRESS', NOW())`,
+        [requestId, row.store_id || null, row.quote_id, userId, row.price || 0]
+      );
+    }
+
+    try {
+      const storeRows = await queryAsync('SELECT user_id, store_name FROM stores WHERE id = ? LIMIT 1', [row.store_id]);
+      if (storeRows.length > 0 && storeRows[0].user_id) {
+        await queryAsync(
+          'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, "SYSTEM")',
+          [storeRows[0].user_id, 'Khách đã đồng ý báo giá', `Khách hàng đã đồng ý báo giá cho yêu cầu #RQ-${requestId}. Bạn có thể tiến hành sửa chữa.`,]
+        );
+      }
+    } catch (notifyErr) {
+      console.error('Notify accept quote error:', notifyErr);
+    }
+
+    return res.json({ success: true, message: 'Bạn đã đồng ý báo giá. Cửa hàng sẽ tiến hành sửa chữa.' });
+  } catch (error) {
+    console.error('acceptQuote error:', error);
+    return res.status(500).json({ success: false, message: 'Lỗi chấp nhận báo giá', error: error.message });
+  }
+};
+
+exports.rejectQuote = async (req, res) => {
+  try {
+    const requestId = Number(req.params.id);
+    const userId = req.user.id;
+
+    const rows = await queryAsync(
+      `
+      SELECT rr.id, rr.user_id, rr.store_id, q.id AS quote_id, q.status AS quote_status
+      FROM repair_requests rr
+      INNER JOIN quotes q ON q.id = (
+        SELECT q2.id
+        FROM quotes q2
+        WHERE q2.request_id = rr.id
+        ORDER BY q2.id DESC
+        LIMIT 1
+      )
+      WHERE rr.id = ? AND rr.user_id = ?
+      LIMIT 1
+      `,
+      [requestId, userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu hoặc báo giá' });
+    }
+
+    const row = rows[0];
+    if (row.quote_status !== 'PENDING') {
+      return res.status(400).json({ success: false, message: 'Báo giá này không còn ở trạng thái chờ phản hồi' });
+    }
+
+    await queryAsync('UPDATE quotes SET status = "REJECTED" WHERE id = ?', [row.quote_id]);
+    await queryAsync('UPDATE repair_requests SET status = "CANCELLED" WHERE id = ?', [requestId]);
+    await queryAsync('UPDATE orders SET status = "CANCELLED" WHERE request_id = ?', [requestId]);
+
+    try {
+      const storeRows = await queryAsync('SELECT user_id FROM stores WHERE id = ? LIMIT 1', [row.store_id]);
+      if (storeRows.length > 0 && storeRows[0].user_id) {
+        await queryAsync(
+          'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, "SYSTEM")',
+          [storeRows[0].user_id, 'Khách từ chối báo giá', `Khách hàng đã từ chối báo giá cho yêu cầu #RQ-${requestId}.`,]
+        );
+      }
+    } catch (notifyErr) {
+      console.error('Notify reject quote error:', notifyErr);
+    }
+
+    return res.json({ success: true, message: 'Bạn đã từ chối báo giá. Yêu cầu đã được hủy.' });
+  } catch (error) {
+    console.error('rejectQuote error:', error);
+    return res.status(500).json({ success: false, message: 'Lỗi từ chối báo giá', error: error.message });
+  }
 };
 
 exports.deleteRequest = (req, res) => {

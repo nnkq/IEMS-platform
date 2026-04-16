@@ -1,6 +1,26 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
+const {
+  emitConversationCreated,
+  emitConversationMessage,
+  emitThreadUpdated,
+  emitMessagesRead,
+} = require("../socket");
+
+function getConversationById(conversationId, callback) {
+  const sql = `
+    SELECT id, repair_request_id, user_id, store_id, updated_at
+    FROM chat_conversations
+    WHERE id = ?
+    LIMIT 1
+  `;
+
+  db.query(sql, [conversationId], (err, rows) => {
+    if (err) return callback(err);
+    callback(null, rows[0] || null);
+  });
+}
 
 // 1. Tạo hoặc lấy conversation theo repair_request_id
 router.post("/conversation/by-request", (req, res) => {
@@ -52,7 +72,15 @@ router.post("/conversation/by-request", (req, res) => {
               return res.status(500).json({ message: "Lỗi lấy conversation mới" });
             }
 
-            return res.status(201).json(selectRows[0]);
+            const createdConversation = selectRows[0];
+
+            emitConversationCreated(user_id, store_id, {
+              reason: "created",
+              conversation_id: createdConversation.id,
+              repair_request_id: createdConversation.repair_request_id,
+            });
+
+            return res.status(201).json(createdConversation);
           }
         );
       }
@@ -228,7 +256,28 @@ router.post("/messages", (req, res) => {
                 return res.status(500).json({ message: "Không lấy được tin nhắn vừa gửi" });
               }
 
-              res.status(201).json(rows[0]);
+              const createdMessage = rows[0];
+
+              getConversationById(conversation_id, (conversationErr, conversation) => {
+                if (conversationErr) {
+                  console.error("Lỗi lấy conversation khi emit realtime:", conversationErr);
+                } else if (conversation) {
+                  emitConversationMessage(conversation_id, {
+                    conversation_id: conversation.id,
+                    message: createdMessage,
+                  });
+
+                  emitThreadUpdated(conversation.user_id, conversation.store_id, {
+                    reason: "message",
+                    conversation_id: conversation.id,
+                    repair_request_id: conversation.repair_request_id,
+                    last_message: createdMessage.message,
+                    last_message_time: createdMessage.created_at,
+                  });
+                }
+
+                return res.status(201).json(createdMessage);
+              });
             }
           );
         }
@@ -262,7 +311,23 @@ router.put("/conversation/:conversationId/read", (req, res) => {
       return res.status(500).json({ message: "Không cập nhật được đã đọc" });
     }
 
-    res.status(200).json({ success: true });
+    getConversationById(conversationId, (conversationErr, conversation) => {
+      if (conversationErr) {
+        console.error("Lỗi emit mark read realtime:", conversationErr);
+      } else if (conversation) {
+        emitMessagesRead(conversationId, {
+          conversation_id: Number(conversationId),
+          reader_role,
+        });
+
+        emitThreadUpdated(conversation.user_id, conversation.store_id, {
+          reason: "read",
+          conversation_id: Number(conversationId),
+        });
+      }
+
+      res.status(200).json({ success: true });
+    });
   });
 });
 

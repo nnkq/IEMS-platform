@@ -16,6 +16,9 @@ router.put("/repair-requests/:id/progress", protect, repairController.updateRepa
 
 router.get('/repair-requests/store-orders/:storeId', repairController.getStoreRequests);
 router.put('/repair-requests/store-orders/:id/status', repairController.updateRequestStatus);
+router.post('/repair-requests/:id/quote/accept', protect, repairController.acceptQuote);
+router.post('/repair-requests/:id/quote/reject', protect, repairController.rejectQuote);
+router.post('/repair-requests/:id/confirm-completed', protect, repairController.confirmRepairCompletion);
 router.delete('/repair-requests/store-orders/:id', repairController.deleteRequest);
 router.get("/repair-requests/store/:storeId/reviews", protect, repairController.getStoreReviews);
 module.exports = router;

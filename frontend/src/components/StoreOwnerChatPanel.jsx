@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   getStoreConversations,
@@ -6,6 +6,7 @@ import {
   sendChatMessageApi,
   markConversationRead,
 } from "../api/chatApi";
+import { chatSocket } from "../api/chatSocket";
 import "./StoreChatPanel.css";
 
 function formatThreadTime(value) {
@@ -34,14 +35,17 @@ function formatBubbleTime(value) {
 }
 
 function buildAvatarLabel(name = "") {
-  const clean = name.trim();
+  const clean = String(name || "").trim();
   if (!clean) return "KH";
-  return clean
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
+
+  return (
+    clean
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("") || "KH"
+  );
 }
 
 export default function StoreOwnerChatPanel({
@@ -58,6 +62,7 @@ export default function StoreOwnerChatPanel({
   const [loadingThreads, setLoadingThreads] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const bottomRef = useRef(null);
+  const joinedConversationRef = useRef("");
 
   const localUser = JSON.parse(localStorage.getItem("user") || "{}");
   const resolvedStoreId = storeId || localUser?.id || null;
@@ -77,7 +82,7 @@ export default function StoreOwnerChatPanel({
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
 
-  const loadThreads = async () => {
+  const loadThreads = useCallback(async () => {
     if (!resolvedStoreId) return;
 
     try {
@@ -86,56 +91,135 @@ export default function StoreOwnerChatPanel({
       const conversationList = Array.isArray(res.data) ? res.data : [];
       setThreads(conversationList);
 
-      if (!activeThreadId && conversationList.length > 0) {
-        setActiveThreadId(conversationList[0].conversation_id);
-      }
+      setActiveThreadId((prev) => {
+        if (!conversationList.length) return "";
+        const stillExists = conversationList.some(
+          (item) => String(item.conversation_id) === String(prev)
+        );
+        return stillExists ? prev : String(conversationList[0].conversation_id);
+      });
     } catch (error) {
       console.error("Lỗi lấy danh sách hội thoại store:", error);
     } finally {
       setLoadingThreads(false);
     }
-  };
+  }, [resolvedStoreId]);
 
-  const loadMessages = async (conversationId) => {
+  const loadMessages = useCallback(async (conversationId) => {
     if (!conversationId) return;
 
     try {
       setLoadingMessages(true);
-
       const res = await getConversationMessages(conversationId);
       const messageList = Array.isArray(res.data) ? res.data : [];
       setMessages(messageList);
-
-      await markConversationRead(conversationId, "store");
     } catch (error) {
       console.error("Lỗi lấy tin nhắn conversation store:", error);
     } finally {
       setLoadingMessages(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!resolvedStoreId) return;
 
+    chatSocket.emit("chat:join-store", resolvedStoreId);
     loadThreads();
-    const timer = setInterval(() => {
-      loadThreads();
-    }, 3000);
-
-    return () => clearInterval(timer);
-  }, [isOpen, resolvedStoreId]);
+  }, [resolvedStoreId, loadThreads]);
 
   useEffect(() => {
     if (!isOpen || !activeThreadId) return;
 
+    if (
+      joinedConversationRef.current &&
+      String(joinedConversationRef.current) !== String(activeThreadId)
+    ) {
+      chatSocket.emit("chat:leave-conversation", joinedConversationRef.current);
+    }
+
+    chatSocket.emit("chat:join-conversation", activeThreadId);
+    joinedConversationRef.current = String(activeThreadId);
+
     loadMessages(activeThreadId);
+    markConversationRead(activeThreadId, "store")
+      .then(() => loadThreads())
+      .catch((error) => console.error("Lỗi mark read store:", error));
+  }, [isOpen, activeThreadId, loadMessages, loadThreads]);
 
-    const timer = setInterval(() => {
-      loadMessages(activeThreadId);
-    }, 2500);
+  useEffect(() => {
+    return () => {
+      if (joinedConversationRef.current) {
+        chatSocket.emit("chat:leave-conversation", joinedConversationRef.current);
+      }
+    };
+  }, []);
 
-    return () => clearInterval(timer);
-  }, [isOpen, activeThreadId]);
+  useEffect(() => {
+    if (!resolvedStoreId) return;
+
+    const handleConversationCreated = async () => {
+      await loadThreads();
+    };
+
+    const handleThreadUpdated = async (payload) => {
+      await loadThreads();
+
+      if (
+        payload?.reason === "read" &&
+        isOpen &&
+        activeThreadId &&
+        String(payload?.conversation_id) === String(activeThreadId)
+      ) {
+        await loadMessages(activeThreadId);
+      }
+    };
+
+    const handleNewMessage = async (payload) => {
+      const conversationId = payload?.conversation_id;
+      const incomingMessage = payload?.message;
+
+      await loadThreads();
+
+      if (
+        isOpen &&
+        activeThreadId &&
+        String(conversationId) === String(activeThreadId)
+      ) {
+        await loadMessages(activeThreadId);
+
+        if (incomingMessage?.sender_role === "user") {
+          try {
+            await markConversationRead(activeThreadId, "store");
+            await loadThreads();
+          } catch (error) {
+            console.error("Lỗi cập nhật đã đọc phía store:", error);
+          }
+        }
+      }
+    };
+
+    const handleMessagesRead = async (payload) => {
+      if (
+        isOpen &&
+        activeThreadId &&
+        String(payload?.conversation_id) === String(activeThreadId)
+      ) {
+        await loadMessages(activeThreadId);
+      }
+    };
+
+    chatSocket.on("chat:conversation-created", handleConversationCreated);
+    chatSocket.on("chat:thread-updated", handleThreadUpdated);
+    chatSocket.on("chat:new-message", handleNewMessage);
+    chatSocket.on("chat:messages-read", handleMessagesRead);
+
+    return () => {
+      chatSocket.off("chat:conversation-created", handleConversationCreated);
+      chatSocket.off("chat:thread-updated", handleThreadUpdated);
+      chatSocket.off("chat:new-message", handleNewMessage);
+      chatSocket.off("chat:messages-read", handleMessagesRead);
+    };
+  }, [resolvedStoreId, isOpen, activeThreadId, loadThreads, loadMessages]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -166,16 +250,18 @@ export default function StoreOwnerChatPanel({
     if (!filteredThreads.length) return;
 
     const hasActive = filteredThreads.some(
-      (thread) => thread.conversation_id === activeThreadId
+      (thread) => String(thread.conversation_id) === String(activeThreadId)
     );
 
     if (!hasActive) {
-      setActiveThreadId(filteredThreads[0].conversation_id);
+      setActiveThreadId(String(filteredThreads[0].conversation_id));
     }
   }, [filteredThreads, activeThreadId]);
 
   const activeThread =
-    threads.find((thread) => thread.conversation_id === activeThreadId) || null;
+    threads.find(
+      (thread) => String(thread.conversation_id) === String(activeThreadId)
+    ) || null;
 
   const totalUnread = threads.reduce(
     (sum, thread) => sum + Number(thread.unread_count || 0),
@@ -200,8 +286,6 @@ export default function StoreOwnerChatPanel({
       });
 
       setDraft("");
-      await loadMessages(activeThreadId);
-      await loadThreads();
     } catch (error) {
       console.error("Lỗi gửi tin nhắn store:", error);
       alert("Không gửi được tin nhắn");
@@ -244,25 +328,25 @@ export default function StoreOwnerChatPanel({
             </div>
 
             <button
-  type="button"
-  className="iems-floating-chat__close"
-  onClick={() => setIsOpen(false)}
-  aria-label="Đóng chat"
->
-  <svg
-    viewBox="0 0 24 24"
-    className="iems-floating-chat__close-icon"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
-    <path
-      d="M6 6L18 18M18 6L6 18"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-    />
-  </svg>
-</button>
+              type="button"
+              className="iems-floating-chat__close"
+              onClick={() => setIsOpen(false)}
+              aria-label="Đóng chat"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="iems-floating-chat__close-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 6L18 18M18 6L6 18"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
           </div>
 
           <div className="iems-floating-chat__body">
@@ -296,9 +380,13 @@ export default function StoreOwnerChatPanel({
                         key={thread.conversation_id}
                         type="button"
                         className={`iems-floating-chat__thread ${
-                          thread.conversation_id === activeThreadId ? "active" : ""
+                          String(thread.conversation_id) === String(activeThreadId)
+                            ? "active"
+                            : ""
                         }`}
-                        onClick={() => setActiveThreadId(thread.conversation_id)}
+                        onClick={() =>
+                          setActiveThreadId(String(thread.conversation_id))
+                        }
                       >
                         <div className="iems-floating-chat__thread-avatar">
                           {buildAvatarLabel(thread.customer_name || "KH")}
@@ -315,9 +403,7 @@ export default function StoreOwnerChatPanel({
                           </div>
 
                           <div className="iems-floating-chat__thread-meta">
-                            <span className="tag">
-                              #{thread.repair_request_id}
-                            </span>
+                            <span className="tag">#{thread.repair_request_id}</span>
                             {Number(thread.unread_count || 0) > 0 && (
                               <span className="badge">{thread.unread_count}</span>
                             )}
@@ -354,7 +440,9 @@ export default function StoreOwnerChatPanel({
                         #{activeThread.repair_request_id}
                       </span>
                       <span className="chip chip--primary">
-                        {[activeThread.brand, activeThread.model].filter(Boolean).join(" · ") ||
+                        {[activeThread.brand, activeThread.model]
+                          .filter(Boolean)
+                          .join(" · ") ||
                           activeThread.title ||
                           activeThread.device_type ||
                           "Thiết bị"}
@@ -447,7 +535,9 @@ export default function StoreOwnerChatPanel({
                 <div className="iems-floating-chat__empty-main">
                   <div className="iems-floating-chat__empty-icon">💬</div>
                   <strong>Chưa có hội thoại</strong>
-                  <p>Hội thoại sẽ xuất hiện khi user tạo yêu cầu và được gắn với store.</p>
+                  <p>
+                    Hội thoại sẽ xuất hiện khi user tạo yêu cầu và được gắn với store.
+                  </p>
                 </div>
               )}
             </section>
