@@ -149,11 +149,21 @@ export default function Home() {
   const [selectedStoreDetail, setSelectedStoreDetail] = useState(null);
   const [storeProducts, setStoreProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [storeFilter, setStoreFilter] = useState("all");
+  const [nearbyStores, setNearbyStores] = useState([]);
+  const [nearbyStoresLoading, setNearbyStoresLoading] = useState(false);
 
   const [activePage, setActivePage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationItems, setNotificationItems] = useState([]);
+  const [notificationActionLoading, setNotificationActionLoading] = useState(false);
+  const [pendingTrackedRequestId, setPendingTrackedRequestId] = useState(null);
+  const notificationRef = useRef(null);
 
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -291,10 +301,30 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [activePage]);
 
+
+  useEffect(() => {
+    if (!pendingTrackedRequestId || !Array.isArray(trackingRequests) || !trackingRequests.length) {
+      return;
+    }
+
+    const matched = trackingRequests.find(
+      (item) => Number(item.id) === Number(pendingTrackedRequestId)
+    );
+
+    if (matched) {
+      setSelectedTrackedRequest(matched);
+      setPendingTrackedRequestId(null);
+    }
+  }, [pendingTrackedRequestId, trackingRequests]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setMenuOpen(false);
+      }
+
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setNotificationOpen(false);
       }
     };
 
@@ -305,12 +335,50 @@ export default function Home() {
   }, []);
 
   const counters = dashboardData?.counters || {};
+  const unreadCount = Number(counters.unreadNotifications || 0);
   const recentRequests = dashboardData?.recentRequests || [];
   const pendingQuotes = dashboardData?.pendingQuotes || [];
   const savedDevices = dashboardData?.savedDevices || [];
   const verifiedStores = dashboardData?.verifiedStores || [];
+  const trustedStores = useMemo(
+    () =>
+      verifiedStores.filter(
+        (store) =>
+          Number(store?.is_trusted_store) === 1 ||
+          store?.is_trusted_store === true ||
+          Number(store?.has_verified_badge) === 1 ||
+          store?.has_verified_badge === true
+      ),
+    [verifiedStores]
+  );
+  const displayedStores = storeFilter === "trusted" ? trustedStores : verifiedStores;
   const user = dashboardData?.user || {};
   const header = dashboardData?.header || {};
+
+  const hasVerifiedBadge = (store) =>
+    Number(store?.has_verified_badge) === 1 ||
+    store?.has_verified_badge === true ||
+    Number(store?.is_trusted_store) === 1 ||
+    store?.is_trusted_store === true;
+
+  const getStorePackageLabel = (store) => {
+    if (store?.package_name === "PREMIUM") return "Đối tác chiến lược";
+    if (store?.package_name === "VERIFIED") return "Cửa hàng uy tín";
+    return "Approved";
+  };
+
+  const renderVerifiedBadge = (store, compact = false) => {
+    if (!hasVerifiedBadge(store)) return null;
+
+    return (
+      <span className={`verified-badge${compact ? " compact" : ""}`}>
+        <span className="verified-badge-icon">✓</span>
+        Xác thực xanh
+      </span>
+    );
+  };
+
+  const selectableStores = nearbyStores.length > 0 ? nearbyStores : verifiedStores;
 
   const previewBudget = useMemo(() => {
     const min = Math.max(Number(budget || 0) * 0.8, 200000);
@@ -333,7 +401,217 @@ export default function Home() {
     setActivePage(page);
     setSidebarOpen(false);
     setSelectedStoreDetail(null);
+    setNotificationOpen(false);
+    setMenuOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const updateUnreadCounter = (value) => {
+    setDashboardData((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        counters: {
+          ...(prev.counters || {}),
+          unreadNotifications: Math.max(0, Number(value || 0)),
+        },
+      };
+    });
+  };
+
+  const inferNotificationTarget = (item = {}) => {
+    if (item?.targetPage) return item.targetPage;
+
+    const title = String(item?.title || "").toLowerCase();
+    const message = String(item?.message || "").toLowerCase();
+    const type = String(item?.type || "").toUpperCase();
+    const content = `${title} ${message}`;
+
+    if (
+      type === "QUOTE" ||
+      type === "ORDER" ||
+      type === "PAYMENT" ||
+      content.includes("báo giá") ||
+      content.includes("hoàn thành") ||
+      content.includes("xác nhận") ||
+      content.includes("sửa chữa") ||
+      content.includes("theo dõi") ||
+      content.includes("đơn") ||
+      content.includes("#rq-")
+    ) {
+      return "tracking";
+    }
+
+    if (
+      content.includes("ưu đãi") ||
+      content.includes("khuyến mãi") ||
+      content.includes("giảm giá") ||
+      content.includes("voucher") ||
+      content.includes("cửa hàng")
+    ) {
+      return "stores";
+    }
+
+    if (content.includes("ai") || content.includes("chẩn đoán")) {
+      return "chatbot";
+    }
+
+    return "home";
+  };
+
+  const extractRelatedRequestId = (item = {}) => {
+    if (item?.relatedRequestId) return Number(item.relatedRequestId);
+
+    const rawText = `${item?.title || ""} ${item?.message || ""}`;
+    const match = rawText.match(/#RQ-(\d+)/i);
+    return match ? Number(match[1]) : null;
+  };
+
+  const markNotificationAsRead = async (notificationId) => {
+    const token = localStorage.getItem("token");
+    if (!token || !notificationId) return null;
+
+    const res = await fetch(
+      `http://localhost:5000/api/users/notifications/${notificationId}/read`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Không thể cập nhật trạng thái thông báo");
+    }
+
+    return data;
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setNotificationActionLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/users/notifications/read-all", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Không thể cập nhật tất cả thông báo");
+      }
+
+      setNotificationItems((prev) =>
+        prev.map((item) => ({
+          ...item,
+          isRead: true,
+          is_read: 1,
+          status: "READ",
+        }))
+      );
+      updateUnreadCounter(data.unreadNotifications || 0);
+    } catch (error) {
+      console.error("Lỗi đánh dấu xem tất cả thông báo:", error);
+      alert(error.message || "Không thể cập nhật tất cả thông báo");
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const handleNotificationClick = async (item) => {
+    try {
+      if (!item?.id) return;
+
+      setNotificationActionLoading(true);
+
+      const result = await markNotificationAsRead(item.id);
+
+      setNotificationItems((prev) =>
+        prev.map((notification) =>
+          notification.id === item.id
+            ? {
+                ...notification,
+                isRead: true,
+                is_read: 1,
+                status: "READ",
+              }
+            : notification
+        )
+      );
+
+      updateUnreadCounter(result?.unreadNotifications || 0);
+
+      const relatedRequestId = extractRelatedRequestId(item);
+      const targetPage = inferNotificationTarget(item);
+
+      setNotificationOpen(false);
+      openPage(targetPage);
+
+      if (targetPage === "tracking" && relatedRequestId) {
+        setPendingTrackedRequestId(relatedRequestId);
+      }
+    } catch (error) {
+      console.error("Lỗi mở thông báo:", error);
+      alert(error.message || "Không thể mở thông báo");
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const loadNotificationPreview = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      setNotificationLoading(true);
+
+      const res = await fetch("http://localhost:5000/api/users/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Không tải được thông báo");
+      }
+
+      setNotificationItems(
+        Array.isArray(data.recentNotifications) ? data.recentNotifications.slice(0, 5) : []
+      );
+    } catch (error) {
+      console.error("Lỗi tải popup thông báo:", error);
+      setNotificationItems([]);
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  const handleToggleNotifications = async () => {
+    const nextOpen = !notificationOpen;
+    setNotificationOpen(nextOpen);
+    setMenuOpen(false);
+
+    if (nextOpen) {
+      await loadNotificationPreview();
+    }
+  };
+
+  const formatNotificationTime = (value) => {
+    if (!value) return "Chưa có thời gian";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleString("vi-VN");
   };
 
   const toggleSymptom = (value) => {
@@ -464,6 +742,7 @@ export default function Home() {
         const lng = pos.coords.longitude;
 
         setUserLocation({ lat, lng });
+        setNearbyStores([]);
 
         try {
           const res = await fetch(
@@ -512,18 +791,43 @@ export default function Home() {
   };
 
   const fetchNearbyStores = async () => {
-    if (!userLocation.lat) return;
+    if (!userLocation.lat || !userLocation.lng) {
+      alert("Vui lòng chọn địa chỉ hoặc lấy GPS trước khi gợi ý cửa hàng gần.");
+      return;
+    }
 
-    const res = await fetch("http://localhost:5000/api/map/stores/nearby", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userLocation),
-    });
+    try {
+      setNearbyStoresLoading(true);
 
-    const data = await res.json();
-    console.log("Stores gần:", data);
+      const res = await fetch("http://localhost:5000/api/map/stores/nearby", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userLocation),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || "Không lấy được danh sách cửa hàng gần");
+      }
+
+      const stores = Array.isArray(data) ? data : [];
+      setNearbyStores(stores);
+
+      if (!stores.length) {
+        alert("Không tìm thấy cửa hàng nào trong khu vực lân cận của bạn.");
+        return;
+      }
+
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error("Lỗi lấy cửa hàng gần:", error);
+      alert(error.message || "Không lấy được cửa hàng gần");
+    } finally {
+      setNearbyStoresLoading(false);
+    }
   };
 
   const searchAddress = (text) => {
@@ -563,6 +867,7 @@ export default function Home() {
   const handleSelectAddress = (item) => {
     setAddress(item.display_name);
     setUserLocation({ lat: parseFloat(item.lat), lng: parseFloat(item.lon) });
+    setNearbyStores([]);
     setShowAddressDropdown(false);
   };
 
@@ -882,11 +1187,84 @@ export default function Home() {
                 />
               </label>
 
+              <div className="notification-menu" ref={notificationRef}>
+                <button
+                  type="button"
+                  className="notification-button"
+                  title="Xem thông báo"
+                  onClick={handleToggleNotifications}
+                >
+                  <span className="notification-icon">🔔</span>
+                  {unreadCount > 0 && (
+                    <span className="notification-badge">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notificationOpen && (
+                  <div className="notification-popup">
+                    <div className="notification-popup-head">
+                      <div>
+                        <strong>Thông báo</strong>
+                        <p>{unreadCount} thông báo chưa đọc</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="notification-popup-link"
+                        onClick={markAllNotificationsAsRead}
+                        disabled={notificationActionLoading || unreadCount === 0}
+                      >
+                        {notificationActionLoading ? "Đang cập nhật..." : "Đã xem tất cả"}
+                      </button>
+                    </div>
+
+                    <div className="notification-popup-body">
+                      {notificationLoading ? (
+                        <div className="notification-empty">Đang tải thông báo...</div>
+                      ) : notificationItems.length === 0 ? (
+                        <div className="notification-empty">Hiện chưa có thông báo nào.</div>
+                      ) : (
+                        notificationItems.map((item, index) => {
+                          const isRead = Boolean(item.isRead || item.is_read || item.status === "READ");
+
+                          return (
+                            <button
+                              key={item.id || index}
+                              type="button"
+                              className={`notification-item${isRead ? "" : " unread"}`}
+                              onClick={() => handleNotificationClick(item)}
+                              disabled={notificationActionLoading}
+                            >
+                              <div className="notification-item-top">
+                                <strong>{item.title || "Thông báo hệ thống"}</strong>
+                                <span>
+                                  {isRead ? "Đã đọc" : "Mới"}
+                                </span>
+                              </div>
+                              <p>{item.message || "Không có nội dung"}</p>
+                              <small>
+                                {formatNotificationTime(
+                                  item.created_at || item.createdAt || item.updated_at
+                                )}
+                              </small>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="user-menu" ref={menuRef}>
                 <button
                   type="button"
                   className="avatar-button"
-                  onClick={() => setMenuOpen((prev) => !prev)}
+                  onClick={() => {
+                    setNotificationOpen(false);
+                    setMenuOpen((prev) => !prev);
+                  }}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1010,7 +1388,9 @@ export default function Home() {
                     </div>
                     {searchResult.stores.map((item) => (
                       <div key={`store-${item.id}`} className="summary-row">
-                        <span>{item.store_name}</span>
+                        <span>
+                          {item.store_name} {renderVerifiedBadge(item, true)}
+                        </span>
                         <strong>{item.address || "Không có địa chỉ"}</strong>
                       </div>
                     ))}
@@ -1237,16 +1617,18 @@ export default function Home() {
 
                       <div className="summary-box">
                         <div className="summary-list">
-                          {verifiedStores.length === 0 && (
+                          {trustedStores.length === 0 && (
                             <div className="summary-row">
-                              <span>Cửa hàng</span>
+                              <span>Cửa hàng uy tín</span>
                               <strong>Chưa có dữ liệu</strong>
                             </div>
                           )}
 
-                          {verifiedStores.map((item) => (
+                          {trustedStores.map((item) => (
                             <div key={`verified-${item.id}`} className="summary-row">
-                              <span>{item.store_name}</span>
+                              <span>
+                                {item.store_name} {renderVerifiedBadge(item, true)}
+                              </span>
                               <strong>
                                 ★ {item.google_rating || 0} · {item.address || "Chưa có địa chỉ"}
                               </strong>
@@ -1653,7 +2035,7 @@ export default function Home() {
                           {loadingLocation ? "Đang lấy GPS..." : "Lấy vị trí hiện tại"}
                         </button>
                         <button className="btn btn-secondary" type="button" onClick={fetchNearbyStores}>
-                          Gợi ý cửa hàng gần
+                          {nearbyStoresLoading ? "Đang tìm cửa hàng..." : "Gợi ý cửa hàng gần"}
                         </button>
                       </div>
 
@@ -1819,7 +2201,9 @@ export default function Home() {
                   >
                     <h2 style={{ marginBottom: "10px", color: "#0f172a" }}>Chọn Cửa Hàng</h2>
                     <p className="muted" style={{ marginBottom: "20px", color: "#64748b" }}>
-                      Dưới đây là các cửa hàng đã xác minh. Hãy chọn nơi bạn muốn gửi máy để hoàn tất đơn.
+                      {nearbyStores.length > 0
+                        ? 'Danh sách này đang ưu tiên cửa hàng gần bạn. Gói Premium sẽ được đứng Top 1 trong khu vực lân cận.'
+                        : 'Dưới đây là các cửa hàng đã xác minh. Hãy chọn nơi bạn muốn gửi máy để hoàn tất đơn.'}
                     </p>
 
                     <div
@@ -1832,7 +2216,7 @@ export default function Home() {
                         gap: "12px",
                       }}
                     >
-                      {verifiedStores.map((store) => (
+                      {selectableStores.map((store, index) => (
                         <div
                           key={store.id}
                           className="store-item"
@@ -1857,14 +2241,48 @@ export default function Home() {
                                 color: "#0f172a",
                               }}
                             >
-                              {store.store_name}
+                              <span className="store-name-row">
+                                {store.store_name}
+                                {renderVerifiedBadge(store, true)}
+                              </span>
                             </strong>
-                            <span
-                              className="muted"
-                              style={{ fontSize: "13px", color: "#64748b" }}
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 8,
+                                alignItems: "center",
+                                marginTop: 6,
+                              }}
                             >
-                              {store.address || "Chưa có địa chỉ"} · ★ {store.google_rating || 0}
-                            </span>
+                              <span
+                                className="muted"
+                                style={{ fontSize: "13px", color: "#64748b" }}
+                              >
+                                {store.address || "Chưa có địa chỉ"} · ★ {store.google_rating || 0}
+                                {store.distance !== undefined && store.distance !== null
+                                  ? ` · ${Number(store.distance).toFixed(1)} km`
+                                  : ""}
+                              </span>
+
+                              {Number(store?.is_premium_partner) === 1 && index === 0 && nearbyStores.length > 0 && (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    padding: "4px 8px",
+                                    borderRadius: 999,
+                                    background: "#fff7ed",
+                                    border: "1px solid #fdba74",
+                                    color: "#c2410c",
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  Top 1 khu vực
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <button
                             className="btn btn-primary"
@@ -1912,23 +2330,47 @@ export default function Home() {
                   <div className="surface">
                     {!selectedStoreDetail ? (
                       <>
-                        <div className="section-head">
+                        <div className="section-head section-head-store-filter">
                           <div>
                             <span className="eyebrow">CỬA HÀNG ĐỀ XUẤT</span>
                             <h3 className="section-title">Ưu tiên rating và độ tin cậy</h3>
                           </div>
+
+                          <div className="store-filter-tabs">
+                            <button
+                              type="button"
+                              className={`store-filter-btn${storeFilter === "all" ? " active" : ""}`}
+                              onClick={() => setStoreFilter("all")}
+                            >
+                              Tất cả ({verifiedStores.length})
+                            </button>
+                            <button
+                              type="button"
+                              className={`store-filter-btn${storeFilter === "trusted" ? " active" : ""}`}
+                              onClick={() => setStoreFilter("trusted")}
+                            >
+                              Cửa hàng uy tín ({trustedStores.length})
+                            </button>
+                          </div>
                         </div>
 
                         <div className="store-grid">
-                          {verifiedStores.length === 0 && (
-                            <div className="note-banner">Chưa có cửa hàng nào từ backend.</div>
+                          {displayedStores.length === 0 && (
+                            <div className="note-banner">
+                              {storeFilter === "trusted"
+                                ? 'Hiện chưa có cửa hàng nào thuộc gói Cửa hàng Uy tín.'
+                                : 'Chưa có cửa hàng nào từ backend.'}
+                            </div>
                           )}
 
-                          {verifiedStores.map((store) => (
+                          {displayedStores.map((store) => (
                             <div key={store.id} className="store-card">
                               <div className="store-card-head">
                                 <div>
-                                  <h3>{store.store_name}</h3>
+                                  <div className="store-name-row">
+                                    <h3>{store.store_name}</h3>
+                                    {renderVerifiedBadge(store)}
+                                  </div>
                                   <p className="muted">{store.address || "Chưa có địa chỉ"}</p>
                                 </div>
                                 <div className="rating-badge">★ {store.google_rating || 0}</div>
@@ -1941,7 +2383,7 @@ export default function Home() {
                               <div className="chips">
                                 <span className="chip">{store.total_quotes || 0} báo giá</span>
                                 <span className="chip">{store.total_reviews || 0} đánh giá</span>
-                                <span className="chip">Approved</span>
+                                <span className="chip">{getStorePackageLabel(store)}</span>
                               </div>
 
                               <div className="card-actions">

@@ -36,6 +36,12 @@ const [showPaymentModal, setShowPaymentModal] = useState(false);
 const [selectedPackageToBuy, setSelectedPackageToBuy] = useState(null);
 const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("VNPAY");
 const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+const [promotionForm, setPromotionForm] = useState({
+  title: "",
+  message: "",
+});
+const [sendingPromotion, setSendingPromotion] = useState(false);
+const [promotionResult, setPromotionResult] = useState(null);
 
   const [employees, setEmployees] = useState([]);
   const [showAddEmployeeForm, setShowAddEmployeeForm] = useState(false);
@@ -223,6 +229,10 @@ const loadCurrentSubscription = async () => {
         });
 
         setStoreStatus(data.status || "");
+        setPromotionForm((prev) => ({
+          title: prev.title || `Ưu đãi từ ${data.store_name || "cửa hàng của bạn"}`,
+          message: prev.message,
+        }));
 
         if (data.status === "approved" && !localStorage.getItem(`welcome_shown_${data.id}`)) {
           setShowApprovalModal(true);
@@ -687,6 +697,65 @@ const handleConfirmPayment = () => {
       alert("Lỗi kết nối nâng cấp gói!");
     }
   }, 1200);
+};
+
+const handleBroadcastPromotion = async () => {
+  if (currentPackage !== "PREMIUM") {
+    alert("Chỉ gói Premium mới được nhắn tin ưu đãi đến toàn bộ User.");
+    return;
+  }
+
+  if (!promotionForm.title.trim() || !promotionForm.message.trim()) {
+    alert("Vui lòng nhập tiêu đề và nội dung ưu đãi.");
+    return;
+  }
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Bạn cần đăng nhập lại để thực hiện chức năng này.");
+    return;
+  }
+
+  try {
+    setSendingPromotion(true);
+    setPromotionResult(null);
+
+    const res = await fetch("http://localhost:5000/api/subscriptions/broadcast-promotion", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        title: promotionForm.title.trim(),
+        message: promotionForm.message.trim(),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Không gửi được ưu đãi");
+    }
+
+    setPromotionResult({
+      recipients: data.recipients || 0,
+      title: promotionForm.title.trim(),
+      sentAt: new Date().toLocaleString("vi-VN"),
+    });
+
+    setPromotionForm((prev) => ({
+      ...prev,
+      message: "",
+    }));
+
+    alert(`Đã gửi ưu đãi thành công đến ${data.recipients || 0} user.`);
+  } catch (error) {
+    console.error("Lỗi gửi ưu đãi:", error);
+    alert(error.message || "Không gửi được ưu đãi");
+  } finally {
+    setSendingPromotion(false);
+  }
 };
   const menuItems = [
     {
@@ -1821,6 +1890,129 @@ const handleConfirmPayment = () => {
                   >
                     Đăng ký gói này
                   </button>
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "28px",
+                backgroundColor: "white",
+                borderRadius: "20px",
+                padding: "28px",
+                border: currentPackage === "PREMIUM" ? "1px solid #fde68a" : "1px solid #e2e8f0",
+                boxShadow: currentPackage === "PREMIUM" ? "0 12px 32px rgba(217, 119, 6, 0.08)" : "none",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div>
+                  <h3 style={{ margin: "0 0 8px 0", color: "#0f172a", fontSize: "22px", fontWeight: "bold" }}>
+                    Nhắn tin ưu đãi đến toàn bộ User
+                  </h3>
+                  <p style={{ margin: 0, color: "#64748b", lineHeight: 1.6 }}>
+                    Tính năng này chỉ dành cho gói Premium. Nội dung sẽ được gửi vào mục thông báo của toàn bộ tài khoản User trong hệ thống.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "999px",
+                    fontWeight: "bold",
+                    fontSize: "14px",
+                    backgroundColor: currentPackage === "PREMIUM" ? "#fef3c7" : "#f1f5f9",
+                    color: currentPackage === "PREMIUM" ? "#92400e" : "#64748b",
+                  }}
+                >
+                  {currentPackage === "PREMIUM" ? "Premium đang hoạt động" : "Cần nâng cấp Premium"}
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px", marginTop: "24px" }}>
+                <div>
+                  <label style={{ ...labelStyle, marginBottom: "8px" }}>Tiêu đề ưu đãi</label>
+                  <input
+                    value={promotionForm.title}
+                    onChange={(e) =>
+                      setPromotionForm((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                    placeholder="Ví dụ: Giảm 20% thay pin tuần này"
+                    style={inputStyle}
+                    disabled={currentPackage !== "PREMIUM" || sendingPromotion}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ ...labelStyle, marginBottom: "8px" }}>Nội dung gửi đến User</label>
+                  <textarea
+                    value={promotionForm.message}
+                    onChange={(e) =>
+                      setPromotionForm((prev) => ({ ...prev, message: e.target.value }))
+                    }
+                    placeholder="Nhập nội dung ưu đãi, thời gian áp dụng, điều kiện..."
+                    style={{
+                      ...inputStyle,
+                      minHeight: "140px",
+                      resize: "vertical",
+                      lineHeight: 1.6,
+                    }}
+                    disabled={currentPackage !== "PREMIUM" || sendingPromotion}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "12px",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ color: "#64748b", fontSize: "14px" }}>
+                    Premium sẽ được ưu tiên Top 1 ở danh sách cửa hàng gần người dùng và có thể gửi ưu đãi hàng loạt.
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleBroadcastPromotion}
+                    disabled={currentPackage !== "PREMIUM" || sendingPromotion}
+                    style={{
+                      padding: "12px 22px",
+                      borderRadius: "12px",
+                      border: "none",
+                      backgroundColor:
+                        currentPackage === "PREMIUM" ? "#d97706" : "#cbd5e1",
+                      color: currentPackage === "PREMIUM" ? "white" : "#475569",
+                      fontWeight: "bold",
+                      cursor:
+                        currentPackage === "PREMIUM" && !sendingPromotion
+                          ? "pointer"
+                          : "not-allowed",
+                      opacity: sendingPromotion ? 0.7 : 1,
+                    }}
+                  >
+                    {sendingPromotion ? "Đang gửi ưu đãi..." : "Gửi đến toàn bộ User"}
+                  </button>
+                </div>
+
+                {promotionResult && (
+                  <div
+                    style={{
+                      backgroundColor: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "16px",
+                      padding: "16px 18px",
+                      color: "#334155",
+                    }}
+                  >
+                    <div style={{ fontWeight: "bold", marginBottom: "6px", color: "#0f172a" }}>
+                      Gửi ưu đãi thành công
+                    </div>
+                    <div>Tiêu đề: {promotionResult.title}</div>
+                    <div>Số user nhận: {promotionResult.recipients}</div>
+                    <div>Thời gian gửi: {promotionResult.sentAt}</div>
+                  </div>
                 )}
               </div>
             </div>

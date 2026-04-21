@@ -42,6 +42,27 @@ const getStoreByUserId = (userId, cb) => {
   );
 };
 
+const getActivePackageByStoreId = (storeId, cb) => {
+  const sql = `
+    SELECT
+      ss.*,
+      s.name AS package_name,
+      s.price,
+      s.job_delay_minutes
+    FROM store_subscriptions ss
+    INNER JOIN subscriptions s ON s.id = ss.subscription_id
+    WHERE ss.store_id = ?
+      AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+    ORDER BY COALESCE(ss.end_date, '9999-12-31') DESC, ss.id DESC
+    LIMIT 1
+  `;
+
+  db.query(sql, [storeId], (err, rows) => {
+    if (err) return cb(err);
+    cb(null, rows.length > 0 ? rows[0] : null);
+  });
+};
+
 exports.getSubscription = (req, res) => {
   const userId = req.params.userId;
 
@@ -49,19 +70,9 @@ exports.getSubscription = (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!store) return res.status(200).json(null);
 
-    const sql = `
-      SELECT ss.*, s.name AS package_name, s.price, s.job_delay_minutes
-      FROM store_subscriptions ss
-      INNER JOIN subscriptions s ON s.id = ss.subscription_id
-      WHERE ss.store_id = ?
-        AND ss.end_date >= CURDATE()
-      ORDER BY ss.end_date DESC
-      LIMIT 1
-    `;
-
-    db.query(sql, [store.id], (queryErr, results) => {
+    getActivePackageByStoreId(store.id, (queryErr, activePackage) => {
       if (queryErr) return res.status(500).json({ error: queryErr.message });
-      res.status(200).json(results.length > 0 ? results[0] : null);
+      res.status(200).json(activePackage);
     });
   });
 };
@@ -199,6 +210,85 @@ exports.upgradeSubscription = (req, res) => {
                   }
                 );
               }
+            }
+          );
+        }
+      );
+    });
+  });
+};
+
+exports.broadcastPromotion = (req, res) => {
+  const userId = req.user?.id;
+  const rawTitle = req.body?.title;
+  const rawMessage = req.body?.message;
+
+  const title = String(rawTitle || '').trim();
+  const message = String(rawMessage || '').trim();
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Bạn chưa đăng nhập' });
+  }
+
+  if (!title || !message) {
+    return res.status(400).json({ error: 'Vui lòng nhập tiêu đề và nội dung ưu đãi' });
+  }
+
+  getStoreByUserId(userId, (storeErr, store) => {
+    if (storeErr) return res.status(500).json({ error: storeErr.message });
+    if (!store) {
+      return res.status(404).json({ error: 'Không tìm thấy cửa hàng của bạn' });
+    }
+
+    getActivePackageByStoreId(store.id, (pkgErr, activePackage) => {
+      if (pkgErr) return res.status(500).json({ error: pkgErr.message });
+
+      if (!activePackage || activePackage.package_name !== 'PREMIUM') {
+        return res.status(403).json({
+          error: 'Chỉ gói PREMIUM mới được nhắn tin ưu đãi đến toàn bộ User',
+        });
+      }
+
+      db.query(
+        `
+        SELECT id
+        FROM users
+        WHERE role = 'USER'
+          AND (status IS NULL OR status <> 'BLOCKED')
+        `,
+        (userErr, users) => {
+          if (userErr) return res.status(500).json({ error: userErr.message });
+
+          if (!users.length) {
+            return res.status(200).json({
+              message: 'Không có user nào để gửi ưu đãi',
+              recipients: 0,
+            });
+          }
+
+          const values = users.map((user) => [
+            user.id,
+            userId,
+            title,
+            `[${store.store_name}] ${message}`,
+            'SYSTEM',
+          ]);
+
+          db.query(
+            `
+            INSERT INTO notifications (user_id, sender_id, title, message, type)
+            VALUES ?
+            `,
+            [values],
+            (insertErr) => {
+              if (insertErr) return res.status(500).json({ error: insertErr.message });
+
+              return res.status(200).json({
+                message: 'Đã gửi ưu đãi đến toàn bộ User thành công',
+                recipients: users.length,
+                store_name: store.store_name,
+                package_name: activePackage.package_name,
+              });
             }
           );
         }

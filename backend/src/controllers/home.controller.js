@@ -1,3 +1,4 @@
+
 const db = require('../config/db');
 
 const buildInitials = (name = '') => {
@@ -150,11 +151,36 @@ const getHomeDashboard = async (req, res) => {
         s.address,
         s.google_rating,
         s.description,
-        s.service_types
+        s.service_types,
+        (
+          SELECT sub.name
+          FROM store_subscriptions ss
+          INNER JOIN subscriptions sub ON sub.id = ss.subscription_id
+          WHERE ss.store_id = s.id
+            AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+          ORDER BY COALESCE(ss.end_date, '9999-12-31') DESC, ss.id DESC
+          LIMIT 1
+        ) AS package_name,
+        EXISTS(
+          SELECT 1
+          FROM store_subscriptions ss
+          INNER JOIN subscriptions sub ON sub.id = ss.subscription_id
+          WHERE ss.store_id = s.id
+            AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+            AND sub.name IN ('VERIFIED', 'PREMIUM')
+        ) AS is_trusted_store,
+        EXISTS(
+          SELECT 1
+          FROM store_subscriptions ss
+          INNER JOIN subscriptions sub ON sub.id = ss.subscription_id
+          WHERE ss.store_id = s.id
+            AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+            AND sub.name IN ('VERIFIED', 'PREMIUM')
+        ) AS has_verified_badge
       FROM stores s
       WHERE s.status = 'approved'
-      ORDER BY s.google_rating DESC, s.created_at DESC
-      LIMIT 5
+      ORDER BY is_trusted_store DESC, s.google_rating DESC, s.created_at DESC
+      LIMIT 12
       `
     );
 
@@ -234,51 +260,89 @@ const searchHome = async (req, res) => {
         description: row.description || "",
         device_name: `${row.brand || ''} ${row.model || ''}`.trim() || row.device_type || "Thiết bị"
       };
-    }).filter(r =>
-      r.title.toLowerCase().includes(q.toLowerCase()) ||
-      r.description.toLowerCase().includes(q.toLowerCase()) ||
-      r.device_name.toLowerCase().includes(q.toLowerCase())
-    ).slice(0, 5);
+    }).filter(item => {
+      const target = [item.title, item.description, item.device_name].join(' ').toLowerCase();
+      return target.includes(q.toLowerCase());
+    }).slice(0, 5);
 
     const [stores] = await promiseDb.query(
       `
       SELECT
-        id,
-        store_name,
-        address,
-        google_rating,
-        status,
-        service_types
-      FROM stores
-      WHERE status = 'approved'
+        s.id,
+        s.store_name,
+        s.address,
+        s.google_rating,
+        s.status,
+        s.service_types,
+        (
+          SELECT sub.name
+          FROM store_subscriptions ss
+          INNER JOIN subscriptions sub ON sub.id = ss.subscription_id
+          WHERE ss.store_id = s.id
+            AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+          ORDER BY COALESCE(ss.end_date, '9999-12-31') DESC, ss.id DESC
+          LIMIT 1
+        ) AS package_name,
+        EXISTS(
+          SELECT 1
+          FROM store_subscriptions ss
+          INNER JOIN subscriptions sub ON sub.id = ss.subscription_id
+          WHERE ss.store_id = s.id
+            AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+            AND sub.name IN ('VERIFIED', 'PREMIUM')
+        ) AS is_trusted_store,
+        EXISTS(
+          SELECT 1
+          FROM store_subscriptions ss
+          INNER JOIN subscriptions sub ON sub.id = ss.subscription_id
+          WHERE ss.store_id = s.id
+            AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+            AND sub.name IN ('VERIFIED', 'PREMIUM')
+        ) AS has_verified_badge
+      FROM stores s
+      WHERE s.status = 'approved'
         AND (
-          store_name LIKE ?
-          OR address LIKE ?
-          OR description LIKE ?
-          OR service_types LIKE ?
+          s.store_name LIKE ?
+          OR s.address LIKE ?
+          OR s.description LIKE ?
+          OR s.service_types LIKE ?
         )
-      ORDER BY google_rating DESC, created_at DESC
+      ORDER BY is_trusted_store DESC, s.google_rating DESC, s.created_at DESC
       LIMIT 5
       `,
       [keyword, keyword, keyword, keyword]
     );
 
-    const [devices] = await promiseDb.query(
+    const [rawDevices] = await promiseDb.query(
       `
-      SELECT
-        d.id,
-        d.name,
-        COALESCE(sc.name, d.category, 'Khác') AS category
-      FROM devices d
-      LEFT JOIN service_categories sc ON sc.id = d.category_id
-      WHERE d.name LIKE ?
-         OR d.category LIKE ?
-         OR sc.name LIKE ?
-      ORDER BY d.name ASC
-      LIMIT 5
+      SELECT *
+      FROM repair_requests
+      WHERE user_id = ?
+      ORDER BY created_at DESC
       `,
-      [keyword, keyword, keyword]
+      [userId]
     );
+
+    const deviceMap = new Map();
+
+    rawDevices.forEach((row) => {
+      const key = `${row.device_type || ''}-${row.brand || ''}-${row.model || ''}`;
+      if (!deviceMap.has(key)) {
+        deviceMap.set(key, {
+          id: row.id,
+          name: `${row.brand || ''} ${row.model || ''}`.trim() || row.device_type || "Thiết bị",
+          category: row.device_type || "Chưa phân loại",
+          created_at: row.created_at,
+        });
+      }
+    });
+
+    const devices = Array.from(deviceMap.values())
+      .filter((item) => {
+        const target = [item.name, item.category].join(' ').toLowerCase();
+        return target.includes(q.toLowerCase());
+      })
+      .slice(0, 5);
 
     return res.json({
       message: 'Tìm kiếm thành công',
@@ -288,9 +352,9 @@ const searchHome = async (req, res) => {
       devices,
     });
   } catch (error) {
-    console.error('HOME SEARCH ERROR:', error);
+    console.error('SEARCH HOME ERROR:', error);
     return res.status(500).json({
-      message: 'Lỗi server khi tìm kiếm',
+      message: 'Lỗi server khi tìm kiếm dữ liệu trang chủ',
       error: error.message,
     });
   }

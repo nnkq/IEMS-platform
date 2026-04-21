@@ -27,6 +27,53 @@ const normalizeString = (value) => {
   return clean === '' ? null : clean;
 };
 
+const extractRelatedRequestId = (text = '') => {
+  if (!text) return null;
+
+  const match = String(text).match(/#RQ-(\d+)/i);
+  if (match) return Number(match[1]);
+
+  return null;
+};
+
+const buildNotificationTarget = (notification = {}) => {
+  const title = String(notification.title || '').toLowerCase();
+  const message = String(notification.message || '').toLowerCase();
+  const type = String(notification.type || '').toUpperCase();
+  const content = `${title} ${message}`;
+
+  if (
+    type === 'QUOTE' ||
+    type === 'ORDER' ||
+    type === 'PAYMENT' ||
+    content.includes('báo giá') ||
+    content.includes('hoàn thành') ||
+    content.includes('xác nhận') ||
+    content.includes('sửa chữa') ||
+    content.includes('theo dõi') ||
+    content.includes('đơn') ||
+    content.includes('#rq-')
+  ) {
+    return 'tracking';
+  }
+
+  if (
+    content.includes('ưu đãi') ||
+    content.includes('khuyến mãi') ||
+    content.includes('giảm giá') ||
+    content.includes('voucher') ||
+    content.includes('cửa hàng')
+  ) {
+    return 'stores';
+  }
+
+  if (content.includes('ai') || content.includes('chẩn đoán')) {
+    return 'chatbot';
+  }
+
+  return 'home';
+};
+
 const buildProfilePayload = async (userId) => {
   const [userRows] = await promiseDb.query(
     `
@@ -237,6 +284,33 @@ const buildProfilePayload = async (userId) => {
     [userId]
   );
 
+  const [rawRecentNotifications] = await promiseDb.query(
+    `
+    SELECT
+      n.id,
+      n.title,
+      n.message,
+      n.type,
+      n.is_read AS isRead,
+      n.created_at AS createdAt,
+      n.sender_id AS senderId,
+      sender.name AS senderName,
+      sender.role AS senderRole
+    FROM notifications n
+    LEFT JOIN users sender ON sender.id = n.sender_id
+    WHERE n.user_id = ?
+    ORDER BY n.created_at DESC
+    LIMIT 20
+    `,
+    [userId]
+  );
+
+  const recentNotifications = rawRecentNotifications.map((item) => ({
+    ...item,
+    relatedRequestId: extractRelatedRequestId(`${item.title || ''} ${item.message || ''}`),
+    targetPage: buildNotificationTarget(item),
+  }));
+
   return {
     user: {
       ...user,
@@ -263,6 +337,7 @@ const buildProfilePayload = async (userId) => {
     },
     recentActivities,
     recentDiagnosis,
+    recentNotifications,
   };
 };
 
@@ -339,6 +414,94 @@ exports.updateMyProfile = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Lỗi server khi cập nhật hồ sơ',
+      error: error.sqlMessage || error.message,
+    });
+  }
+};
+
+
+exports.markAllNotificationsRead = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Bạn chưa đăng nhập',
+      });
+    }
+
+    await promiseDb.query(
+      'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
+      [userId]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Đã đánh dấu đã xem tất cả thông báo',
+      unreadNotifications: 0,
+    });
+  } catch (error) {
+    console.error('markAllNotificationsRead error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật thông báo',
+      error: error.sqlMessage || error.message,
+    });
+  }
+};
+
+exports.markNotificationRead = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const notificationId = Number(req.params.id);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Bạn chưa đăng nhập',
+      });
+    }
+
+    if (!notificationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu mã thông báo',
+      });
+    }
+
+    const [rows] = await promiseDb.query(
+      'SELECT id FROM notifications WHERE id = ? AND user_id = ? LIMIT 1',
+      [notificationId, userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy thông báo',
+      });
+    }
+
+    await promiseDb.query(
+      'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
+      [notificationId, userId]
+    );
+
+    const [unreadRows] = await promiseDb.query(
+      'SELECT COUNT(*) AS unreadNotifications FROM notifications WHERE user_id = ? AND is_read = 0',
+      [userId]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Đã đánh dấu đã xem thông báo',
+      unreadNotifications: Number(unreadRows[0]?.unreadNotifications || 0),
+    });
+  } catch (error) {
+    console.error('markNotificationRead error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật thông báo',
       error: error.sqlMessage || error.message,
     });
   }
