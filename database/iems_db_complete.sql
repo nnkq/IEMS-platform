@@ -351,3 +351,86 @@ SET FOREIGN_KEY_CHECKS = 1;
 SET SQL_SAFE_UPDATES   = 1;
 
 SELECT 'iems_db created successfully with chat tables!' AS result;
+-- ============================================================
+--  18. PROMOTION CAMPAIGNS / ANALYTICS / ADMIN APPROVAL
+-- ============================================================
+CREATE TABLE IF NOT EXISTS promotion_campaigns (
+  id                     INT AUTO_INCREMENT PRIMARY KEY,
+  store_id               INT NOT NULL,
+  requested_by           INT NULL,
+  title                  VARCHAR(255) NOT NULL,
+  message                TEXT NOT NULL,
+  status                 ENUM('PENDING_APPROVAL','APPROVED','SCHEDULED','SENDING','SENT','REJECTED','FAILED') NOT NULL DEFAULT 'PENDING_APPROVAL',
+  scheduled_at           DATETIME NULL,
+  monthly_limit_snapshot INT NOT NULL DEFAULT 0,
+  requested_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  approved_by            INT NULL,
+  approved_at            DATETIME NULL,
+  rejected_reason        TEXT NULL,
+  sent_at                DATETIME NULL,
+  recipients_count       INT NOT NULL DEFAULT 0,
+  last_error             TEXT NULL,
+
+  CONSTRAINT fk_promotion_campaign_store     FOREIGN KEY (store_id) REFERENCES stores(id),
+  CONSTRAINT fk_promotion_campaign_requester FOREIGN KEY (requested_by) REFERENCES users(id),
+  CONSTRAINT fk_promotion_campaign_approver  FOREIGN KEY (approved_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS promotion_campaign_recipients (
+  id              INT AUTO_INCREMENT PRIMARY KEY,
+  campaign_id     INT NOT NULL,
+  user_id         INT NOT NULL,
+  notification_id INT NULL,
+  delivered_at    DATETIME NULL,
+  opened_at       DATETIME NULL,
+  clicked_at      DATETIME NULL,
+
+  CONSTRAINT fk_promotion_recipients_campaign     FOREIGN KEY (campaign_id) REFERENCES promotion_campaigns(id) ON DELETE CASCADE,
+  CONSTRAINT fk_promotion_recipients_user         FOREIGN KEY (user_id) REFERENCES users(id),
+  UNIQUE KEY uk_promotion_recipients_campaign_user (campaign_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- MySQL Workbench / MySQL versions may not support: ADD COLUMN IF NOT EXISTS
+-- So use INFORMATION_SCHEMA + dynamic SQL to avoid Error 1064 and duplicate-column errors.
+
+SET @sql = (
+  SELECT IF(COUNT(*) > 0,
+    'SELECT ''campaign_id already exists'' AS info',
+    'ALTER TABLE notifications ADD COLUMN campaign_id INT NULL AFTER sender_id'
+  )
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'notifications'
+    AND COLUMN_NAME = 'campaign_id'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+  SELECT IF(COUNT(*) > 0,
+    'SELECT ''target_page already exists'' AS info',
+    'ALTER TABLE notifications ADD COLUMN target_page VARCHAR(50) NULL AFTER campaign_id'
+  )
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'notifications'
+    AND COLUMN_NAME = 'target_page'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+  SELECT IF(COUNT(*) > 0,
+    'SELECT ''related_request_id already exists'' AS info',
+    'ALTER TABLE notifications ADD COLUMN related_request_id INT NULL AFTER target_page'
+  )
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'notifications'
+    AND COLUMN_NAME = 'related_request_id'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

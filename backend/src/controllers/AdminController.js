@@ -57,7 +57,7 @@ const getAllOrders = async (req, res) => {
         u.name AS customer, d.name AS device,
         ai.ai_diagnosis AS aiAnalysis, ai.estimated_price AS aiEstimatedPrice,
         s.store_name AS store,
-        o.id AS order_id, o.status AS order_status, o.final_price AS total, (o.final_price * 0.1) AS commission
+        o.id AS order_id, o.status AS order_status, o.final_price AS total
       FROM repair_requests r
       LEFT JOIN devices d ON r.device_id = d.id
       LEFT JOIN users u ON r.user_id = u.id
@@ -78,7 +78,6 @@ const getAllOrders = async (req, res) => {
       store: row.store || 'Đang chờ cửa hàng nhận',
       status: row.order_status || row.request_status || 'OPEN',
       total: Number(row.total) || 0,
-      commission: Number(row.commission) || 0,
       timeline: [
         { step: 'AI Phân Tích', time: '1 phút', detail: 'Hệ thống quét ảnh', completed: row.aiAnalysis !== null },
         { step: 'Khách Đặt Yêu Cầu', time: 'Hoàn tất', detail: 'Phát yêu cầu tới thợ', completed: true },
@@ -165,36 +164,40 @@ const getUsersAndPartners = async (req, res) => {
 // =============================================================================
 const getRevenueStats = async (req, res) => {
   try {
-    const ordersResult = await query(`SELECT COALESCE(SUM(final_price * 0.1), 0) AS totalCommission FROM orders WHERE status = 'COMPLETED'`);
-    const ordersRows = ordersResult[0] || { totalCommission: 0 };
-
-    const paymentsResult = await query(`SELECT COALESCE(SUM(amount), 0) AS totalPremium FROM payments WHERE status = 'PAID'`);
+    const paymentsResult = await query(`
+      SELECT COALESCE(SUM(amount), 0) AS totalPremium
+      FROM payments
+      WHERE status = 'PAID' AND order_id IS NULL
+    `);
     const paymentsRows = paymentsResult[0] || { totalPremium: 0 };
 
-    // Vì bảng orders không có created_at, JOIN với repair_requests để lấy ngày tạo
     const weekRows = await query(`
-      SELECT DATE_FORMAT(r.created_at, '%d/%m') AS name,
-             COUNT(o.id) AS count,
-             COALESCE(SUM(o.final_price * 0.1), 0) AS commission
-      FROM orders o
-      JOIN repair_requests r ON o.request_id = r.id
-      WHERE o.status = 'COMPLETED' AND r.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-      GROUP BY DATE(r.created_at)
-      ORDER BY DATE(r.created_at) ASC;
+      SELECT DATE_FORMAT(revenue_date, '%d/%m') AS name, count, premium
+      FROM (
+        SELECT DATE(created_at) AS revenue_date,
+               COUNT(id) AS count,
+               COALESCE(SUM(amount), 0) AS premium
+        FROM payments
+        WHERE status = 'PAID'
+          AND order_id IS NULL
+          AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        GROUP BY DATE(created_at)
+      ) daily_revenue
+      ORDER BY revenue_date ASC;
     `);
 
     const chartData = weekRows.length > 0 ? weekRows.map(r => ({
-      name: r.name, premium: 0, commission: Number(r.commission)
+      name: r.name,
+      premium: Number(r.premium)
     })) : [
-      { name: 'T2', premium: 0, commission: 0 },
-      { name: 'T3', premium: 0, commission: 0 },
-      { name: 'T4', premium: 0, commission: 0 }
+      { name: 'T2', premium: 0 },
+      { name: 'T3', premium: 0 },
+      { name: 'T4', premium: 0 }
     ];
 
     res.status(200).json({
-      totalCommission: Number(ordersRows.totalCommission),
       totalPremium: Number(paymentsRows.totalPremium),
-      totalProfit: Number(ordersRows.totalCommission) + Number(paymentsRows.totalPremium),
+      totalProfit: Number(paymentsRows.totalPremium),
       chartData: chartData
     });
   } catch (error) { 

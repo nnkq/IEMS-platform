@@ -1,5 +1,11 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+const {
+  ensurePromotionSchema,
+  trackPromotionOpenByNotification,
+  trackPromotionClickByNotification,
+  trackAllPromotionNotificationsOpened,
+} = require('./subscriptionController');
 
 const promiseDb = db.promise();
 
@@ -37,6 +43,9 @@ const extractRelatedRequestId = (text = '') => {
 };
 
 const buildNotificationTarget = (notification = {}) => {
+  if (notification.targetPage) return notification.targetPage;
+  if (notification.target_page) return notification.target_page;
+
   const title = String(notification.title || '').toLowerCase();
   const message = String(notification.message || '').toLowerCase();
   const type = String(notification.type || '').toUpperCase();
@@ -75,6 +84,8 @@ const buildNotificationTarget = (notification = {}) => {
 };
 
 const buildProfilePayload = async (userId) => {
+  await ensurePromotionSchema();
+
   const [userRows] = await promiseDb.query(
     `
     SELECT
@@ -294,6 +305,8 @@ const buildProfilePayload = async (userId) => {
       n.is_read AS isRead,
       n.created_at AS createdAt,
       n.sender_id AS senderId,
+      n.campaign_id AS campaignId,
+      n.target_page AS targetPage,
       sender.name AS senderName,
       sender.role AS senderRole
     FROM notifications n
@@ -431,6 +444,9 @@ exports.markAllNotificationsRead = async (req, res) => {
       });
     }
 
+    await ensurePromotionSchema();
+    await trackAllPromotionNotificationsOpened(userId);
+
     await promiseDb.query(
       'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
       [userId]
@@ -470,6 +486,8 @@ exports.markNotificationRead = async (req, res) => {
       });
     }
 
+    await ensurePromotionSchema();
+
     const [rows] = await promiseDb.query(
       'SELECT id FROM notifications WHERE id = ? AND user_id = ? LIMIT 1',
       [notificationId, userId]
@@ -487,6 +505,8 @@ exports.markNotificationRead = async (req, res) => {
       [notificationId, userId]
     );
 
+    await trackPromotionOpenByNotification(notificationId, userId);
+
     const [unreadRows] = await promiseDb.query(
       'SELECT COUNT(*) AS unreadNotifications FROM notifications WHERE user_id = ? AND is_read = 0',
       [userId]
@@ -502,6 +522,55 @@ exports.markNotificationRead = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Lỗi server khi cập nhật thông báo',
+      error: error.sqlMessage || error.message,
+    });
+  }
+};
+
+exports.markNotificationClicked = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const notificationId = Number(req.params.id);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Bạn chưa đăng nhập',
+      });
+    }
+
+    if (!notificationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu mã thông báo',
+      });
+    }
+
+    await ensurePromotionSchema();
+
+    const [rows] = await promiseDb.query(
+      'SELECT id FROM notifications WHERE id = ? AND user_id = ? LIMIT 1',
+      [notificationId, userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy thông báo',
+      });
+    }
+
+    await trackPromotionClickByNotification(notificationId, userId);
+
+    return res.json({
+      success: true,
+      message: 'Đã ghi nhận lượt click thông báo',
+    });
+  } catch (error) {
+    console.error('markNotificationClicked error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi ghi nhận click thông báo',
       error: error.sqlMessage || error.message,
     });
   }

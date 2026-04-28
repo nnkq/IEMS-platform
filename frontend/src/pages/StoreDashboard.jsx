@@ -31,6 +31,53 @@ export default function StoreDashboard() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [storeLocation, setStoreLocation] = useState({ lat: null, lng: null });
 
+  const normalizeCoordinate = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const geocodeStoreAddress = async (text) => {
+    const query = String(text || "").trim();
+    if (!query) return null;
+
+    const params = new URLSearchParams({
+      format: "json",
+      q: `${query}, Đà Nẵng, Việt Nam`,
+      limit: "1",
+      addressdetails: "1",
+      countrycodes: "vn",
+      "accept-language": "vi",
+      bounded: "1",
+      viewbox: "108.06,16.20,108.31,15.97",
+    });
+
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error("Không thể chuyển địa chỉ cửa hàng thành tọa độ.");
+    }
+
+    const data = await res.json();
+    const first = Array.isArray(data) ? data[0] : null;
+
+    const lat = normalizeCoordinate(first?.lat);
+    const lng = normalizeCoordinate(first?.lon);
+
+    if (lat === null || lng === null) {
+      return null;
+    }
+
+    return {
+      lat,
+      lng,
+      address: first?.display_name || query,
+    };
+  };
+
 const [currentPackage, setCurrentPackage] = useState("FREE");
 const [showPaymentModal, setShowPaymentModal] = useState(false);
 const [selectedPackageToBuy, setSelectedPackageToBuy] = useState(null);
@@ -39,9 +86,26 @@ const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 const [promotionForm, setPromotionForm] = useState({
   title: "",
   message: "",
+  scheduledAt: "",
 });
 const [sendingPromotion, setSendingPromotion] = useState(false);
 const [promotionResult, setPromotionResult] = useState(null);
+const [promotionOverviewLoading, setPromotionOverviewLoading] = useState(false);
+const [promotionOverview, setPromotionOverview] = useState({
+  packageName: "FREE",
+  monthlyLimit: 0,
+  usedThisMonth: 0,
+  remainingThisMonth: 0,
+  summary: {
+    totalCampaigns: 0,
+    pendingApprovals: 0,
+    scheduledCampaigns: 0,
+    sentCampaigns: 0,
+  },
+  campaigns: [],
+});
+const [selectedCampaignDetail, setSelectedCampaignDetail] = useState(null);
+const [showCampaignDetailModal, setShowCampaignDetailModal] = useState(false);
 
   const [employees, setEmployees] = useState([]);
   const [showAddEmployeeForm, setShowAddEmployeeForm] = useState(false);
@@ -119,6 +183,86 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString("vi-VN");
 };
 
+const getCampaignStatusMeta = (status) => {
+  const map = {
+    PENDING_APPROVAL: { label: "Chờ duyệt", bg: "#fff7ed", color: "#ea580c" },
+    APPROVED: { label: "Đã duyệt", bg: "#eff6ff", color: "#2563eb" },
+    SCHEDULED: { label: "Đã lên lịch", bg: "#ecfeff", color: "#0891b2" },
+    SENT: { label: "Đã gửi", bg: "#ecfdf5", color: "#059669" },
+    REJECTED: { label: "Bị từ chối", bg: "#fef2f2", color: "#dc2626" },
+    FAILED: { label: "Lỗi gửi", bg: "#fff1f2", color: "#e11d48" },
+    SENDING: { label: "Đang gửi", bg: "#f8fafc", color: "#334155" },
+  };
+
+  return map[status] || { label: status || "Không xác định", bg: "#f8fafc", color: "#334155" };
+};
+
+const buildCampaignTimeline = (campaign) => {
+  if (!campaign) return [];
+
+  const timeline = [];
+  timeline.push({
+    title: "Tạo chiến dịch",
+    time: campaign.requestedAt,
+    description: "Store đã tạo chiến dịch và gửi yêu cầu chờ admin duyệt.",
+    tone: "#2563eb",
+  });
+
+  if (campaign.approvedAt) {
+    timeline.push({
+      title: campaign.scheduledAt ? "Admin duyệt và cho phép lên lịch" : "Admin phê duyệt chiến dịch",
+      time: campaign.approvedAt,
+      description: campaign.approvedByName
+        ? `Người duyệt: ${campaign.approvedByName}.`
+        : "Chiến dịch đã được admin duyệt.",
+      tone: "#0891b2",
+    });
+  }
+
+  if (campaign.scheduledAt) {
+    timeline.push({
+      title: "Hẹn giờ phát hành",
+      time: campaign.scheduledAt,
+      description: "Chiến dịch được lên lịch gửi tự động theo thời gian đã chọn.",
+      tone: "#7c3aed",
+    });
+  }
+
+  if (campaign.sentAt) {
+    timeline.push({
+      title: "Phát hành chiến dịch",
+      time: campaign.sentAt,
+      description: `Đã gửi tới ${campaign.recipients || 0} người nhận.`,
+      tone: "#059669",
+    });
+  }
+
+  if (campaign.rejectedReason) {
+    timeline.push({
+      title: "Admin từ chối chiến dịch",
+      time: campaign.approvedAt || campaign.requestedAt,
+      description: campaign.rejectedReason,
+      tone: "#dc2626",
+    });
+  }
+
+  if (campaign.lastError) {
+    timeline.push({
+      title: "Lỗi phát hành",
+      time: campaign.sentAt || campaign.approvedAt || campaign.requestedAt,
+      description: campaign.lastError,
+      tone: "#e11d48",
+    });
+  }
+
+  return timeline;
+};
+
+const openCampaignDetail = (campaign) => {
+  setSelectedCampaignDetail(campaign);
+  setShowCampaignDetailModal(true);
+};
+
 const getPackagePrice = (packageName) => {
   if (packageName === "VERIFIED") return 500000;
   if (packageName === "PREMIUM") return 1000000;
@@ -140,6 +284,47 @@ const loadCurrentSubscription = async () => {
     }
   } catch (err) {
     console.error("Lỗi tải gói:", err);
+  }
+};
+
+const loadPromotionOverview = async () => {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  try {
+    setPromotionOverviewLoading(true);
+    const res = await fetch("http://localhost:5000/api/subscriptions/promotion-overview", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Không tải được thống kê quảng bá");
+    }
+
+    setPromotionOverview({
+      packageName: data.packageName || "FREE",
+      monthlyLimit: Number(data.monthlyLimit || 0),
+      usedThisMonth: Number(data.usedThisMonth || 0),
+      remainingThisMonth: Number(data.remainingThisMonth || 0),
+      summary: {
+        totalCampaigns: Number(data.summary?.totalCampaigns || 0),
+        pendingApprovals: Number(data.summary?.pendingApprovals || 0),
+        scheduledCampaigns: Number(data.summary?.scheduledCampaigns || 0),
+        sentCampaigns: Number(data.summary?.sentCampaigns || 0),
+      },
+      campaigns: Array.isArray(data.campaigns) ? data.campaigns : [],
+    });
+
+    if (data.packageName) {
+      setCurrentPackage(data.packageName);
+    }
+  } catch (error) {
+    console.error("Lỗi tải overview quảng bá:", error);
+  } finally {
+    setPromotionOverviewLoading(false);
   }
 };
 
@@ -252,6 +437,7 @@ const loadCurrentSubscription = async () => {
       .catch((err) => console.error("Lỗi tải sản phẩm:", err));
 
 loadCurrentSubscription();
+    loadPromotionOverview();
   }, []);
 
   useEffect(() => {
@@ -275,19 +461,48 @@ loadCurrentSubscription();
     const userData = JSON.parse(localStorage.getItem("user"));
     if (!userData || !userData.id) return alert("Lỗi: Không tìm thấy ID tài khoản!");
 
-    const payload = {
-      storeName: storeInfo.storeName,
-      phone: storeInfo.phone,
-      address: storeInfo.address,
-      description: storeInfo.description,
-      openTime: storeInfo.openTime,
-      closeTime: storeInfo.closeTime,
-      userId: userData.id,
-      latitude: storeLocation.lat,
-      longitude: storeLocation.lng,
+    let nextStoreLocation = {
+      lat: normalizeCoordinate(storeLocation.lat),
+      lng: normalizeCoordinate(storeLocation.lng),
     };
 
     try {
+      if ((nextStoreLocation.lat === null || nextStoreLocation.lng === null) && storeInfo.address.trim()) {
+        setLoadingLocation(true);
+
+        const geocoded = await geocodeStoreAddress(storeInfo.address);
+
+        if (geocoded) {
+          nextStoreLocation = {
+            lat: geocoded.lat,
+            lng: geocoded.lng,
+          };
+
+          setStoreLocation(nextStoreLocation);
+          setStoreInfo((prev) => ({
+            ...prev,
+            address: geocoded.address || prev.address,
+          }));
+        }
+      }
+
+      if (nextStoreLocation.lat === null || nextStoreLocation.lng === null) {
+        setLoadingLocation(false);
+        return alert("Vui lòng bấm 'Lấy vị trí' hoặc nhập địa chỉ cụ thể để hệ thống xác định tọa độ cửa hàng.");
+      }
+
+      const payload = {
+        storeName: storeInfo.storeName,
+        phone: storeInfo.phone,
+        address: storeInfo.address,
+        description: storeInfo.description,
+        openTime: storeInfo.openTime,
+        closeTime: storeInfo.closeTime,
+        userId: userData.id,
+        latitude: nextStoreLocation.lat,
+        longitude: nextStoreLocation.lng,
+      };
+
       const response = await fetch("http://localhost:5000/api/stores/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -297,15 +512,20 @@ loadCurrentSubscription();
       const data = await response.json();
 
       if (response.ok) {
-        alert("✅ Đã gửi yêu cầu đến Admin - Vui lòng chờ Admin duyệt!");
+        alert("✅ Đã lưu hồ sơ cửa hàng thành công!");
         localStorage.removeItem(`rejection_shown_${userData.id}`);
         setStoreInfo((prev) => ({ ...prev, userId: userData.id }));
-        setStoreStatus("pending");
+        if (!storeStatus) {
+          setStoreStatus("pending");
+        }
       } else {
         alert("❌ Lỗi từ Database: " + (data.error || "Không rõ nguyên nhân"));
       }
     } catch (error) {
-      alert("❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!");
+      console.error("Lỗi lưu hồ sơ cửa hàng:", error);
+      alert(error.message || "❌ Lỗi mạng: Không thể kết nối đến máy chủ Backend!");
+    } finally {
+      setLoadingLocation(false);
     }
   };
 
@@ -682,6 +902,7 @@ const handleConfirmPayment = () => {
 
       if (res.ok) {
         await loadCurrentSubscription();
+        await loadPromotionOverview();
         setIsProcessingPayment(false);
         setShowPaymentModal(false);
 
@@ -701,7 +922,7 @@ const handleConfirmPayment = () => {
 
 const handleBroadcastPromotion = async () => {
   if (currentPackage !== "PREMIUM") {
-    alert("Chỉ gói Premium mới được nhắn tin ưu đãi đến toàn bộ User.");
+    alert("Chỉ gói Premium mới được gửi yêu cầu ưu đãi hàng loạt.");
     return;
   }
 
@@ -729,30 +950,39 @@ const handleBroadcastPromotion = async () => {
       body: JSON.stringify({
         title: promotionForm.title.trim(),
         message: promotionForm.message.trim(),
+        scheduledAt: promotionForm.scheduledAt || null,
       }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error || "Không gửi được ưu đãi");
+      throw new Error(data.error || "Không tạo được chiến dịch ưu đãi");
     }
 
     setPromotionResult({
-      recipients: data.recipients || 0,
       title: promotionForm.title.trim(),
       sentAt: new Date().toLocaleString("vi-VN"),
+      scheduledAt: data.scheduledAt || null,
+      status: data.status || "PENDING_APPROVAL",
     });
 
     setPromotionForm((prev) => ({
       ...prev,
       message: "",
+      scheduledAt: "",
     }));
 
-    alert(`Đã gửi ưu đãi thành công đến ${data.recipients || 0} user.`);
+    await loadPromotionOverview();
+
+    alert(
+      data.scheduledAt
+        ? "Đã gửi yêu cầu duyệt và hẹn giờ quảng bá thành công."
+        : "Đã gửi admin duyệt chiến dịch quảng bá thành công."
+    );
   } catch (error) {
     console.error("Lỗi gửi ưu đãi:", error);
-    alert(error.message || "Không gửi được ưu đãi");
+    alert(error.message || "Không tạo được chiến dịch ưu đãi");
   } finally {
     setSendingPromotion(false);
   }
@@ -834,10 +1064,11 @@ const handleBroadcastPromotion = async () => {
     <div
       style={{
         display: "flex",
-        minHeight: "100vh",
+        height: "100vh",
         backgroundColor: "#f8fafc",
         fontFamily: "Inter, sans-serif",
         position: "relative",
+        overflow: "hidden",
       }}
     >
       <StoreOwnerChatPanel
@@ -853,6 +1084,10 @@ const handleBroadcastPromotion = async () => {
           padding: "24px 16px",
           display: "flex",
           flexDirection: "column",
+          flexShrink: 0,
+          height: "100vh",
+          boxSizing: "border-box",
+          overflow: "hidden",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "40px", padding: "0 8px" }}>
@@ -931,13 +1166,16 @@ const handleBroadcastPromotion = async () => {
                 >
                   {item.icon}
                 </div>
-                <div>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <h3
                     style={{
                       margin: 0,
                       fontSize: "14px",
                       fontWeight: isActive ? "700" : "500",
                       color: isActive ? "white" : "#cbd5e1",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
                   >
                     {item.title}
@@ -947,6 +1185,9 @@ const handleBroadcastPromotion = async () => {
                       margin: "4px 0 0 0",
                       fontSize: "12px",
                       color: isActive ? "#94a3b8" : "#64748b",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
                   >
                     {item.subtitle}
@@ -1037,7 +1278,7 @@ const handleBroadcastPromotion = async () => {
         </div>
       </div>
 
-      <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
+      <div style={{ flex: 1, minWidth: 0, height: "100vh", padding: "40px", overflowY: "auto" }}>
         {activeTab === "Hồ sơ" && (
           <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
             <h1 style={{ color: "#0f172a", marginBottom: "8px", fontSize: "28px", fontWeight: "bold" }}>
@@ -1907,10 +2148,10 @@ const handleBroadcastPromotion = async () => {
               <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", alignItems: "flex-start" }}>
                 <div>
                   <h3 style={{ margin: "0 0 8px 0", color: "#0f172a", fontSize: "22px", fontWeight: "bold" }}>
-                    Nhắn tin ưu đãi đến toàn bộ User
+                    Trung tâm quảng bá có duyệt nội dung
                   </h3>
                   <p style={{ margin: 0, color: "#64748b", lineHeight: 1.6 }}>
-                    Tính năng này chỉ dành cho gói Premium. Nội dung sẽ được gửi vào mục thông báo của toàn bộ tài khoản User trong hệ thống.
+                    Premium được tạo chiến dịch, giới hạn {promotionOverview.monthlyLimit || 0} lượt mỗi tháng, có hẹn giờ gửi và bắt buộc admin duyệt trước khi phát hành.
                   </p>
                 </div>
 
@@ -1928,92 +2169,244 @@ const handleBroadcastPromotion = async () => {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px", marginTop: "24px" }}>
-                <div>
-                  <label style={{ ...labelStyle, marginBottom: "8px" }}>Tiêu đề ưu đãi</label>
-                  <input
-                    value={promotionForm.title}
-                    onChange={(e) =>
-                      setPromotionForm((prev) => ({ ...prev, title: e.target.value }))
-                    }
-                    placeholder="Ví dụ: Giảm 20% thay pin tuần này"
-                    style={inputStyle}
-                    disabled={currentPackage !== "PREMIUM" || sendingPromotion}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ ...labelStyle, marginBottom: "8px" }}>Nội dung gửi đến User</label>
-                  <textarea
-                    value={promotionForm.message}
-                    onChange={(e) =>
-                      setPromotionForm((prev) => ({ ...prev, message: e.target.value }))
-                    }
-                    placeholder="Nhập nội dung ưu đãi, thời gian áp dụng, điều kiện..."
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px", marginTop: "22px" }}>
+                {[
+                  { label: "Giới hạn tháng này", value: promotionOverview.monthlyLimit, tone: ["#eff6ff", "#2563eb"] },
+                  { label: "Đã dùng", value: promotionOverview.usedThisMonth, tone: ["#fff7ed", "#ea580c"] },
+                  { label: "Còn lại", value: promotionOverview.remainingThisMonth, tone: ["#ecfdf5", "#059669"] },
+                  { label: "Chờ admin duyệt", value: promotionOverview.summary?.pendingApprovals || 0, tone: ["#f8fafc", "#334155"] },
+                ].map((box) => (
+                  <div
+                    key={box.label}
                     style={{
-                      ...inputStyle,
-                      minHeight: "140px",
-                      resize: "vertical",
-                      lineHeight: 1.6,
-                    }}
-                    disabled={currentPackage !== "PREMIUM" || sendingPromotion}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ color: "#64748b", fontSize: "14px" }}>
-                    Premium sẽ được ưu tiên Top 1 ở danh sách cửa hàng gần người dùng và có thể gửi ưu đãi hàng loạt.
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleBroadcastPromotion}
-                    disabled={currentPackage !== "PREMIUM" || sendingPromotion}
-                    style={{
-                      padding: "12px 22px",
-                      borderRadius: "12px",
-                      border: "none",
-                      backgroundColor:
-                        currentPackage === "PREMIUM" ? "#d97706" : "#cbd5e1",
-                      color: currentPackage === "PREMIUM" ? "white" : "#475569",
-                      fontWeight: "bold",
-                      cursor:
-                        currentPackage === "PREMIUM" && !sendingPromotion
-                          ? "pointer"
-                          : "not-allowed",
-                      opacity: sendingPromotion ? 0.7 : 1,
+                      backgroundColor: box.tone[0],
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "16px",
+                      padding: "18px",
                     }}
                   >
-                    {sendingPromotion ? "Đang gửi ưu đãi..." : "Gửi đến toàn bộ User"}
+                    <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px" }}>{box.label}</div>
+                    <div style={{ fontSize: "28px", fontWeight: "800", color: box.tone[1] }}>{box.value || 0}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "20px", marginTop: "24px" }}>
+                <div style={{ display: "grid", gap: "16px" }}>
+                  <div>
+                    <label style={{ ...labelStyle, marginBottom: "8px" }}>Tiêu đề ưu đãi</label>
+                    <input
+                      value={promotionForm.title}
+                      onChange={(e) => setPromotionForm((prev) => ({ ...prev, title: e.target.value }))}
+                      placeholder="Ví dụ: Giảm 20% thay pin tuần này"
+                      style={inputStyle}
+                      disabled={currentPackage !== "PREMIUM" || sendingPromotion}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ ...labelStyle, marginBottom: "8px" }}>Nội dung gửi đến User</label>
+                    <textarea
+                      value={promotionForm.message}
+                      onChange={(e) => setPromotionForm((prev) => ({ ...prev, message: e.target.value }))}
+                      placeholder="Nhập nội dung ưu đãi, thời gian áp dụng, điều kiện..."
+                      style={{
+                        ...inputStyle,
+                        minHeight: "160px",
+                        resize: "vertical",
+                        lineHeight: 1.6,
+                      }}
+                      disabled={currentPackage !== "PREMIUM" || sendingPromotion}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: "16px", alignContent: "start" }}>
+                  <div>
+                    <label style={{ ...labelStyle, marginBottom: "8px" }}>Hẹn giờ gửi</label>
+                    <input
+                      type="datetime-local"
+                      value={promotionForm.scheduledAt}
+                      onChange={(e) => setPromotionForm((prev) => ({ ...prev, scheduledAt: e.target.value }))}
+                      style={inputStyle}
+                      disabled={currentPackage !== "PREMIUM" || sendingPromotion}
+                    />
+                    <div style={{ fontSize: "13px", color: "#64748b", marginTop: "8px", lineHeight: 1.5 }}>
+                      Để trống nếu muốn admin duyệt xong là gửi ngay. Nếu chọn thời gian tương lai, hệ thống sẽ tự phát đúng giờ sau khi được duyệt.
+                    </div>
+                  </div>
+
+                  <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "16px" }}>
+                    <div style={{ fontWeight: "700", color: "#0f172a", marginBottom: "10px" }}>Theo dõi hiệu quả</div>
+                    <div style={{ display: "grid", gap: "10px", fontSize: "14px", color: "#475569" }}>
+                      <div>• Số người nhận được lưu ngay khi chiến dịch phát hành.</div>
+                      <div>• Mở / xem được tính khi user mở thông báo.</div>
+                      <div>• Click được tính khi user bấm vào thông báo ưu đãi.</div>
+                      <div>• Admin có thể duyệt hoặc từ chối từng chiến dịch trước khi gửi.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  marginTop: "18px",
+                }}
+              >
+                <div style={{ color: "#64748b", fontSize: "14px" }}>
+                  Premium sẽ được ưu tiên Top 1 ở danh sách cửa hàng gần người dùng và có thể tạo chiến dịch quảng bá hàng loạt theo quota tháng.
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleBroadcastPromotion}
+                  disabled={currentPackage !== "PREMIUM" || sendingPromotion}
+                  style={{
+                    padding: "12px 22px",
+                    borderRadius: "12px",
+                    border: "none",
+                    backgroundColor: currentPackage === "PREMIUM" ? "#d97706" : "#cbd5e1",
+                    color: currentPackage === "PREMIUM" ? "white" : "#475569",
+                    fontWeight: "bold",
+                    cursor: currentPackage === "PREMIUM" && !sendingPromotion ? "pointer" : "not-allowed",
+                    opacity: sendingPromotion ? 0.7 : 1,
+                  }}
+                >
+                  {sendingPromotion ? "Đang tạo chiến dịch..." : "Gửi admin duyệt chiến dịch"}
+                </button>
+              </div>
+
+              {promotionResult && (
+                <div
+                  style={{
+                    marginTop: "16px",
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "16px",
+                    padding: "16px 18px",
+                    color: "#334155",
+                  }}
+                >
+                  <div style={{ fontWeight: "bold", marginBottom: "6px", color: "#0f172a" }}>
+                    Đã gửi yêu cầu duyệt chiến dịch
+                  </div>
+                  <div>Tiêu đề: {promotionResult.title}</div>
+                  <div>Trạng thái: {promotionResult.status}</div>
+                  <div>Thời gian tạo: {promotionResult.sentAt}</div>
+                  {promotionResult.scheduledAt && <div>Hẹn giờ: {formatDateTime(promotionResult.scheduledAt)}</div>}
+                </div>
+              )}
+
+              <div style={{ marginTop: "28px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "12px" }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "20px", color: "#0f172a" }}>Lịch sử chiến dịch quảng bá</h3>
+                    <p style={{ margin: "6px 0 0", color: "#64748b" }}>Theo dõi trạng thái duyệt, số người mở / click và thời gian hẹn gửi.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={loadPromotionOverview}
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      backgroundColor: "white",
+                      color: "#334155",
+                      borderRadius: "10px",
+                      padding: "10px 14px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Làm mới thống kê
                   </button>
                 </div>
 
-                {promotionResult && (
-                  <div
-                    style={{
-                      backgroundColor: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "16px",
-                      padding: "16px 18px",
-                      color: "#334155",
-                    }}
-                  >
-                    <div style={{ fontWeight: "bold", marginBottom: "6px", color: "#0f172a" }}>
-                      Gửi ưu đãi thành công
-                    </div>
-                    <div>Tiêu đề: {promotionResult.title}</div>
-                    <div>Số user nhận: {promotionResult.recipients}</div>
-                    <div>Thời gian gửi: {promotionResult.sentAt}</div>
-                  </div>
-                )}
+                <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "16px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "960px", backgroundColor: "white" }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "#f8fafc" }}>
+                        <th style={{ padding: "14px", textAlign: "left", color: "#475569" }}>Chiến dịch</th>
+                        <th style={{ padding: "14px", textAlign: "left", color: "#475569" }}>Trạng thái</th>
+                        <th style={{ padding: "14px", textAlign: "left", color: "#475569" }}>Hẹn giờ</th>
+                        <th style={{ padding: "14px", textAlign: "left", color: "#475569" }}>Người nhận</th>
+                        <th style={{ padding: "14px", textAlign: "left", color: "#475569" }}>Mở / xem</th>
+                        <th style={{ padding: "14px", textAlign: "left", color: "#475569" }}>Click</th>
+                        <th style={{ padding: "14px", textAlign: "left", color: "#475569" }}>Ghi chú</th>
+                        <th style={{ padding: "14px", textAlign: "left", color: "#475569" }}>Chi tiết</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {promotionOverviewLoading ? (
+                        <tr>
+                          <td colSpan="8" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
+                            Đang tải thống kê chiến dịch...
+                          </td>
+                        </tr>
+                      ) : promotionOverview.campaigns.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
+                            Bạn chưa tạo chiến dịch quảng bá nào.
+                          </td>
+                        </tr>
+                      ) : (
+                        promotionOverview.campaigns.map((campaign) => {
+                          const statusMap = {
+                            PENDING_APPROVAL: ["Chờ duyệt", "#fff7ed", "#ea580c"],
+                            APPROVED: ["Đã duyệt", "#eff6ff", "#2563eb"],
+                            SCHEDULED: ["Đã lên lịch", "#ecfeff", "#0891b2"],
+                            SENT: ["Đã gửi", "#ecfdf5", "#059669"],
+                            REJECTED: ["Bị từ chối", "#fef2f2", "#dc2626"],
+                            FAILED: ["Lỗi gửi", "#fff1f2", "#e11d48"],
+                            SENDING: ["Đang gửi", "#f8fafc", "#334155"],
+                          };
+                          const badge = statusMap[campaign.status] || [campaign.status, "#f8fafc", "#334155"];
+                          return (
+                            <tr key={campaign.id} style={{ borderTop: "1px solid #e2e8f0" }}>
+                              <td style={{ padding: "14px", verticalAlign: "top" }}>
+                                <div style={{ fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>{campaign.title}</div>
+                                <div style={{ color: "#64748b", lineHeight: 1.5, maxWidth: "280px" }}>{campaign.message}</div>
+                                <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "6px" }}>Tạo lúc: {formatDateTime(campaign.requestedAt)}</div>
+                              </td>
+                              <td style={{ padding: "14px", verticalAlign: "top" }}>
+                                <span style={{ backgroundColor: badge[1], color: badge[2], padding: "6px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: "700" }}>{badge[0]}</span>
+                                {campaign.approvedByName && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>Duyệt bởi: {campaign.approvedByName}</div>}
+                              </td>
+                              <td style={{ padding: "14px", verticalAlign: "top", color: "#334155" }}>{formatDateTime(campaign.scheduledAt)}</td>
+                              <td style={{ padding: "14px", verticalAlign: "top", fontWeight: "700", color: "#0f172a" }}>{campaign.recipients || 0}</td>
+                              <td style={{ padding: "14px", verticalAlign: "top", color: "#0f172a" }}>{campaign.opened || 0} <span style={{ color: "#64748b", fontWeight: "400" }}>({campaign.openRate || 0}%)</span></td>
+                              <td style={{ padding: "14px", verticalAlign: "top", color: "#0f172a" }}>{campaign.clicked || 0} <span style={{ color: "#64748b", fontWeight: "400" }}>({campaign.clickRate || 0}%)</span></td>
+                              <td style={{ padding: "14px", verticalAlign: "top", color: campaign.rejectedReason ? "#dc2626" : "#64748b", maxWidth: "220px" }}>
+                                {campaign.rejectedReason || campaign.lastError || "—"}
+                              </td>
+                              <td style={{ padding: "14px", verticalAlign: "top" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => openCampaignDetail(campaign)}
+                                  style={{
+                                    border: "1px solid #cbd5e1",
+                                    backgroundColor: "white",
+                                    color: "#0f172a",
+                                    borderRadius: "10px",
+                                    padding: "10px 12px",
+                                    fontWeight: "700",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  Xem chi tiết
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -2479,6 +2872,146 @@ const handleBroadcastPromotion = async () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCampaignDetailModal && selectedCampaignDetail && (
+        <div
+          onClick={() => setShowCampaignDetailModal(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15,23,42,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 120,
+            padding: "24px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(960px, 100%)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              backgroundColor: "white",
+              borderRadius: "24px",
+              padding: "28px",
+              boxShadow: "0 25px 80px rgba(15, 23, 42, 0.25)",
+            }}
+          >
+            {(() => {
+              const statusMeta = getCampaignStatusMeta(selectedCampaignDetail.status);
+              const timeline = buildCampaignTimeline(selectedCampaignDetail);
+              return (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start", flexWrap: "wrap", marginBottom: "22px" }}>
+                    <div>
+                      <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px", fontWeight: "700", letterSpacing: "0.3px" }}>
+                        CHI TIẾT CHIẾN DỊCH #{selectedCampaignDetail.id}
+                      </div>
+                      <h2 style={{ margin: 0, color: "#0f172a", fontSize: "28px", lineHeight: 1.3 }}>{selectedCampaignDetail.title}</h2>
+                      <div style={{ marginTop: "10px" }}>
+                        <span style={{ backgroundColor: statusMeta.bg, color: statusMeta.color, padding: "7px 12px", borderRadius: "999px", fontWeight: "700", fontSize: "12px" }}>
+                          {statusMeta.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowCampaignDetailModal(false)}
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        border: "1px solid #e2e8f0",
+                        backgroundColor: "white",
+                        fontSize: "20px",
+                        cursor: "pointer",
+                        color: "#64748b",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "22px", alignItems: "start" }}>
+                    <div style={{ display: "grid", gap: "18px" }}>
+                      <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "18px", padding: "18px" }}>
+                        <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "10px" }}>Nội dung quảng bá</div>
+                        <div style={{ color: "#334155", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{selectedCampaignDetail.message || "Không có nội dung"}</div>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px" }}>
+                        {[
+                          { label: "Tạo lúc", value: formatDateTime(selectedCampaignDetail.requestedAt) },
+                          { label: "Hẹn giờ gửi", value: selectedCampaignDetail.scheduledAt ? formatDateTime(selectedCampaignDetail.scheduledAt) : "Gửi ngay khi được duyệt" },
+                          { label: "Admin duyệt", value: selectedCampaignDetail.approvedByName || "Chưa có" },
+                          { label: "Thời gian duyệt", value: selectedCampaignDetail.approvedAt ? formatDateTime(selectedCampaignDetail.approvedAt) : "Chưa có" },
+                          { label: "Thời gian phát hành", value: selectedCampaignDetail.sentAt ? formatDateTime(selectedCampaignDetail.sentAt) : "Chưa phát hành" },
+                          { label: "Quota tại thời điểm tạo", value: `${selectedCampaignDetail.monthlyLimitSnapshot || 0} lượt / tháng` },
+                        ].map((item) => (
+                          <div key={item.label} style={{ backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "16px" }}>
+                            <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>{item.label}</div>
+                            <div style={{ color: "#0f172a", fontWeight: "700", lineHeight: 1.5 }}>{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {(selectedCampaignDetail.rejectedReason || selectedCampaignDetail.lastError) && (
+                        <div style={{ backgroundColor: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "18px", padding: "18px" }}>
+                          <div style={{ fontSize: "14px", fontWeight: "700", color: "#9a3412", marginBottom: "8px" }}>Ghi chú xử lý</div>
+                          <div style={{ color: "#9a3412", lineHeight: 1.6 }}>
+                            {selectedCampaignDetail.rejectedReason || selectedCampaignDetail.lastError}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: "grid", gap: "18px" }}>
+                      <div style={{ backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "18px", padding: "18px" }}>
+                        <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "12px" }}>Hiệu quả chiến dịch</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" }}>
+                          {[
+                            { label: "Người nhận", value: selectedCampaignDetail.recipients || 0, bg: "#eff6ff", color: "#2563eb" },
+                            { label: "Mở / xem", value: `${selectedCampaignDetail.opened || 0} (${selectedCampaignDetail.openRate || 0}%)`, bg: "#ecfdf5", color: "#059669" },
+                            { label: "Click", value: `${selectedCampaignDetail.clicked || 0} (${selectedCampaignDetail.clickRate || 0}%)`, bg: "#f5f3ff", color: "#7c3aed" },
+                          ].map((item) => (
+                            <div key={item.label} style={{ backgroundColor: item.bg, borderRadius: "14px", padding: "14px" }}>
+                              <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>{item.label}</div>
+                              <div style={{ fontWeight: "800", color: item.color, lineHeight: 1.5 }}>{item.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "18px", padding: "18px" }}>
+                        <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "12px" }}>Lịch sử duyệt / phát hành</div>
+                        <div style={{ display: "grid", gap: "14px" }}>
+                          {timeline.length === 0 ? (
+                            <div style={{ color: "#64748b" }}>Chưa có lịch sử xử lý.</div>
+                          ) : (
+                            timeline.map((item, index) => (
+                              <div key={`${item.title}-${index}`} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                                <div style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: item.tone, marginTop: "6px", flexShrink: 0 }} />
+                                <div>
+                                  <div style={{ fontWeight: "700", color: "#0f172a" }}>{item.title}</div>
+                                  <div style={{ fontSize: "12px", color: "#64748b", margin: "4px 0" }}>{formatDateTime(item.time)}</div>
+                                  <div style={{ color: "#475569", lineHeight: 1.6 }}>{item.description}</div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

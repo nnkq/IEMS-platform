@@ -6,6 +6,7 @@ const {
   changeMyPassword,
   markAllNotificationsRead,
   markNotificationRead,
+  markNotificationClicked,
 } = require('../controllers/user.controller');
 
 const router = express.Router();
@@ -15,5 +16,6 @@ router.put('/me', protect, updateMyProfile);
 router.put('/me/change-password', protect, changeMyPassword);
 router.post('/notifications/read-all', protect, markAllNotificationsRead);
 router.post('/notifications/:id/read', protect, markNotificationRead);
+router.post('/notifications/:id/click', protect, markNotificationClicked);
 
 module.exports = router;
