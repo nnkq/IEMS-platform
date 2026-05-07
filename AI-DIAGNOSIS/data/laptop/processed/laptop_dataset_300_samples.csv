@@ -1,0 +1,407 @@
+id,device_type,symptom_text,image_path,label,severity,recommendation
+lap_0001,laptop,màn hình laptop em bị sọc ngang chạy liên tục từ trên xuống dưới,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0002,laptop,máy vẫn lên nguồn nhưng màn hình tối đen không thấy gì,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0003,laptop,màn hình cứ chớp sáng rồi tối làm em nhìn không rõ,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0004,laptop,hình ảnh trên màn hình bị nhòe và mờ hơn bình thường,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0005,laptop,bật máy lên thì màu sắc hiển thị bị lệch sang xanh tím,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0006,laptop,đèn nguồn vẫn sáng nhưng phần hiển thị không xuất hiện hình ảnh,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0007,laptop,màn hình có nhiều vạch màu đứng dọc che mất nội dung,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0008,laptop,khi gập mở laptop thì màn hình lúc hiện lúc tắt,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0009,laptop,máy chạy bình thường nhưng panel hiển thị bị nhấp nháy liên tục,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0010,laptop,góc màn hình bị tối đen loang ra ngày càng rộng,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0011,laptop,em mở máy lên thì chỉ thấy nền đen dù quạt vẫn quay,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0012,laptop,"màn hình hiển thị chập chờn, có lúc rõ có lúc mất hình",,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0013,laptop,hình trên laptop bị rung nhẹ và rất khó đọc chữ,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0014,laptop,panel xuất hiện đốm sáng bất thường ở giữa màn hình,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0015,laptop,máy vào windows rồi mà màn hình vẫn đen sì,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0016,laptop,màn hình bị loé sáng từng nhịp như sắp tắt hẳn,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0017,laptop,"phần hiển thị bị nhiễu màu, nhìn ảnh nào cũng sai màu",,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0018,laptop,laptop khởi động xong nhưng chỉ có màn hình xám mờ,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0019,laptop,màn hình có các đường sọc mảnh xuất hiện ngay khi bật máy,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0020,laptop,"máy em bị đen nửa màn hình, nửa còn lại vẫn hiển thị",,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0021,laptop,mỗi lần chỉnh góc nghiêng thì hình ảnh bị mất đột ngột,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0022,laptop,màn hình laptop thỉnh thoảng trắng xoá rồi mới trở lại bình thường,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0023,laptop,chữ trên màn hình bị bóng mờ như có hai lớp chồng lên nhau,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0024,laptop,phần hiển thị lúc sáng lúc tối không ổn định,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0025,laptop,laptop vẫn phát tiếng nhưng không thấy hình ảnh nào trên màn hình,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0026,laptop,màn hình bị nháy liên tục khi em cắm sạc vào máy,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0027,laptop,máy lên nhưng biểu tượng và chữ đều bị méo hiển thị,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0028,laptop,em thấy màn hình có vệt đen kéo dài ở cạnh phải,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0029,laptop,màn hình xuất hiện nhiều chấm li ti sáng bất thường,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0030,laptop,vừa bật máy lên là panel đã hiện sọc màu rất rõ,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0031,laptop,hình ảnh bị vỡ khung nhìn như lỗi hiển thị đồ hoạ,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0032,laptop,màn hình laptop cứ mờ dần rồi tối hẳn sau vài phút,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0033,laptop,máy không bị tắt nguồn nhưng màn hình không hiện desktop,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0034,laptop,màn hình có hiện nhưng màu trắng bị ám vàng nặng,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0035,laptop,em nhìn thấy các vạch rung trên màn hình mỗi khi mở ứng dụng,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0036,laptop,"phần hiển thị bị nhòe chữ, đọc văn bản rất khó",,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0037,laptop,màn hình bị tối bất thường dù em đã tăng độ sáng,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0038,laptop,"đèn màn hình có vẻ hoạt động không đều, lúc mạnh lúc yếu",,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0039,laptop,máy vẫn phản hồi bàn phím nhưng màn hình không hiển thị nội dung,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0040,laptop,màn hình bị nhấp nháy ngay cả khi chỉ mở trình duyệt,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0041,laptop,em bật lên thì màn hình chỉ sáng nền chứ không có hình,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0042,laptop,máy xuất hiện các sọc xanh đỏ khi vừa vào màn hình đăng nhập,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0043,laptop,giao diện trên màn hình bị chồng hình lên nhau,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0044,laptop,màn hình laptop có vùng bị tối như bóng đen che lại,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0045,laptop,hình ảnh cứ biến mất vài giây rồi hiện lại,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0046,laptop,panel hiển thị bị loá sáng ở một dải ngang giữa màn hình,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0047,laptop,màn hình bị giật hình liên tục khi em sử dụng bình thường,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0048,laptop,laptop vẫn hoạt động nhưng màn hình trắng bệch,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0049,laptop,"phần hiển thị bị đứt đoạn, có chỗ hiện có chỗ không",,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0050,laptop,mỗi lần khởi động là màn hình lại xuất hiện sọc ngay lập tức,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị"
+lap_0051,laptop,cắm sạc vào nhưng phần trăm pin không tăng lên,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0052,laptop,máy em không nhận bộ sạc dù đèn adapter vẫn sáng,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0053,laptop,pin tụt rất nhanh dù em chỉ mở vài tab nhẹ,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0054,laptop,laptop báo đang sạc nhưng mãi không đầy pin,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0055,laptop,rút dây sạc ra là máy tắt ngay lập tức,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0056,laptop,pin vừa sạc xong mà dùng chưa lâu đã xuống còn rất ít,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0057,laptop,cổng sạc cắm vào lỏng và máy lúc nhận lúc không,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0058,laptop,máy chỉ chạy được khi em cắm điện trực tiếp,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0059,laptop,pin laptop chai nặng nên tụt phần trăm liên tục,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0060,laptop,đang cắm sạc nhưng biểu tượng pin vẫn báo yếu,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0061,laptop,máy sạc rất lâu mà pin chỉ tăng được vài phần trăm,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0062,laptop,laptop không báo nhận sạc khi em cắm adapter,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0063,laptop,pin đầy 100 nhưng rút sạc ra là xuống rất nhanh,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0064,laptop,máy đang dùng thì pin rớt phần trăm bất thường,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0065,laptop,cắm sạc qua đêm mà sáng dậy pin vẫn chưa đầy,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0066,laptop,laptop báo plugged in nhưng pin không vào thêm,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0067,laptop,em đổi ổ điện khác rồi mà máy vẫn không nhận sạc,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0068,laptop,pin của máy chỉ dùng được một lúc ngắn là cạn,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0069,laptop,vừa mở máy lên thì pin đã tụt mạnh dù mới sạc,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0070,laptop,máy không thể sạc vượt qua một mức pin cố định,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0071,laptop,em cắm sạc nhưng laptop chập chờn lúc sạc lúc ngắt,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0072,laptop,pin xuống nhanh ngay cả khi để chế độ tiết kiệm điện,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0073,laptop,máy báo pin yếu liên tục dù đang nối nguồn,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0074,laptop,khi cắm adapter thì không thấy biểu tượng sạc xuất hiện,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0075,laptop,pin laptop em nóng và xả rất nhanh,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0076,laptop,"máy không chạy bằng pin, cứ rút sạc là tắt",,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0077,laptop,sạc vào rất chậm làm em dùng không kịp,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0078,laptop,bộ sạc đang cắm nhưng phần trăm pin đứng yên,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0079,laptop,pin giảm nhanh bất thường sau một lần cập nhật hệ thống,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0080,laptop,em cắm nguồn đúng nhưng laptop không vào điện,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0081,laptop,máy nhận sạc lúc đầu rồi vài phút sau tự ngắt,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0082,laptop,pin hiển thị còn nhiều nhưng tụt xuống 0 rất nhanh,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0083,laptop,laptop cứ báo lỗi pin và không sạc được,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0084,laptop,sạc qua cổng nguồn nhưng máy không có phản ứng gì,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0085,laptop,pin của em bị hao cực nhanh kể cả khi không dùng nặng,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0086,laptop,máy cứ báo đang dùng pin dù em đã cắm sạc rồi,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0087,laptop,thanh pin không nhúc nhích dù em để sạc rất lâu,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0088,laptop,laptop dùng pin chỉ được chưa tới nửa tiếng,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0089,laptop,cứ di chuyển dây sạc là máy mất kết nối nguồn,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0090,laptop,pin laptop sụt mạnh khi mở ứng dụng nhẹ,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0091,laptop,máy chỉ hoạt động ổn định khi cắm adapter,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0092,laptop,sạc cắm vào nhưng đèn báo pin không đổi trạng thái,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0093,laptop,pin không giữ được điện sau khi sạc đầy,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0094,laptop,laptop không nạp pin dù bộ sạc vẫn bình thường,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0095,laptop,em thấy phần trăm pin nhảy số thất thường lên xuống liên tục,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0096,laptop,máy báo pin cần thay vì thời lượng còn quá thấp,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0097,laptop,cắm sạc vào lâu nhưng máy vẫn báo mức pin đỏ,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0098,laptop,pin tụt nhanh ngay sau khi rút sạc khỏi máy,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0099,laptop,laptop không nhận nguồn ngoài nên không sạc được,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0100,laptop,máy em vừa dùng vừa sạc mà pin vẫn giảm dần,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin"
+lap_0101,laptop,máy nóng lên rất nhanh chỉ sau vài phút sử dụng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0102,laptop,quạt laptop kêu lớn liên tục và thân máy rất nóng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0103,laptop,đang dùng bình thường thì máy tự tắt vì quá nhiệt,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0104,laptop,phần đáy laptop nóng ran khi em chỉ mở trình duyệt,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0105,laptop,máy chạy ứng dụng nhẹ nhưng vẫn nóng bất thường,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0106,laptop,quanh khu vực bàn phím tỏa nhiệt rất mạnh,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0107,laptop,laptop vừa bật một lúc đã nóng ở chỗ thoát gió,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0108,laptop,quạt quay vù vù suốt nhưng máy vẫn không mát,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0109,laptop,em chơi game chút thôi mà máy nóng không cầm nổi,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0110,laptop,máy thường xuyên sập nguồn sau khi nóng lên cao,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0111,laptop,nhiệt độ tăng nhanh dù em không mở nhiều phần mềm,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0112,laptop,laptop phát ra tiếng quạt to kèm nóng phần dưới,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0113,laptop,máy rất nóng khi sạc pin và dùng cùng lúc,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0114,laptop,vừa họp online một lúc là thân máy nóng rực,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0115,laptop,laptop tỏa nhiều nhiệt ở mặt đáy và cạnh bên,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0116,laptop,quạt tản nhiệt hoạt động mạnh nhưng máy vẫn quá nóng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0117,laptop,máy nóng dần lên rồi giật lag rõ rệt,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0118,laptop,dùng văn phòng thôi mà khu vực CPU nóng bất thường,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0119,laptop,laptop nóng đến mức tự giảm hiệu năng khi sử dụng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0120,laptop,chỗ đặt tay cũng nóng lên nhanh làm em khó dùng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0121,laptop,máy tăng nhiệt rất mạnh mỗi khi mở vài tác vụ cơ bản,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0122,laptop,sau khoảng mười phút là laptop nóng ran và chậm hẳn,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0123,laptop,"quạt hú to bất thường, hơi nóng thổi ra liên tục",,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0124,laptop,máy em nóng quá nên hay tắt ngang giữa chừng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0125,laptop,phần dưới thân máy luôn nóng ngay cả khi để idle,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0126,laptop,laptop nóng kèm tiếng quạt rít liên miên,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0127,laptop,máy vừa sạc vừa dùng là nhiệt độ tăng rất cao,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0128,laptop,hơi nóng từ khe tản nhiệt thổi ra nhiều bất thường,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0129,laptop,máy em không chạy nặng nhưng vẫn nóng khắp thân,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0130,laptop,sử dụng một lúc là laptop nóng và pin tụt nhanh,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0131,laptop,quạt quay không ngừng khiến máy ồn và nóng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0132,laptop,máy nóng lên khi chỉ xem video trực tuyến,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0133,laptop,laptop bị nóng nhiều ở khu vực cạnh trái,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0134,laptop,nhiệt từ đáy máy cao làm em không thể để lên bàn đùi,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0135,laptop,sau khi mở máy ít phút thì thân máy đã rất nóng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0136,laptop,"máy nóng quá nên hiệu năng giảm rõ, thao tác bị lag",,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0137,laptop,laptop có dấu hiệu quá nhiệt mỗi khi bật lâu,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0138,laptop,em thấy máy nóng mạnh ở gần bản lề màn hình,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0139,laptop,máy đang hoạt động thì đột nhiên sập vì nóng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0140,laptop,phần quạt kêu to và luồng khí ra rất nóng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0141,laptop,máy luôn ở trạng thái nóng kể cả khi không dùng nặng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0142,laptop,nhiệt độ laptop tăng nhanh khi mở phần mềm học tập,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0143,laptop,thân máy hâm nóng liên tục dù chỉ chạy tác vụ nhẹ,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0144,laptop,quạt gào lớn mà máy vẫn nóng bất thường,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0145,laptop,dùng tầm ngắn là laptop đã nóng ở cả mặt trên lẫn dưới,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0146,laptop,máy nóng rồi xuất hiện tình trạng đứng hình,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0147,laptop,chạy vài tab trình duyệt cũng làm laptop nóng nhanh,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0148,laptop,em cảm thấy nhiệt độ máy tăng đột ngột sau khi khởi động,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0149,laptop,laptop hay tự tắt sau khi nóng quá mức,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0150,laptop,quạt tản nhiệt ồn kèm thân máy nóng ran khi dùng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt
+lap_0151,laptop,bàn phím bị liệt vài nút bên trái không bấm được,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0152,laptop,em nhấn phím enter nhưng máy không nhận lệnh,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0153,laptop,bàn phím tự gõ ký tự dù em không chạm vào,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0154,laptop,một số phím bị kẹt nên bấm rất khó,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0155,laptop,khi gõ văn bản thì nhiều nút hoàn toàn không phản hồi,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0156,laptop,phím space lúc ăn lúc không làm em nhập chữ rất khó,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0157,laptop,nút shift bên trái của laptop không hoạt động,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0158,laptop,máy cứ tự nhập một dãy ký tự lạ liên tục,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0159,laptop,phím backspace phải bấm nhiều lần mới có tác dụng,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0160,laptop,bàn phím bị dính phím nên cứ lặp chữ mãi,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0161,laptop,hàng số phía trên không gõ ra được bình thường,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0162,laptop,em gõ chữ nhưng vài phím cho ra sai ký tự,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0163,laptop,phím nguồn không sao nhưng phần bàn phím bị đơ,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0164,laptop,một nhóm phím ở giữa bị liệt hoàn toàn,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0165,laptop,bàn phím laptop phản hồi rất chậm khi em gõ nhanh,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0166,laptop,nút ctrl không ăn khiến em không dùng được phím tắt,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0167,laptop,có phím vừa chạm nhẹ đã tự lặp nhiều lần,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0168,laptop,bàn phím đang dùng thì đột nhiên mất phản hồi,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0169,laptop,máy tự nhận thao tác gõ dù em để yên bàn phím,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0170,laptop,phím enter bị kẹt cứng khó nhấn xuống,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0171,laptop,gõ văn bản thì ký tự xuất hiện thiếu do một số nút hỏng,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0172,laptop,các phím mũi tên trên laptop không điều khiển được,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0173,laptop,"bàn phím bị loạn, nhấn một phím ra nhiều ký tự khác",,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0174,laptop,em bấm nút delete nhưng không có tác dụng,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0175,laptop,phím alt bên phải bị liệt hoàn toàn,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0176,laptop,máy nhập chữ nhảy lung tung vì bàn phím lỗi,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0177,laptop,một hàng phím trên bàn phím bỗng dưng không hoạt động,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0178,laptop,khi em gõ nhanh thì bàn phím bỏ sót rất nhiều ký tự,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0179,laptop,nút tab không phản hồi dù em đã nhấn mạnh,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0180,laptop,phím chữ cái trên máy bị cứng và khó sử dụng,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0181,laptop,bàn phím cứ tự bấm lặp lại một ký tự liên tục,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0182,laptop,lúc gõ thì có phím ăn có phím không rất thất thường,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0183,laptop,các nút bên phải của bàn phím gần như không dùng được,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0184,laptop,máy nhận sai ký tự khi em nhấn số,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0185,laptop,phím cách bị chập chờn khiến câu chữ dính lại,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0186,laptop,bàn phím laptop bị liệt sau khi em vừa mở máy,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0187,laptop,nút esc không hoạt động làm em khó thao tác,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0188,laptop,gõ tiếng Việt thì bàn phím phản hồi không ổn định,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0189,laptop,em thấy vài phím bị bật lên và nhấn xuống không êm,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0190,laptop,bàn phím tự nhập liên tiếp dù em chưa gõ gì,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0191,laptop,nút caps lock không sáng và cũng không dùng được,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0192,laptop,máy bị lỗi bàn phím nên nhập văn bản rất khó khăn,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0193,laptop,phím shift và ctrl cùng lúc đều không nhận,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0194,laptop,một số nút chỉ hoạt động khi em nhấn rất mạnh,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0195,laptop,"bàn phím chập chờn, lúc bình thường lúc liệt hẳn",,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0196,laptop,gõ văn bản dài thì các phím bắt đầu phản hồi sai,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0197,laptop,em không dùng được hàng phím chức năng ở phía trên,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0198,laptop,nhiều phím bị kẹt sau đó máy tự lặp chữ không ngừng,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0199,laptop,phím enter và space đều hoạt động không ổn định,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0200,laptop,bàn phím không nhận thao tác ở một vùng khá lớn,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng"
+lap_0201,laptop,bấm nút nguồn nhưng laptop không lên,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0202,laptop,máy chớp đèn nguồn rồi tắt luôn ngay sau đó,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0203,laptop,laptop treo ở logo khi đang khởi động,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0204,laptop,máy cứ khởi động lại liên tục mà không vào được windows,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0205,laptop,em bật máy nhưng không thấy vào hệ điều hành,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0206,laptop,ấn nút nguồn nhiều lần mà laptop vẫn im hoàn toàn,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0207,laptop,máy chỉ hiện logo rồi đứng mãi không chạy tiếp,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0208,laptop,vừa mở máy là nó tự restart liên tục,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0209,laptop,laptop không có phản hồi nào khi em nhấn power,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0210,laptop,đèn nguồn nháy một chút rồi máy tắt ngay,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0211,laptop,máy em không boot được vào màn hình đăng nhập,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0212,laptop,khởi động lên một lúc rồi máy quay về từ đầu,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0213,laptop,laptop đứng ở màn hình loading rất lâu,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0214,laptop,máy không lên nguồn dù adapter đã cắm chắc,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0215,laptop,bật máy chỉ nghe tiếng quạt rồi không boot tiếp,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0216,laptop,máy khởi động nhưng mắc kẹt ở logo hãng,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0217,laptop,em nhấn nút nguồn mà màn hình và hệ thống đều không chạy,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0218,laptop,laptop cứ lặp lại vòng khởi động không dứt,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0219,laptop,máy vào boot rất lâu rồi đứng luôn,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0220,laptop,không thể vào được windows sau khi bật nguồn,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0221,laptop,máy khởi động nửa chừng rồi tự tắt,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0222,laptop,bật laptop lên nhưng chỉ có đèn báo sáng rồi dừng,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0223,laptop,nhấn power thì máy không lên dù pin còn,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0224,laptop,máy cứ hiện logo rồi đơ không phản hồi gì thêm,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0225,laptop,quá trình khởi động bị treo trước khi vào màn hình chính,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0226,laptop,laptop tự khởi động lại nhiều lần liên tiếp,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0227,laptop,máy mở lên nhưng không vượt qua bước boot ban đầu,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0228,laptop,ấn nút nguồn nhưng hệ thống không có dấu hiệu khởi động,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0229,laptop,máy đang boot thì tắt ngang rồi lên lại,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0230,laptop,laptop không vào được desktop sau khi mở máy,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0231,laptop,vừa bật lên là máy bị lặp vòng sửa lỗi khởi động,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0232,laptop,em không thể khởi động vào hệ điều hành như bình thường,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0233,laptop,máy không có hình và cũng không vào quá trình boot,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0234,laptop,khởi động rất lâu rồi đứng im ở một màn hình đầu,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0235,laptop,laptop lên nguồn chậm rồi tắt giữa chừng,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0236,laptop,máy cứ quay vòng tải mà không vào được bên trong,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0237,laptop,sau khi nhấn nút nguồn máy không boot tiếp bước nào,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0238,laptop,đèn báo nguồn sáng nhưng máy không hoàn thành khởi động,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0239,laptop,laptop bị treo ngay từ giai đoạn mở máy,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0240,laptop,máy mở lên nhưng đứng yên ở logo sản xuất,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0241,laptop,khởi động xong không vào được màn hình đăng nhập,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0242,laptop,máy em cứ tự restart nên không sử dụng được,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0243,laptop,ấn nguồn thì chỉ sáng đèn vài giây rồi tắt,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0244,laptop,quá trình mở máy bị đơ từ đầu và không tiếp tục,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0245,laptop,laptop không phản hồi sau khi em nhấn nút bật nguồn,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0246,laptop,máy bị lỗi khởi động nên không vào được windows,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0247,laptop,em thấy máy boot mãi mà không xong,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0248,laptop,khởi động lên được một đoạn rồi lại trở về màn hình đầu,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0249,laptop,laptop không lên hoàn chỉnh dù có dấu hiệu nhận nguồn,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0250,laptop,máy chỉ chạy vòng khởi động mà không vào hệ thống,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động"
+lap_0251,laptop,loa laptop bị rè khi em mở nhạc,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0252,laptop,máy mất tiếng hoàn toàn dù video vẫn chạy,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0253,laptop,micro của laptop không thu âm được khi họp,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0254,laptop,cắm tai nghe vào nhưng em không nghe thấy âm thanh,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0255,laptop,âm lượng phát ra rất nhỏ dù đã tăng tối đa,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0256,laptop,loa ngoài lúc có tiếng lúc không rất chập chờn,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0257,laptop,máy không phát ra âm thanh dù biểu tượng loa vẫn bình thường,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0258,laptop,khi mở bài hát thì tiếng bị bể và khó nghe,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0259,laptop,mic nói chuyện online không nhận giọng của em,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0260,laptop,tai nghe cắm vào laptop nhưng không có âm thanh truyền ra,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0261,laptop,loa phát ra tiếng rè như bị vỡ tiếng,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0262,laptop,âm thanh lúc to lúc nhỏ không ổn định,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0263,laptop,máy em không ghi âm được qua micro tích hợp,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0264,laptop,video vẫn phát nhưng laptop hoàn toàn im lặng,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0265,laptop,loa bên trái nghe nhỏ hơn hẳn loa bên phải,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0266,laptop,âm thanh bị méo khi em mở file nhạc,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0267,laptop,micro bị tịt nên ứng dụng họp không nhận tiếng nói,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0268,laptop,cắm headphone rồi mà máy vẫn không phát âm thanh,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0269,laptop,loa trong của laptop nghe như bị nghẹt,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0270,laptop,âm thanh đột nhiên biến mất sau khi cập nhật máy,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0271,laptop,em nói nhưng mic laptop không thu vào hệ thống,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0272,laptop,khi mở âm lượng lớn thì loa bị rè mạnh,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0273,laptop,máy phát tiếng rất nhỏ dù em đã chỉnh max volume,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0274,laptop,tai nghe hoạt động chập chờn khi cắm vào laptop,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0275,laptop,loa laptop bị nổ lách tách khi xem video,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0276,laptop,máy không có âm thanh ở cả loa ngoài lẫn tai nghe,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0277,laptop,micro thu tiếng rất bé gần như không nghe được,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0278,laptop,âm thanh bị gián đoạn lúc có lúc mất,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0279,laptop,loa của máy nghe đục và méo tiếng rõ rệt,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0280,laptop,em gọi online nhưng bên kia không nghe thấy em nói,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0281,laptop,laptop phát tiếng bị rè khi mở nhạc nền nhẹ,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0282,laptop,không nghe được âm thanh thông báo từ hệ thống,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0283,laptop,máy nhận tai nghe nhưng vẫn không có tiếng,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0284,laptop,giọng thu qua micro bị mất hẳn,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0285,laptop,loa máy tính xách tay phát âm không tròn tiếng,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0286,laptop,âm lượng của laptop tụt rất thấp bất thường,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0287,laptop,micro lúc nhận lúc không khi em họp trực tuyến,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0288,laptop,video có hình nhưng không có tiếng đi kèm,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0289,laptop,máy em bị mất tiếng sau khi khởi động lại,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0290,laptop,loa phát ra tiếng rít khó chịu khi mở file âm thanh,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0291,laptop,cổng tai nghe cắm vào nhưng máy không xuất tiếng,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0292,laptop,micro của máy có dấu hiệu không hoạt động ổn định,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0293,laptop,loa laptop bị rè và méo mỗi khi tăng âm lượng,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0294,laptop,âm thanh đứt quãng khi em xem clip học tập,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0295,laptop,máy không ghi nhận giọng nói khi em dùng recorder,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0296,laptop,loa bên trong phát tiếng rất yếu so với bình thường,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0297,laptop,khi mở họp trực tuyến thì em không nghe được người khác nói,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0298,laptop,laptop không phát tiếng dù thanh âm lượng vẫn tăng giảm được,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0299,laptop,micro có tín hiệu rất nhỏ nên thu âm gần như không rõ,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0300,laptop,tai nghe cắm đúng nhưng vẫn hoàn toàn không có âm thanh,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối"
+lap_0301,laptop,máy chạy chậm lắm nhưng không hiểu nguyên nhân tại sao,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0302,laptop,laptop em bị vấn đề gì đó nhưng khó mô tả,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0303,laptop,"máy kỳ kỳ, lúc bình lúc lạ",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0304,laptop,toàn bộ máy đang có vấn đề gì đó,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0305,laptop,"em không biết là lỗi gì, máy chạy khoảng",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0306,laptop,máy có tiếng lạ nhưng vẫn chạy bình thường,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0307,laptop,không chắc là lỗi phần cứng hay phần mềm,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0308,laptop,"máy em bị ì, làm việc chậm chạp",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0309,laptop,có vấn đề nhưng khó xác định chính xác,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0310,laptop,máy hoạt động bất thường theo nhiều cách khác nhau,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0311,laptop,"không rõ là lỗi ở đâu, cần kiểm tra chi tiết",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0312,laptop,"máy em vừa cùi bắp, vừa nóng, vừa chạy chậm",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0313,laptop,em nghi là có vấn đề gì đó với hệ thống,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0314,laptop,"máy bị lag, giật giật, khó chịu",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0315,laptop,không thể xác định chính xác vấn đề là gì,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0316,laptop,máy em bị khác thường từ vài ngày nay,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0317,laptop,có tiếng kêu lạ và hiệu suất giảm,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0318,laptop,máy chạy nhưng cảm giác có cái gì đó không ổn,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0319,laptop,lỗi kỳ quặc xuất hiện không thường xuyên,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0320,laptop,máy bị vấn đề liên tục nhưng không ổn định,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0321,laptop,em không chắc chắn cần sửa cái gì,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0322,laptop,máy hoạt động tệ nhưng triệu chứng không rõ ràng,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0323,laptop,có vài vấn đề diễn ra đồng thời,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0324,laptop,máy chạy lâu rồi mà bị chậm,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0325,laptop,không hiểu sao máy lại bị như vậy,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0326,laptop,"máy em bị cứng, phản ứng chậm",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0327,laptop,có thể là lỗi driver hoặc phần mềm,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0328,laptop,máy bị treo không rõ lý do,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0329,laptop,performance giảm đáng kể nhưng nguyên nhân không rõ,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0330,laptop,máy em có vấn đề mà tôi không thể giải thích rõ,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0331,laptop,có vấn đề với tốc độ hoặc hiệu suất,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0332,laptop,máy bị nhiều triệu chứng cùng lúc,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0333,laptop,không chắc là phần cứng hay phần mềm,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0334,laptop,máy hoạt động kỳ lạ nhưng vẫn bật được,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0335,laptop,em chỉ biết là máy không bình thường nữa,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0336,laptop,có lỗi nhưng khó mô tả chính xác,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0337,laptop,máy chạy nhưng có cảm giác bất bình thường,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0338,laptop,lỗi xảy ra đột ngột mà em không biết lý do,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0339,laptop,"máy bị vấn đề lẫn lộn, khó chẩn đoán",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0340,laptop,em cần ai đó giúp xác định vấn đề,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0341,laptop,máy bị chậm và lag nhưng không rõ nguyên nhân,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0342,laptop,không rõ có phải lỗi phần cứng không,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0343,laptop,máy em bị lệch từng chút,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0344,laptop,hoạt động không mượt mà như bình thường,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0345,laptop,máy bị vấn đề nhưng tạm thời vẫn sử dụng được,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0346,laptop,có dấu hiệu của lỗi gì đó nhưng không chắc,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0347,laptop,máy chạy nhưng rõ ràng là có vấn đề,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0348,laptop,em không thể xác định loại lỗi,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0349,laptop,máy bị trạng thái không bình thường,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0350,laptop,có vấn đề được phát hiện nhưng nguyên nhân bí ẩn,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0351,laptop,máy em cần được kiểm tra kỹ lưỡng,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0352,laptop,laptop em có vấn đề nhưng tôi không biết mô tả,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0353,laptop,máy bị lỗi nào đó không rõ ràng,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0354,laptop,có dấu hiệu bất thường nhưng không xác định được,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0355,laptop,máy em cần sửa nhưng chưa biết cái gì,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+lap_0356,laptop,tình trạng không bình thường nhưng mơ hồ,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác
+unk_0001,laptop,Thiết bị không hoạt động bình thường như mong đợi,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0002,laptop,Máy có dấu hiệu bất thường khi sử dụng,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0003,laptop,Có vấn đề gì đó nhưng không chắc chính xác là gì,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0004,laptop,Hiệu suất giảm so với trước đây,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0005,laptop,Thiết bị hoạt động chập chờn,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0006,phone,Có tiếng gì đó khi chạy máy,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0007,tablet,Màn hình / pin / bàn phím có vấn đề,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0008,charger,Máy hoạt động khác thường,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0009,other,Thiết bị nóng hơn bình thường,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0010,laptop,Tốc độ xử lý chậm hơn,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0011,laptop,Có âm thanh lạ từ thiết bị,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0012,laptop,Không chắc máy có bị hỏng không,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0013,laptop,Sau khi cập nhật hệ thống thì máy không ổn định,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0014,laptop,Máy chạy được nhưng có cảm giác lạ,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0015,phone,Gần đây máy hay gặp vấn đề,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0016,tablet,Điện thoại không sạc được,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0017,charger,Máy tính bảng bị treo,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0018,other,Chuột không phản ứng,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0019,laptop,Bàn phím của desktop không gõ được,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0020,laptop,Loa ngoài không phát âm thanh,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0021,laptop,Tai nghe không hoạt động,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0022,laptop,Sạc không nhận được điện,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0023,laptop,USB port không hoạt động,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0024,phone,Adapter không sáng đèn,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0025,tablet,Màn hình ngoài không hiển thị,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0026,charger,"Em không biết bị sao, máy vừa bị vấn đề",,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0027,other,Máy em có vấn đề gì đó,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0028,laptop,Có gì đó không ổn,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0029,laptop,Máy không chạy bình thường,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0030,laptop,Hình như bị sự cố,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0031,laptop,Không biết nguyên nhân,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0032,laptop,Máy em bị lỗi rồi,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0033,phone,Giúp em kiểm tra máy,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0034,tablet,Làm sao để biết máy có vấn đề gì,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0035,charger,Máy em có vấn đề nhưng không biết là gì,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0036,other,Màn hình tối và pin tụt nhanh,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0037,laptop,Bàn phím không gõ được và máy nóng,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0038,laptop,Âm thanh lạ và máy chạy chậm,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0039,laptop,Pin không sạc được và không lên nguồn,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0040,laptop,Máy nóng lên đột ngột,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0041,laptop,Quạt chạy to nhưng không sạ được,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0042,phone,Không lên nguồn mặc dù có sạc,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0043,tablet,"Lỗi lúc khởi động, lúc không rõ",,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0044,charger,Máy tự tắt khi đang dùng,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0045,other,Phần cứng nào đó có vấn đề,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0046,laptop,Không rõ là lỗi phần mềm hay phần cứng,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0047,laptop,Máy không phản ứng nhanh như trước,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0048,laptop,Thiết bị không hoạt động bình thường như mong đợi,,unknown,unknown,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0049,laptop,Máy có dấu hiệu bất thường khi sử dụng,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn
+unk_0050,laptop,Có vấn đề gì đó nhưng không chắc chính xác là gì,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn

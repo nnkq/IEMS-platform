@@ -6,8 +6,13 @@ const {
   getAllOrders,
   getUsersAndPartners,
   getPackages,
-  getRevenueStats
+  getRevenueStats,
 } = require('../controllers/AdminController');
+const {
+  getAdminPromotionCampaigns,
+  approvePromotionCampaign,
+  rejectPromotionCampaign,
+} = require('../controllers/subscriptionController');
 
 const router = express.Router();
 
@@ -24,6 +29,9 @@ router.get('/users-partners', getUsersAndPartners);
 
 // 4. Quản Lý Gói Dịch Vụ
 router.get('/packages', getPackages);
+router.get('/promotion-campaigns', getAdminPromotionCampaigns);
+router.post('/promotion-campaigns/:id/approve', approvePromotionCampaign);
+router.post('/promotion-campaigns/:id/reject', rejectPromotionCampaign);
 
 // 5. Báo Cáo Doanh Thu
 router.get('/revenue', getRevenueStats);

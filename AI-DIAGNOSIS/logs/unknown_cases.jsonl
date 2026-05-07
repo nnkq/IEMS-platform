@@ -1,0 +1,5 @@
+{"timestamp": "2026-04-24T20:36:53.028367", "symptom": "máy giặt đang chạy thì tự ngắt", "predicted_issue": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "message": "Không xác định được thiết bị. Bạn có thể nói rõ là laptop không?"}
+{"timestamp": "2026-04-24T20:41:39.587464", "symptom": "máy giặt bị nhiễm điện", "predicted_issue": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "message": "Không xác định được thiết bị. Bạn có thể nói rõ là laptop không?"}
+{"timestamp": "2026-04-24T20:50:09.639539", "symptom": "máy giặt bị nhiễm điện", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-06T19:36:21.614259", "symptom": "jkfaskldf àdko", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-06T22:33:16.040912", "symptom": "jkfaskldf àdko", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}

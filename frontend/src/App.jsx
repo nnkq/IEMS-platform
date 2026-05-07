@@ -4,11 +4,13 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import GoogleSuccess from "./pages/GoogleSuccess";
+import ChooseRole from "./pages/ChooseRole";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
-import StoreDashboard from "./pages/StoreDashboard"; // <-- Mình đã thêm import ở đây
-import ChooseRole from "./pages/ChooseRole";
-import AdminDashboard from "./pages/AdminDashboard";
+import StoreDashboard from "./pages/StoreDashboard"; 
+import TechnicianDashboard from './pages/TechnicianDashboard';
+import TechnicianLogin from './pages/TechnicianLogin';
+import AdminDashboard from './pages/AdminDashboard'; // Import AdminDashboard
 import "./App.css";
 
 function PrivateRoute({ children }) {
@@ -16,16 +18,26 @@ function PrivateRoute({ children }) {
   return token ? children : <Navigate to="/login" replace />;
 }
 
+function TechnicianPrivateRoute({ children }) {
+  const techUser = localStorage.getItem("techUser");
+  return techUser ? children : <Navigate to="/tech-login" replace />;
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
+      
+      {/* 🚀 ĐÃ THÊM: Route Đăng nhập riêng cho Kỹ thuật viên (Không cần PrivateRoute) */}
+      <Route path="/tech-login" element={<TechnicianLogin />} />
+      
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/google-success" element={<GoogleSuccess />} />
       <Route path="/choose-role" element={<ChooseRole />} />
+      
       <Route
         path="/home"
         element={
@@ -54,6 +66,17 @@ function App() {
         }
       />
 
+      {/* 🚀 ĐÃ THÊM: Route bảo vệ cho Không gian làm việc của Kỹ thuật viên */}
+      <Route
+        path="/technician"
+        element={
+          <TechnicianPrivateRoute>
+            <TechnicianDashboard />
+          </TechnicianPrivateRoute>
+        }
+      />
+
+      {/*  ĐÃ THÊM: Route bảo vệ cho Admin Dashboard */}
       <Route
         path="/admin"
         element={
