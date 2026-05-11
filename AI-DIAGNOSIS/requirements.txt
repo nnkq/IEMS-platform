@@ -1,0 +1,24 @@
+# AI Diagnosis Service - Python Dependencies
+# Version: Compatible with Python 3.8+
+
+# Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+
+# Deep Learning & ML
+torch==2.1.0
+transformers==4.35.0
+numpy==1.24.3
+scipy==1.11.0
+
+# Data Processing
+pandas==2.0.0
+scikit-learn==1.3.0
+
+# Utilities
+python-dotenv==1.0.0
+Werkzeug==3.0.0
+
+# Development (optional)
+pytest==7.4.0
+pytest-cov==4.1.0
