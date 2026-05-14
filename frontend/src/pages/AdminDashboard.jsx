@@ -34,13 +34,19 @@ export default function AdminDashboard() {
     const API_BASE = 'http://localhost:5000/api/admin';
 
     useEffect(() => {
-        console.log("AdminDashboard mounted, fetching all data...");
-        fetchPendingStores();
-        fetchOrders();
-        fetchUsersAndPartners();
-        fetchPackages();
-        fetchPromotionCampaigns();
-        fetchRevenue();
+        const loadAllData = () => {
+            console.log("AdminDashboard fetching data...");
+            fetchPendingStores();
+            fetchOrders();
+            fetchUsersAndPartners();
+            fetchPackages();
+            fetchPromotionCampaigns();
+            fetchRevenue();
+        };
+
+        loadAllData();
+        window.addEventListener("reload-notifications", loadAllData);
+        return () => window.removeEventListener("reload-notifications", loadAllData);
     }, []);
 
     const fetchPendingStores = async () => {

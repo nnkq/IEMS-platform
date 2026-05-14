@@ -34,6 +34,17 @@ const approveStore = async (req, res) => {
     const { initialRating } = req.body || {};
     await query(`UPDATE stores SET status = 'approved', google_rating = ? WHERE id = ?`, [initialRating || 5.0, storeId]);
     await query(`UPDATE users SET role = 'STORE' WHERE id = (SELECT user_id FROM stores WHERE id = ?)`, [storeId]);
+    
+    const stores = await query(`SELECT user_id, store_name FROM stores WHERE id = ?`, [storeId]);
+    if (stores.length > 0) {
+      const storeUserId = stores[0].user_id;
+      const title = 'Cửa hàng đã được duyệt';
+      const message = `Chúc mừng! Cửa hàng ${stores[0].store_name} của bạn đã được duyệt và chính thức hoạt động trên nền tảng.`;
+      await query(`INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'SYSTEM')`, [storeUserId, title, message]);
+      const { emitNotification } = require('../socket');
+      emitNotification(storeUserId, { title, message });
+    }
+
     res.status(200).json({ message: 'Đã duyệt' });
   } catch (error) { res.status(500).json({ error: error.message }); }
 };
@@ -42,6 +53,17 @@ const rejectStore = async (req, res) => {
   const { storeId } = req.params;
   try {
     await query(`UPDATE stores SET status = 'rejected' WHERE id = ?`, [storeId]);
+    
+    const stores = await query(`SELECT user_id, store_name FROM stores WHERE id = ?`, [storeId]);
+    if (stores.length > 0) {
+      const storeUserId = stores[0].user_id;
+      const title = 'Cửa hàng bị từ chối';
+      const message = `Rất tiếc, cửa hàng ${stores[0].store_name} của bạn đã bị từ chối do không đủ điều kiện.`;
+      await query(`INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, 'SYSTEM')`, [storeUserId, title, message]);
+      const { emitNotification } = require('../socket');
+      emitNotification(storeUserId, { title, message });
+    }
+
     res.status(200).json({ message: 'Đã từ chối' });
   } catch (error) { res.status(500).json({ error: error.message }); }
 };

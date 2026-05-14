@@ -2244,3 +2244,36 @@
       border-radius: 12px;
     }
   }
+
+  /* Trang Trợ lý AI: khóa chiều cao viewport — chỉ vùng chat bên trong cuộn */
+  .iems-root .app-shell.app-shell--ai-chat {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+
+  .iems-root .app-shell.app-shell--ai-chat > .main-area {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .iems-root .main-area.main-area--ai-chat {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .iems-root .main-area.main-area--ai-chat > *:not(.page.page--ai-diagnosis) {
+    flex-shrink: 0;
+  }
+
+  .iems-root .main-area.main-area--ai-chat > .page.page--ai-diagnosis {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin-top: -6px;
+  }

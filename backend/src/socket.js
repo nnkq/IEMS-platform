@@ -57,10 +57,16 @@ function emitMessagesRead(conversationId, payload) {
   io.to(`conversation:${conversationId}`).emit('chat:messages-read', payload);
 }
 
+function emitNotification(userId, payload) {
+  if (!io) return;
+  io.to(`user:${userId}`).emit('notification:new', payload);
+}
+
 module.exports = {
   initSocket,
   emitConversationCreated,
   emitConversationMessage,
   emitThreadUpdated,
   emitMessagesRead,
+  emitNotification,
 };

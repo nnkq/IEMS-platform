@@ -11,6 +11,7 @@ import {
   submitReviewForRequest,
 } from "../api/repairApi";
 import StoreChatPanel from "../components/StoreChatPanel";
+import AiDiagnosisWorkspace from "../components/AiDiagnosisWorkspace";
 import { createOrGetConversationByRequest } from "../api/chatApi";
 import { diagnoseDevice } from "../api/aiApi";
 
@@ -121,43 +122,52 @@ function getAiReply(text) {
   return "Tôi đã ghi nhận mô tả của bạn. Bạn có thể tạo yêu cầu sửa chữa để cửa hàng kiểm tra chi tiết và báo giá phù hợp.";
 }
 
+function formatChatTimeLabel() {
+  return new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+}
+
 /**
- * Format AI diagnosis response into a user-friendly message
+ * Maps /predict JSON into props for AiDiagnosisWorkspace (structured card vs plain text).
+ * Business rules unchanged: same fields from API, only presentation shape.
  */
-function formatAiDiagnosisResponse(diagnosis) {
+function buildChatDiagnosisPayload(diagnosis) {
   if (!diagnosis) {
-    return "Tôi không thể xử lý yêu cầu của bạn. Vui lòng thử lại.";
+    return {
+      diagnosisCard: null,
+      plainText: "Tôi không thể xử lý yêu cầu của bạn. Vui lòng thử lại.",
+      showRepairCta: false,
+    };
   }
 
-  const { issue, confidence, severity, causes, suggestions, message } = diagnosis;
+  const { issue, confidence, severity, causes, suggestions, message, device_type } = diagnosis;
 
-  // If there's an error or unknown issue
   if (issue === "error" || issue === "unknown_issue" || !issue) {
-    return message || "Không thể xác định được lỗi. Vui lòng nhập mô tả rõ hơn.";
+    return {
+      diagnosisCard: null,
+      plainText:
+        message ||
+        (issue === "unknown_issue"
+          ? "Không thể xác định được lỗi. Vui lòng nhập mô tả rõ hơn."
+          : "Đã xảy ra lỗi khi phân tích. Vui lòng thử lại."),
+      showRepairCta: false,
+    };
   }
 
-  // Build the response
-  let response = `**Chẩn đoán:** ${issue.replace(/_/g, " ").toUpperCase()}\n`;
-  response += `**Độ tin cậy:** ${(confidence * 100).toFixed(0)}%\n`;
-  response += `**Mức độ nghiêm trọng:** ${severity || "không xác định"}\n`;
-
-  if (Array.isArray(causes) && causes.length > 0) {
-    response += `\n**Nguyên nhân có thể:**\n`;
-    causes.forEach((cause) => {
-      response += `• ${cause}\n`;
-    });
-  }
-
-  if (Array.isArray(suggestions) && suggestions.length > 0) {
-    response += `\n**Gợi ý xử lý:**\n`;
-    suggestions.forEach((suggestion) => {
-      response += `• ${suggestion}\n`;
-    });
-  }
-
-  response += `\n${message || "Bạn có thể tạo yêu cầu sửa chữa để nhận báo giá chi tiết từ cửa hàng."}`;
-
-  return response;
+  return {
+    diagnosisCard: {
+      deviceType: (device_type || "laptop").toLowerCase(),
+      issueLabel: String(issue).replace(/_/g, " "),
+      confidence: Math.min(1, Math.max(0, Number(confidence) || 0)),
+      severity: String(severity || "unknown").toLowerCase(),
+      causes: Array.isArray(causes) ? causes : [],
+      suggestions: Array.isArray(suggestions) ? suggestions : [],
+      footnote:
+        message ||
+        "Bạn có thể tạo yêu cầu sửa chữa để nhận báo giá chi tiết từ cửa hàng.",
+    },
+    plainText: null,
+    showRepairCta: true,
+  };
 }
 
 function buildInitials(name = "") {
@@ -745,6 +755,13 @@ export default function Home() {
     };
 
     fetchDashboard();
+
+    const handleReload = () => fetchDashboard();
+    window.addEventListener("reload-notifications", handleReload);
+
+    return () => {
+      window.removeEventListener("reload-notifications", handleReload);
+    };
   }, []);
 
   useEffect(() => {
@@ -1167,40 +1184,26 @@ export default function Home() {
     if (!clean) return;
     if (chatLoading) return;
 
-    // Add user message immediately
+    const sentAt = formatChatTimeLabel();
+
     setChatMessages((prev) => [
       ...prev,
-      { role: "user", title: "Bạn", time: "Bây giờ", text: clean },
+      { role: "user", title: "Bạn", time: sentAt, text: clean },
     ]);
     setChatInput("");
 
-    // Add loading placeholder
+    // Pending bubble: workspace renders “thinking steps” while chatLoading is true
     setChatMessages((prev) => [
       ...prev,
-      { role: "ai", title: "Trợ lý IEMS", time: "Đang xử lý...", text: "⏳ Đang phân tích..." },
+      { role: "ai", title: "Trợ lý IEMS", time: "Đang xử lý…", pending: true },
     ]);
 
     setChatLoading(true);
 
     try {
-      // Call AI diagnosis API
       const diagnosis = await diagnoseDevice(clean, "laptop");
-      
-      // Format the response
-      const aiReply = formatAiDiagnosisResponse(diagnosis);
+      const { diagnosisCard, plainText, showRepairCta } = buildChatDiagnosisPayload(diagnosis);
 
-      // Remove loading placeholder and add real response
-      setChatMessages((prev) => {
-        const withoutLoading = prev.slice(0, -1);
-        return [
-          ...withoutLoading,
-          { role: "ai", title: "Trợ lý IEMS", time: "Bây giờ", text: aiReply },
-        ];
-      });
-    } catch (error) {
-      console.error("Lỗi gọi AI API:", error);
-      
-      // Remove loading placeholder and add error message
       setChatMessages((prev) => {
         const withoutLoading = prev.slice(0, -1);
         return [
@@ -1208,8 +1211,28 @@ export default function Home() {
           {
             role: "ai",
             title: "Trợ lý IEMS",
-            time: "Bây giờ",
+            time: formatChatTimeLabel(),
+            text: plainText || "",
+            diagnosisCard,
+            showRepairCta: Boolean(showRepairCta && diagnosisCard),
+            typewriter: true,
+          },
+        ];
+      });
+    } catch (error) {
+      console.error("Lỗi gọi AI API:", error);
+
+      setChatMessages((prev) => {
+        const withoutLoading = prev.slice(0, -1);
+        return [
+          ...withoutLoading,
+          {
+            role: "ai",
+            title: "Trợ lý IEMS",
+            time: formatChatTimeLabel(),
             text: "Xin lỗi, không thể kết nối đến dịch vụ AI diagnosis. Vui lòng kiểm tra kết nối mạng và thử lại.",
+            typewriter: true,
+            showRepairCta: false,
           },
         ];
       });
@@ -2283,7 +2306,7 @@ export default function Home() {
         onClick={() => setSidebarOpen(false)}
       />
 
-      <div className="app-shell">
+      <div className={`app-shell${activePage === "chatbot" ? " app-shell--ai-chat" : ""}`}>
         <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
           <div className="brand-box">
             <div className="brand-mark">IEMS</div>
@@ -2359,7 +2382,7 @@ export default function Home() {
           </div>
         </aside>
 
-        <main className="main-area">
+        <main className={`main-area${activePage === "chatbot" ? " main-area--ai-chat" : ""}`}>
           <div className="main-topbar">
             <div className="topbar-left">
               <button className="mobile-toggle" onClick={() => setSidebarOpen((v) => !v)}>
@@ -4414,86 +4437,17 @@ export default function Home() {
           )}
 
           {activePage === "chatbot" && (
-            <section className="page active">
-              <div className="page-grid">
-                <div>
-                  <span className="eyebrow">TRỢ LÝ AI</span>
-                  <h2 className="page-title">Hỗ trợ chẩn đoán ban đầu</h2>
-                  <p className="muted">
-                    Nhập mô tả lỗi để nhận gợi ý ban đầu trước khi tạo yêu cầu sửa chữa.
-                  </p>
-                </div>
-
-                <div className="chat-layout">
-                  <div className="surface">
-                    <div className="section-head">
-                      <div>
-                        <span className="eyebrow">GỢI Ý NHANH</span>
-                        <h3 className="section-title">Mẫu gợi ý</h3>
-                      </div>
-                    </div>
-
-                    <div className="prompt-grid" style={{ gap: 12 }}>
-                      {quickPrompts.map((prompt) => (
-                        <button
-                          key={prompt}
-                          className="prompt-btn"
-                          onClick={() => sendChatMessage(prompt)}
-                        >
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
-
-                  </div>
-
-                  <div className="surface chat-card">
-                    <div className="section-head">
-                      <div>
-                        <span className="eyebrow">HỘI THOẠI</span>
-                        <h3 className="section-title">Trợ lý IEMS</h3>
-                      </div>
-                    </div>
-
-                    <div className="chat-stream">
-                      {chatMessages.map((msg, index) => (
-                        <div key={`${msg.role}-${index}`} className={`bubble ${msg.role}`}>
-                          <div className="bubble-head">
-                            <strong>{msg.title}</strong>
-                            <span className="muted">{msg.time}</span>
-                          </div>
-                          <p>{msg.text}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="chat-composer">
-                      <textarea
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Nhập mô tả lỗi của thiết bị..."
-                        disabled={chatLoading}
-                      />
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-                        <button 
-                          className="btn btn-secondary" 
-                          onClick={() => setChatInput("")}
-                          disabled={chatLoading}
-                        >
-                          Xóa
-                        </button>
-                        <button 
-                          className="btn btn-primary" 
-                          onClick={() => sendChatMessage(chatInput)}
-                          disabled={chatLoading || !chatInput.trim()}
-                        >
-                          {chatLoading ? "Đang xử lý..." : "Gửi"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <section className="page active page--ai-diagnosis">
+              <AiDiagnosisWorkspace
+                chatMessages={chatMessages}
+                chatInput={chatInput}
+                setChatInput={setChatInput}
+                chatLoading={chatLoading}
+                onSend={sendChatMessage}
+                onClearInput={() => setChatInput("")}
+                quickPrompts={quickPrompts}
+                onOpenRepairRequest={() => openPage("request")}
+              />
             </section>
           )}
 
@@ -4654,7 +4608,7 @@ export default function Home() {
           )}
         </main>
 
-        <StoreChatPanel />
+        {activePage !== "chatbot" && <StoreChatPanel />}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { emitNotification } = require('../socket');
 
 const queryAsync = (sql, values = []) => {
   return new Promise((resolve, reject) => {
@@ -160,6 +161,10 @@ exports.createRepairRequest = async (req, res) => {
           'Job mới',
           'Khách hàng vừa gửi trực tiếp một yêu cầu sửa chữa đến cửa hàng của bạn!',
         ]);
+        emitNotification(assignedStoreUserId, {
+          title: 'Job mới',
+          message: 'Khách hàng vừa gửi trực tiếp một yêu cầu sửa chữa đến cửa hàng của bạn!'
+        });
       }
     } catch (notifyErr) {
       console.error('Insert notification error:', notifyErr);
@@ -494,6 +499,7 @@ exports.updateRequestStatus = (req, res) => {
               [customerId, 'Sửa chữa hoàn tất', message],
               (insErr) => {
                 if (insErr) console.error('Lỗi tạo thông báo:', insErr);
+                else emitNotification(customerId, { title: 'Sửa chữa hoàn tất', message });
               }
             );
           }
@@ -505,6 +511,7 @@ exports.updateRequestStatus = (req, res) => {
               [customerId, 'Store đã báo hoàn thành', message],
               (insErr) => {
                 if (insErr) console.error('Lỗi tạo thông báo chờ khách xác nhận:', insErr);
+                else emitNotification(customerId, { title: 'Store đã báo hoàn thành', message });
               }
             );
           }
@@ -724,6 +731,10 @@ exports.confirmRepairCompletion = async (req, res) => {
           `Khách hàng đã xác nhận yêu cầu #RQ-${requestId} (${deviceName}) đã hoàn thành. Bạn có thể kết thúc đơn và nhận đánh giá.`,
         ]
       );
+      emitNotification(storeRows[0].user_id, {
+        title: 'Khách đã xác nhận hoàn thành',
+        message: `Khách hàng đã xác nhận yêu cầu #RQ-${requestId} (${deviceName}) đã hoàn thành. Bạn có thể kết thúc đơn và nhận đánh giá.`,
+      });
     }
 
     return res.status(200).json({
@@ -793,6 +804,10 @@ exports.acceptQuote = async (req, res) => {
           'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, "SYSTEM")',
           [storeRows[0].user_id, 'Khách đã đồng ý báo giá', `Khách hàng đã đồng ý báo giá cho yêu cầu #RQ-${requestId}. Bạn có thể tiến hành sửa chữa.`,]
         );
+        emitNotification(storeRows[0].user_id, {
+          title: 'Khách đã đồng ý báo giá',
+          message: `Khách hàng đã đồng ý báo giá cho yêu cầu #RQ-${requestId}. Bạn có thể tiến hành sửa chữa.`,
+        });
       }
     } catch (notifyErr) {
       console.error('Notify accept quote error:', notifyErr);
@@ -847,6 +862,10 @@ exports.rejectQuote = async (req, res) => {
           'INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, "SYSTEM")',
           [storeRows[0].user_id, 'Khách từ chối báo giá', `Khách hàng đã từ chối báo giá cho yêu cầu #RQ-${requestId}.`,]
         );
+        emitNotification(storeRows[0].user_id, {
+          title: 'Khách từ chối báo giá',
+          message: `Khách hàng đã từ chối báo giá cho yêu cầu #RQ-${requestId}.`,
+        });
       }
     } catch (notifyErr) {
       console.error('Notify reject quote error:', notifyErr);

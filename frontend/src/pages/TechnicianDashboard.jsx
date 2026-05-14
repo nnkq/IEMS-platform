@@ -56,6 +56,10 @@ export default function TechnicianDashboard() {
   useEffect(() => {
     if (!techUser?.id) return;
     loadOrders(techUser.id);
+    const intervalId = setInterval(() => {
+      loadOrders(techUser.id);
+    }, 5000);
+    return () => clearInterval(intervalId);
   }, [techUser]);
 
   const handleLogout = () => {

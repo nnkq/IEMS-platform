@@ -443,13 +443,22 @@ loadCurrentSubscription();
   useEffect(() => {
     if (!storeInfo?.id) return;
 
-    fetch(`http://localhost:5000/api/employees/${storeInfo.id}`)
-      .then((res) => res.json())
-      .then((data) => setEmployees(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Lỗi tải nhân viên:", err));
+    const loadData = () => {
+      fetch(`http://localhost:5000/api/employees/${storeInfo.id}`)
+        .then((res) => res.json())
+        .then((data) => setEmployees(Array.isArray(data) ? data : []))
+        .catch((err) => console.error("Lỗi tải nhân viên:", err));
 
-    loadStoreRequests(storeInfo.id);
-    loadStoreReviews(storeInfo.id);
+      loadStoreRequests(storeInfo.id);
+      loadStoreReviews(storeInfo.id);
+    };
+
+    loadData();
+
+    const handleReload = () => loadData();
+    window.addEventListener("reload-notifications", handleReload);
+
+    return () => window.removeEventListener("reload-notifications", handleReload);
   }, [storeInfo.id]);
 
   const handleInputChange = (e) => {

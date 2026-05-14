@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { emitNotification } = require('../socket');
 
 const promiseDb = db.promise();
 
@@ -385,7 +386,7 @@ const deliverCampaign = async (campaignId) => {
 
     await promiseDb.query(
       `
-      INSERT INTO promotion_campaign_recipients (
+      INSERT IGNORE INTO promotion_campaign_recipients (
         campaign_id,
         user_id,
         notification_id,
@@ -396,6 +397,13 @@ const deliverCampaign = async (campaignId) => {
       `,
       [recipientValues]
     );
+
+    users.forEach(user => {
+      emitNotification(user.id, {
+        title: campaign.title,
+        message: `[${campaign.store_name}] ${campaign.message}`
+      });
+    });
 
     await promiseDb.query(
       `
@@ -588,6 +596,11 @@ exports.upgradeSubscription = async (req, res) => {
       ]
     );
 
+    emitNotification(userId, {
+      title: 'Thanh toán gói quảng bá thành công',
+      message: `Cửa hàng của bạn đã thanh toán thành công gói ${packageName}. Mã giao dịch: ${transactionCode}.`
+    });
+
     return res.status(200).json({
       message: 'Thanh toán ảo thành công và đã nâng cấp gói!',
       package_name: packageName,
@@ -677,6 +690,13 @@ exports.broadcastPromotion = async (req, res) => {
           : `Chiến dịch "${title}" đã được gửi admin duyệt. Sau khi được duyệt hệ thống sẽ gửi đến user.`,
       ]
     );
+
+    emitNotification(userId, {
+      title: 'Đã tạo yêu cầu duyệt ưu đãi',
+      message: scheduledAt
+        ? `Chiến dịch "${title}" đã được gửi admin duyệt và hẹn phát lúc ${scheduledAt}.`
+        : `Chiến dịch "${title}" đã được gửi admin duyệt. Sau khi được duyệt hệ thống sẽ gửi đến user.`
+    });
 
     return res.status(200).json({
       message: 'Đã gửi admin duyệt nội dung quảng bá',

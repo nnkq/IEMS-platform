@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -13,6 +14,9 @@ import TechnicianLogin from './pages/TechnicianLogin';
 import AdminDashboard from './pages/AdminDashboard'; // Import AdminDashboard
 import "./App.css";
 
+import { Toaster, toast } from 'react-hot-toast';
+import { chatSocket } from "./api/chatSocket";
+
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" replace />;
@@ -24,68 +28,100 @@ function TechnicianPrivateRoute({ children }) {
 }
 
 function App() {
+  useEffect(() => {
+    // Join socket room
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.id) {
+          chatSocket.emit("chat:join-user", user.id);
+        }
+      } catch (e) {}
+    }
+
+    // Listen for realtime notifications
+    const handleNewNotification = (payload) => {
+      toast(payload.title + ": " + payload.message, {
+        icon: "🔔",
+        duration: 5000,
+      });
+      // Optionally dispatch an event if we want components like Home.jsx to reload notifications
+      window.dispatchEvent(new Event("reload-notifications"));
+    };
+
+    chatSocket.on("notification:new", handleNewNotification);
+
+    return () => {
+      chatSocket.off("notification:new", handleNewNotification);
+    };
+  }, []);
+
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<Login />} />
-      
-      {/* 🚀 ĐÃ THÊM: Route Đăng nhập riêng cho Kỹ thuật viên (Không cần PrivateRoute) */}
-      <Route path="/tech-login" element={<TechnicianLogin />} />
-      
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password/:token" element={<ResetPassword />} />
-      <Route path="/google-success" element={<GoogleSuccess />} />
-      <Route path="/choose-role" element={<ChooseRole />} />
-      
-      <Route
-        path="/home"
-        element={
-          <PrivateRoute>
-            <Home />
-          </PrivateRoute>
-        }
-      />
+    <>
+      <Toaster position="top-right" reverseOrder={false} />
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
+        
+        {/* 🚀 ĐÃ THÊM: Route Đăng nhập riêng cho Kỹ thuật viên (Không cần PrivateRoute) */}
+        <Route path="/tech-login" element={<TechnicianLogin />} />
+        
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/google-success" element={<GoogleSuccess />} />
+        <Route path="/choose-role" element={<ChooseRole />} />
+        
+        <Route
+          path="/home"
+          element={
+            <PrivateRoute>
+              <Home />
+            </PrivateRoute>
+          }
+        />
 
-      <Route
-        path="/profile"
-        element={
-          <PrivateRoute>
-            <Profile />
-          </PrivateRoute>
-        }
-      />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <Profile />
+            </PrivateRoute>
+          }
+        />
 
-      {/* <-- Mình đã thêm Route bảo vệ cho Store ở đây --> */}
-      <Route
-        path="/store"
-        element={
-          <PrivateRoute>
-            <StoreDashboard />
-          </PrivateRoute>
-        }
-      />
+        {/* <-- Mình đã thêm Route bảo vệ cho Store ở đây --> */}
+        <Route
+          path="/store"
+          element={
+            <PrivateRoute>
+              <StoreDashboard />
+            </PrivateRoute>
+          }
+        />
 
-      {/* 🚀 ĐÃ THÊM: Route bảo vệ cho Không gian làm việc của Kỹ thuật viên */}
-      <Route
-        path="/technician"
-        element={
-          <TechnicianPrivateRoute>
-            <TechnicianDashboard />
-          </TechnicianPrivateRoute>
-        }
-      />
+        {/* 🚀 ĐÃ THÊM: Route bảo vệ cho Không gian làm việc của Kỹ thuật viên */}
+        <Route
+          path="/technician"
+          element={
+            <TechnicianPrivateRoute>
+              <TechnicianDashboard />
+            </TechnicianPrivateRoute>
+          }
+        />
 
-      {/*  ĐÃ THÊM: Route bảo vệ cho Admin Dashboard */}
-      <Route
-        path="/admin"
-        element={
-          <PrivateRoute>
-            <AdminDashboard />
-          </PrivateRoute>
-        }
-      />
-    </Routes>
+        {/*  ĐÃ THÊM: Route bảo vệ cho Admin Dashboard */}
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute>
+              <AdminDashboard />
+            </PrivateRoute>
+          }
+        />
+      </Routes>
+    </>
   );
 }
 

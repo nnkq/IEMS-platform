@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const AI_DIAGNOSIS_URL = "http://localhost:5001";
+/** Base URL for the Python diagnosis service — exported for UI (local vs online badge) only. */
+export const AI_DIAGNOSIS_BASE_URL = "http://localhost:5001";
 
 /**
  * Call the AI diagnosis service to predict device issue
@@ -16,7 +17,7 @@ const AI_DIAGNOSIS_URL = "http://localhost:5001";
  */
 export const diagnoseDevice = async (symptom, deviceType = "laptop") => {
   try {
-    const response = await axios.post(`${AI_DIAGNOSIS_URL}/predict`, {
+    const response = await axios.post(`${AI_DIAGNOSIS_BASE_URL}/predict`, {
       symptom: symptom.trim(),
       device_type: deviceType.toLowerCase(),
     });
