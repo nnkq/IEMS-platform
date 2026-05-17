@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { emitDataChanged } = require('../socket');
 
 // ─── HELPER: PROMISE WRAPPER ──────────────────────────────────────────────
 const query = (sql, params = []) =>
@@ -45,6 +46,13 @@ const approveStore = async (req, res) => {
       emitNotification(storeUserId, { title, message });
     }
 
+    emitDataChanged({
+      entity: 'store',
+      action: 'approved',
+      storeId: Number(storeId),
+      userId: stores[0]?.user_id || null,
+    });
+
     res.status(200).json({ message: 'Đã duyệt' });
   } catch (error) { res.status(500).json({ error: error.message }); }
 };
@@ -63,6 +71,13 @@ const rejectStore = async (req, res) => {
       const { emitNotification } = require('../socket');
       emitNotification(storeUserId, { title, message });
     }
+
+    emitDataChanged({
+      entity: 'store',
+      action: 'rejected',
+      storeId: Number(storeId),
+      userId: stores[0]?.user_id || null,
+    });
 
     res.status(200).json({ message: 'Đã từ chối' });
   } catch (error) { res.status(500).json({ error: error.message }); }

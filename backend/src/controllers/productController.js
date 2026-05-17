@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { emitDataChanged } = require('../socket');
 
 // 1. Lấy danh sách sản phẩm
 exports.getProducts = (req, res) => {
@@ -17,6 +18,12 @@ exports.addProduct = (req, res) => {
         [userId, name, type, price, image],
         (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
+            emitDataChanged({
+                entity: 'product',
+                action: 'created',
+                userId,
+                productId: result.insertId,
+            });
             res.status(201).json({ message: "Thêm thành công", id: result.insertId });
         }
     );
@@ -27,6 +34,11 @@ exports.deleteProduct = (req, res) => {
     const productId = req.params.id;
     db.query('DELETE FROM products WHERE id = ?', [productId], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
+        emitDataChanged({
+            entity: 'product',
+            action: 'deleted',
+            productId: Number(productId),
+        });
         res.status(200).json({ message: "Xóa thành công" });
     });
 };

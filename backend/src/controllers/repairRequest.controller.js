@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { emitNotification } = require('../socket');
+const { emitNotification, emitDataChanged } = require('../socket');
 
 const queryAsync = (sql, values = []) => {
   return new Promise((resolve, reject) => {
@@ -20,6 +20,32 @@ const toStringOrNull = (value) => {
   if (value === undefined || value === null) return null;
   const clean = String(value).trim();
   return clean === '' ? null : clean;
+};
+
+const parseStoredImages = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).slice(0, 3);
+
+  const clean = String(value).trim();
+  if (!clean) return [];
+
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean).slice(0, 3);
+  } catch (error) {
+    // Backward compatibility: older requests stored one image directly.
+  }
+
+  return [clean];
+};
+
+const withImageFields = (row) => {
+  const images = parseStoredImages(row.image);
+  return {
+    ...row,
+    image: images[0] || null,
+    images,
+  };
 };
 
 exports.createRepairRequest = async (req, res) => {
@@ -135,6 +161,13 @@ exports.createRepairRequest = async (req, res) => {
 
     const result = await queryAsync(insertSql, insertValues);
     const requestId = result.insertId;
+    emitDataChanged({
+      entity: 'repair_request',
+      action: 'created',
+      requestId,
+      userId,
+      storeId: store_id || null,
+    });
 
     let assignedStoreName = null;
     let assignedStoreUserId = null;
@@ -283,7 +316,7 @@ exports.getRepairRequestsDetail = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: rows[0],
+      data: withImageFields(rows[0]),
     });
   } catch (error) {
     console.error('Lỗi getRepairRequestsDetail:', error);
@@ -314,7 +347,7 @@ exports.getOngoingRepairs = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: rows,
+      data: rows.map(withImageFields),
     });
   } catch (error) {
     console.error('Lỗi khi lấy danh sách máy đang sửa:', error);
@@ -398,7 +431,7 @@ exports.getStoreRequests = (req, res) => {
 
   db.query(sql, [storeId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(200).json(results);
+    res.status(200).json(results.map(withImageFields));
   });
 };
 
@@ -424,6 +457,24 @@ exports.updateRequestStatus = (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Không tìm thấy yêu cầu sửa chữa' });
     }
+
+    db.query(
+      'SELECT id, user_id, store_id, employee_id, status FROM repair_requests WHERE id = ? LIMIT 1',
+      [requestId],
+      (selectChangeErr, changeRows) => {
+        if (!selectChangeErr && changeRows.length) {
+          emitDataChanged({
+            entity: 'repair_request',
+            action: 'status_updated',
+            requestId: Number(requestId),
+            status,
+            userId: changeRows[0].user_id || null,
+            storeId: changeRows[0].store_id || null,
+            employeeId: changeRows[0].employee_id || null,
+          });
+        }
+      }
+    );
 
     if (status === 'WAITING_CUSTOMER_CONFIRM' || status === 'COMPLETED') {
       db.query(
@@ -663,6 +714,15 @@ exports.submitReviewForRequest = (req, res) => {
           }
         );
 
+        emitDataChanged({
+          entity: 'review',
+          action: 'created',
+          requestId: Number(requestId),
+          userId,
+          storeId: row.store_id || null,
+          reviewId: result.insertId,
+        });
+
         return res.status(201).json({
           success: true,
           message: 'Đánh giá cửa hàng thành công',
@@ -705,6 +765,13 @@ exports.confirmRepairCompletion = async (req, res) => {
     }
 
     await queryAsync('UPDATE repair_requests SET status = "COMPLETED" WHERE id = ?', [requestId]);
+    emitDataChanged({
+      entity: 'repair_request',
+      action: 'customer_confirmed_completed',
+      requestId,
+      userId,
+      storeId: row.store_id || null,
+    });
 
     if (row.order_id) {
       await queryAsync(
@@ -780,6 +847,14 @@ exports.acceptQuote = async (req, res) => {
 
     await queryAsync('UPDATE quotes SET status = "ACCEPTED" WHERE id = ?', [row.quote_id]);
     await queryAsync('UPDATE repair_requests SET status = "IN_PROGRESS" WHERE id = ?', [requestId]);
+    emitDataChanged({
+      entity: 'repair_request',
+      action: 'quote_accepted',
+      requestId,
+      userId,
+      storeId: row.store_id || null,
+      quoteId: row.quote_id,
+    });
 
     const existingOrder = await queryAsync('SELECT id FROM orders WHERE request_id = ? LIMIT 1', [requestId]);
     if (existingOrder.length > 0) {
@@ -854,6 +929,14 @@ exports.rejectQuote = async (req, res) => {
     await queryAsync('UPDATE quotes SET status = "REJECTED" WHERE id = ?', [row.quote_id]);
     await queryAsync('UPDATE repair_requests SET status = "CANCELLED" WHERE id = ?', [requestId]);
     await queryAsync('UPDATE orders SET status = "CANCELLED" WHERE request_id = ?', [requestId]);
+    emitDataChanged({
+      entity: 'repair_request',
+      action: 'quote_rejected',
+      requestId,
+      userId,
+      storeId: row.store_id || null,
+      quoteId: row.quote_id,
+    });
 
     try {
       const storeRows = await queryAsync('SELECT user_id FROM stores WHERE id = ? LIMIT 1', [row.store_id]);
@@ -882,6 +965,11 @@ exports.deleteRequest = (req, res) => {
   const requestId = req.params.id;
   db.query('DELETE FROM repair_requests WHERE id = ?', [requestId], (err) => {
     if (err) return res.status(500).json({ error: err.message });
+    emitDataChanged({
+      entity: 'repair_request',
+      action: 'deleted',
+      requestId: Number(requestId),
+    });
     res.status(200).json({ message: 'Đã từ chối đơn hàng' });
   });
 };

@@ -9,6 +9,27 @@ function formatVND(value) {
   }).format(Number(value || 0));
 }
 
+const MAX_REQUEST_IMAGES = 3;
+
+function parseRequestImages(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).slice(0, MAX_REQUEST_IMAGES);
+
+  const clean = String(value).trim();
+  if (!clean) return [];
+
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) {
+      return parsed.filter(Boolean).slice(0, MAX_REQUEST_IMAGES);
+    }
+  } catch (error) {
+    // Older requests stored one image directly.
+  }
+
+  return [clean];
+}
+
 const cardStyle = {
   backgroundColor: "white",
   padding: "24px",
@@ -29,6 +50,10 @@ export default function TechnicianDashboard() {
   const [quotePrice, setQuotePrice] = useState("");
   const [quoteEta, setQuoteEta] = useState("");
   const [quoteMessage, setQuoteMessage] = useState("");
+  const [imageViewer, setImageViewer] = useState(null);
+  const selectedRequestImages = parseRequestImages(
+    selectedRequest?.images?.length ? selectedRequest.images : selectedRequest?.image
+  );
 
   useEffect(() => {
     const storedUser = localStorage.getItem("techUser");
@@ -56,9 +81,27 @@ export default function TechnicianDashboard() {
   useEffect(() => {
     if (!techUser?.id) return;
     loadOrders(techUser.id);
+    const handleRealtimeDataChanged = (event) => {
+      const payload = event.detail || {};
+      if (
+        payload.entity === "repair_request" &&
+        (!payload.employeeId || Number(payload.employeeId) === Number(techUser.id))
+      ) {
+        loadOrders(techUser.id);
+      }
+    };
+
+    window.addEventListener("realtime:data-changed", handleRealtimeDataChanged);
+    return () => {
+      window.removeEventListener("realtime:data-changed", handleRealtimeDataChanged);
+    };
+  }, [techUser]);
+
+  useEffect(() => {
+    if (!techUser?.id) return;
     const intervalId = setInterval(() => {
       loadOrders(techUser.id);
-    }, 5000);
+    }, 30000);
     return () => clearInterval(intervalId);
   }, [techUser]);
 
@@ -309,14 +352,20 @@ export default function TechnicianDashboard() {
                 <div style={{ marginTop: 8, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{selectedRequest.description || "Không có mô tả chi tiết."}</div>
               </div>
 
-              {selectedRequest.image ? (
+              {selectedRequestImages.length > 0 ? (
                 <div>
                   <strong>Hình ảnh khách gửi:</strong>
-                  <img
-                    src={selectedRequest.image}
-                    alt="Ảnh thiết bị"
-                    style={{ width: "100%", maxHeight: 300, objectFit: "contain", marginTop: 12, borderRadius: 12, border: "1px dashed #cbd5e1", background: "white", padding: 8 }}
-                  />
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 12 }}>
+                    {selectedRequestImages.map((image, index) => (
+                      <img
+                        key={`technician-request-image-${index}`}
+                        src={image}
+                        alt={`Ảnh thiết bị ${index + 1}`}
+                        onClick={() => setImageViewer(image)}
+                        style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 12, border: "1px dashed #cbd5e1", background: "white", padding: 8, boxSizing: "border-box", cursor: "zoom-in" }}
+                      />
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -433,6 +482,27 @@ export default function TechnicianDashboard() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {imageViewer && (
+        <div
+          onClick={() => setImageViewer(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(15, 23, 42, 0.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+        >
+          <button
+            type="button"
+            onClick={() => setImageViewer(null)}
+            style={{ position: "absolute", top: 20, right: 24, width: 42, height: 42, borderRadius: "50%", border: "none", background: "white", color: "#0f172a", fontSize: 26, cursor: "pointer" }}
+          >
+            ×
+          </button>
+          <img
+            src={imageViewer}
+            alt="Ảnh phóng to"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "94vw", maxHeight: "88vh", objectFit: "contain", borderRadius: 14, background: "white" }}
+          />
         </div>
       )}
     </div>

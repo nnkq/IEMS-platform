@@ -50,10 +50,21 @@ function App() {
       window.dispatchEvent(new Event("reload-notifications"));
     };
 
+    const handleDataChanged = (payload) => {
+      window.dispatchEvent(
+        new CustomEvent("realtime:data-changed", {
+          detail: payload,
+        })
+      );
+      window.dispatchEvent(new Event("reload-notifications"));
+    };
+
     chatSocket.on("notification:new", handleNewNotification);
+    chatSocket.on("data:changed", handleDataChanged);
 
     return () => {
       chatSocket.off("notification:new", handleNewNotification);
+      chatSocket.off("data:changed", handleDataChanged);
     };
   }, []);
 

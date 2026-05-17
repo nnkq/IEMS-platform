@@ -9,7 +9,7 @@ require('dotenv').config();
 
 // Khai báo db MỘT LẦN DUY NHẤT ở đầu file
 const db = require('./src/config/db');
-const { initSocket } = require('./src/socket');
+const { initSocket, emitDataChanged } = require('./src/socket');
 
 const authRoutes = require('./src/routes/auth.routes');
 const homeRoutes = require('./src/routes/home.routes');
@@ -24,6 +24,32 @@ const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 
 const app = express();
 const server = http.createServer(app);
+
+const parseStoredImages = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).slice(0, 3);
+
+  const clean = String(value).trim();
+  if (!clean) return [];
+
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean).slice(0, 3);
+  } catch (error) {
+    // Older requests stored one image directly.
+  }
+
+  return [clean];
+};
+
+const withImageFields = (row) => {
+  const images = parseStoredImages(row.image);
+  return {
+    ...row,
+    image: images[0] || null,
+    images,
+  };
+};
 
 const PORT = Number(process.env.PORT || 5000);
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
@@ -164,6 +190,12 @@ app.post('/api/employees', (req, res) => {
     [storeId, name, specialty, phone, defaultPassword],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
+      emitDataChanged({
+        entity: 'employee',
+        action: 'created',
+        storeId,
+        employeeId: result.insertId,
+      });
       res.status(201).json({
         id: result.insertId,
         message: 'Thêm nhân viên và cấp tài khoản thành công',
@@ -178,6 +210,11 @@ app.delete('/api/employees/:id', (req, res) => {
 
   db.query('DELETE FROM employees WHERE id = ?', [id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
+    emitDataChanged({
+      entity: 'employee',
+      action: 'deleted',
+      employeeId: Number(id),
+    });
     res.status(200).json({ message: 'Đã xóa nhân viên' });
   });
 });
@@ -212,7 +249,7 @@ app.get('/api/technician/orders/:employeeId', (req, res) => {
 
   db.query(sql, [empId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(200).json(results);
+    res.status(200).json(results.map(withImageFields));
   });
 });
 
@@ -303,6 +340,15 @@ app.put('/api/technician/orders/:id', async (req, res) => {
         );
       }
     }
+
+    emitDataChanged({
+      entity: 'repair_request',
+      action: 'technician_updated',
+      requestId: Number(reqId),
+      status: nextStatus,
+      userId: requestRow.user_id || null,
+      storeId: requestRow.store_id || null,
+    });
 
     res.status(200).json({ message: 'Đã cập nhật đơn hàng thành công' });
   } catch (err) {

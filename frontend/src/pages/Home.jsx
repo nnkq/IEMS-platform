@@ -58,6 +58,29 @@ const quickPrompts = [
   "Robot hút bụi không sạc được và dừng sau 5 phút",
 ];
 
+const MAX_REQUEST_IMAGES = 3;
+
+function parseRequestImages(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).slice(0, MAX_REQUEST_IMAGES);
+
+  if (typeof value !== "string") return [];
+
+  const cleanValue = value.trim();
+  if (!cleanValue) return [];
+
+  try {
+    const parsed = JSON.parse(cleanValue);
+    if (Array.isArray(parsed)) {
+      return parsed.filter(Boolean).slice(0, MAX_REQUEST_IMAGES);
+    }
+  } catch (error) {
+    // Old requests store a single image directly in this field.
+  }
+
+  return [cleanValue];
+}
+
 function formatVND(value) {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -705,7 +728,8 @@ export default function Home() {
   ]);
   const [chatLoading, setChatLoading] = useState(false);
 
-  const [imageFile, setImageFile] = useState("");
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imageViewer, setImageViewer] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   const searchTimeout = useRef(null);
@@ -1453,7 +1477,7 @@ export default function Home() {
     setAddress("");
     setServiceMode("Mang đến cửa hàng");
     setSymptoms(["Màn hình", "Cảm ứng"]);
-    setImageFile("");
+    setImageFiles([]);
     setUserLocation({ lat: null, lng: null });
     setLocationMeta({ source: "", accuracy: null });
     setAddressSuggestions([]);
@@ -2049,17 +2073,46 @@ export default function Home() {
   }, [activePage]);
 
   const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageFile(reader.result);
-      };
-      reader.readAsDataURL(file);
+    const selectedFiles = Array.from(e.target.files || []);
+    if (!selectedFiles.length) return;
+
+    const remainingSlots = MAX_REQUEST_IMAGES - imageFiles.length;
+    if (remainingSlots <= 0) {
+      alert(`Bạn chỉ có thể tải tối đa ${MAX_REQUEST_IMAGES} ảnh.`);
+      e.target.value = "";
+      return;
     }
+
+    const filesToRead = selectedFiles.slice(0, remainingSlots);
+    if (selectedFiles.length > remainingSlots) {
+      alert(`Chỉ nhận thêm ${remainingSlots} ảnh. Tối đa ${MAX_REQUEST_IMAGES} ảnh cho mỗi yêu cầu.`);
+    }
+
+    Promise.all(
+      filesToRead.map(
+        (file) =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          })
+      )
+    )
+      .then((images) => {
+        setImageFiles((prev) => [...prev, ...images].slice(0, MAX_REQUEST_IMAGES));
+      })
+      .catch(() => {
+        alert("Không thể đọc ảnh đã chọn. Vui lòng thử lại.");
+      })
+      .finally(() => {
+        e.target.value = "";
+      });
   };
 
-  const removeImage = () => setImageFile("");
+  const removeImage = (index) => {
+    setImageFiles((prev) => prev.filter((_, imageIndex) => imageIndex !== index));
+  };
 
   const loadTrackingRequests = async (isBackground = false) => {
     try {
@@ -2079,6 +2132,17 @@ export default function Home() {
       if (!isBackground) setTrackingLoading(false);
     }
   };
+
+  useEffect(() => {
+    const handleRealtimeDataChanged = () => {
+      loadTrackingRequests(true);
+    };
+
+    window.addEventListener("realtime:data-changed", handleRealtimeDataChanged);
+    return () => {
+      window.removeEventListener("realtime:data-changed", handleRealtimeDataChanged);
+    };
+  }, []);
 
   const handleAcceptQuote = async (requestId) => {
     try {
@@ -2263,7 +2327,7 @@ export default function Home() {
         brand: brand || null,
         model: model || null,
         symptoms: symptoms.join(", "),
-        image: imageFile || null,
+        image: imageFiles.length ? JSON.stringify(imageFiles) : null,
       };
 
       const res = await createRepairRequest(payload);
@@ -3124,101 +3188,50 @@ export default function Home() {
 
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Hình ảnh thiết bị (Không bắt buộc)</label>
-                        {!imageFile ? (
-                          <div
-                            className="image-upload-box"
-                            style={{
-                              border: "2px dashed #cbd5e1",
-                              padding: "16px",
-                              textAlign: "center",
-                              borderRadius: "12px",
-                              cursor: "pointer",
-                              backgroundColor: "#f8fafc",
-                              transition: "all 0.2s",
-                              height: "100px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyItems: "center",
-                            }}
-                            onMouseOver={(e) =>
-                              (e.currentTarget.style.borderColor = "#3b82f6")
-                            }
-                            onMouseOut={(e) =>
-                              (e.currentTarget.style.borderColor = "#cbd5e1")
-                            }
-                          >
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleImageUpload}
-                              style={{ display: "none" }}
-                              id="file-upload"
-                            />
-                            <label
-                              htmlFor="file-upload"
-                              style={{ cursor: "pointer", display: "block", width: "100%" }}
-                            >
-                              <div style={{ fontSize: "24px", marginBottom: "4px" }}>📸</div>
-                              <span
-                                style={{
-                                  fontWeight: "500",
-                                  color: "#0f172a",
-                                  fontSize: "13px",
-                                }}
-                              >
-                                Tải ảnh lên
+                        <div className="request-image-panel">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleImageUpload}
+                            style={{ display: "none" }}
+                            id="file-upload"
+                            disabled={imageFiles.length >= MAX_REQUEST_IMAGES}
+                          />
+
+                          {imageFiles.length > 0 && (
+                            <div className="request-image-grid">
+                              {imageFiles.map((image, index) => (
+                                <div className="request-image-preview" key={`request-image-${index}`}>
+                                  <img
+                                    src={image}
+                                    alt={`Ảnh thiết bị ${index + 1}`}
+                                    onClick={() => setImageViewer(image)}
+                                    style={{ cursor: "zoom-in" }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="request-image-remove"
+                                    onClick={() => removeImage(index)}
+                                    aria-label={`Xóa ảnh ${index + 1}`}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {imageFiles.length < MAX_REQUEST_IMAGES && (
+                            <label htmlFor="file-upload" className="image-upload-box">
+                              <span className="image-upload-icon">+</span>
+                              <span className="image-upload-title">Tải ảnh lên</span>
+                              <span className="image-upload-note">
+                                {imageFiles.length}/{MAX_REQUEST_IMAGES} ảnh
                               </span>
                             </label>
-                          </div>
-                        ) : (
-                          <div
-                            style={{
-                              position: "relative",
-                              display: "inline-block",
-                              padding: "4px",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: "12px",
-                              backgroundColor: "#f8fafc",
-                              height: "100px",
-                              width: "100%",
-                            }}
-                          >
-                            <img
-                              src={imageFile}
-                              alt="Preview"
-                              style={{
-                                height: "100%",
-                                width: "100%",
-                                borderRadius: "8px",
-                                objectFit: "cover",
-                                display: "block",
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={removeImage}
-                              style={{
-                                position: "absolute",
-                                top: "-8px",
-                                right: "-8px",
-                                background: "#ef4444",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "50%",
-                                width: "24px",
-                                height: "24px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                                fontSize: "12px",
-                              }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -3519,19 +3532,20 @@ export default function Home() {
                           {address}
                         </strong>
                       </div>
-                      {imageFile && (
+                      {imageFiles.length > 0 && (
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <span style={{ color: "#64748b", minWidth: "100px" }}>Ảnh báo lỗi:</span>
-                          <img
-                            src={imageFile}
-                            alt="Attached"
-                            style={{
-                              height: "60px",
-                              borderRadius: "6px",
-                              border: "1px solid #e2e8f0",
-                              objectFit: "cover",
-                            }}
-                          />
+                          <div className="summary-image-strip">
+                            {imageFiles.map((image, index) => (
+                              <img
+                                src={image}
+                                alt={`Attached ${index + 1}`}
+                                key={`summary-image-${index}`}
+                                onClick={() => setImageViewer(image)}
+                                style={{ cursor: "zoom-in" }}
+                              />
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -4256,20 +4270,20 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {selectedTrackedRequest.image && (
+                    {parseRequestImages(selectedTrackedRequest.images?.length ? selectedTrackedRequest.images : selectedTrackedRequest.image).length > 0 && (
                       <div style={{ marginTop: 20 }}>
                         <h4 style={{ marginBottom: 12 }}>Ảnh đính kèm</h4>
-                        <img
-                          src={selectedTrackedRequest.image}
-                          alt="Yêu cầu sửa chữa"
-                          style={{
-                            width: "100%",
-                            maxHeight: 260,
-                            objectFit: "cover",
-                            borderRadius: 16,
-                            border: "1px solid #e2e8f0",
-                          }}
-                        />
+                        <div className="tracked-image-grid">
+                          {parseRequestImages(selectedTrackedRequest.images?.length ? selectedTrackedRequest.images : selectedTrackedRequest.image).map((image, index) => (
+                            <img
+                              src={image}
+                              alt={`Yêu cầu sửa chữa ${index + 1}`}
+                              key={`tracked-request-image-${index}`}
+                              onClick={() => setImageViewer(image)}
+                              style={{ cursor: "zoom-in" }}
+                            />
+                          ))}
+                        </div>
                       </div>
                     )}
 
@@ -4609,6 +4623,54 @@ export default function Home() {
         </main>
 
         {activePage !== "chatbot" && <StoreChatPanel />}
+
+        {imageViewer && (
+          <div
+            onClick={() => setImageViewer(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 300,
+              backgroundColor: "rgba(15, 23, 42, 0.86)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 24,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setImageViewer(null)}
+              style={{
+                position: "absolute",
+                top: 20,
+                right: 24,
+                width: 42,
+                height: 42,
+                borderRadius: "50%",
+                border: "none",
+                background: "white",
+                color: "#0f172a",
+                fontSize: 26,
+                cursor: "pointer",
+              }}
+            >
+              ×
+            </button>
+            <img
+              src={imageViewer}
+              alt="Ảnh phóng to"
+              onClick={(event) => event.stopPropagation()}
+              style={{
+                maxWidth: "94vw",
+                maxHeight: "88vh",
+                objectFit: "contain",
+                borderRadius: 14,
+                background: "white",
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

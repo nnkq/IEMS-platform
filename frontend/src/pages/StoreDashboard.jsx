@@ -2,6 +2,27 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import StoreOwnerChatPanel from "../components/StoreOwnerChatPanel";
 
+const MAX_REQUEST_IMAGES = 3;
+
+function parseRequestImages(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).slice(0, MAX_REQUEST_IMAGES);
+
+  const clean = String(value).trim();
+  if (!clean) return [];
+
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) {
+      return parsed.filter(Boolean).slice(0, MAX_REQUEST_IMAGES);
+    }
+  } catch (error) {
+    // Older requests stored one image directly.
+  }
+
+  return [clean];
+}
+
 export default function StoreDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Hồ sơ");
@@ -106,6 +127,7 @@ const [promotionOverview, setPromotionOverview] = useState({
 });
 const [selectedCampaignDetail, setSelectedCampaignDetail] = useState(null);
 const [showCampaignDetailModal, setShowCampaignDetailModal] = useState(false);
+const [imageViewer, setImageViewer] = useState(null);
 
   const [employees, setEmployees] = useState([]);
   const [showAddEmployeeForm, setShowAddEmployeeForm] = useState(false);
@@ -540,6 +562,7 @@ loadCurrentSubscription();
 
   const mapStoreRequest = (req) => {
     let parsedDetail = {};
+    const requestImages = parseRequestImages(req.images?.length ? req.images : req.image);
 
     try {
       parsedDetail =
@@ -575,7 +598,8 @@ loadCurrentSubscription();
         desiredDate: parsedDetail.desiredDate || req.desired_date || "",
         phone: parsedDetail.phone || req.phone || "",
         address: parsedDetail.address || req.location || "",
-        image: req.image || "",
+        image: requestImages[0] || "",
+        images: requestImages,
       },
     };
   };
@@ -645,6 +669,7 @@ loadCurrentSubscription();
 
       const dbData = responseData.data;
       let parsedDetail = {};
+      const requestImages = parseRequestImages(dbData.images?.length ? dbData.images : dbData.image);
 
       try {
         parsedDetail =
@@ -678,7 +703,8 @@ loadCurrentSubscription();
           desiredDate: parsedDetail.desiredDate || dbData.desired_date || "",
           phone: parsedDetail.phone || dbData.phone || "",
           address: parsedDetail.address || dbData.location || "",
-          image: dbData.image || "",
+          image: requestImages[0] || "",
+          images: requestImages,
         },
       });
     } catch (error) {
@@ -2870,14 +2896,35 @@ const handleBroadcastPromotion = async () => {
                 <textarea readOnly value={selectedRequest.detail.address} rows={3} style={detailInputStyle} />
               </div>
 
-              {selectedRequest.detail.image && (
+              {selectedRequest.detail.images?.length > 0 && (
                 <div>
                   <label style={labelStyle}>Ảnh khách gửi</label>
-                  <img
-                    src={selectedRequest.detail.image}
-                    alt="repair-request"
-                    style={{ width: "100%", maxHeight: "280px", objectFit: "cover", borderRadius: "14px", border: "1px solid #e2e8f0", marginTop: "8px" }}
-                  />
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                      gap: "12px",
+                      marginTop: "8px",
+                    }}
+                  >
+                    {selectedRequest.detail.images.map((image, index) => (
+                      <img
+                        key={`store-request-image-${index}`}
+                        src={image}
+                        alt={`Ảnh khách gửi ${index + 1}`}
+                        onClick={() => setImageViewer(image)}
+                        style={{
+                          width: "100%",
+                          height: "160px",
+                          objectFit: "cover",
+                          borderRadius: "14px",
+                          border: "1px solid #e2e8f0",
+                          background: "#f8fafc",
+                          cursor: "zoom-in",
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -3056,6 +3103,48 @@ const handleBroadcastPromotion = async () => {
               Đã hiểu
             </button>
           </div>
+        </div>
+      )}
+
+      {imageViewer && (
+        <div
+          onClick={() => setImageViewer(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 300,
+            backgroundColor: "rgba(15,23,42,0.86)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setImageViewer(null)}
+            style={{
+              position: "absolute",
+              top: 20,
+              right: 24,
+              width: 42,
+              height: 42,
+              borderRadius: "50%",
+              border: "none",
+              background: "white",
+              color: "#0f172a",
+              fontSize: 26,
+              cursor: "pointer",
+            }}
+          >
+            ×
+          </button>
+          <img
+            src={imageViewer}
+            alt="Ảnh phóng to"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "94vw", maxHeight: "88vh", objectFit: "contain", borderRadius: 14, background: "white" }}
+          />
         </div>
       )}
     </div>

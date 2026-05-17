@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { emitNotification } = require('../socket');
+const { emitNotification, emitDataChanged } = require('../socket');
 
 const promiseDb = db.promise();
 
@@ -600,6 +600,12 @@ exports.upgradeSubscription = async (req, res) => {
       title: 'Thanh toán gói quảng bá thành công',
       message: `Cửa hàng của bạn đã thanh toán thành công gói ${packageName}. Mã giao dịch: ${transactionCode}.`
     });
+    emitDataChanged({
+      entity: 'subscription',
+      action: 'upgraded',
+      userId,
+      packageName,
+    });
 
     return res.status(200).json({
       message: 'Thanh toán ảo thành công và đã nâng cấp gói!',
@@ -696,6 +702,13 @@ exports.broadcastPromotion = async (req, res) => {
       message: scheduledAt
         ? `Chiến dịch "${title}" đã được gửi admin duyệt và hẹn phát lúc ${scheduledAt}.`
         : `Chiến dịch "${title}" đã được gửi admin duyệt. Sau khi được duyệt hệ thống sẽ gửi đến user.`
+    });
+    emitDataChanged({
+      entity: 'promotion_campaign',
+      action: 'created',
+      campaignId: result.insertId,
+      userId,
+      storeId: store.id,
     });
 
     return res.status(200).json({
@@ -837,6 +850,14 @@ exports.approvePromotionCampaign = async (req, res) => {
       await processDueCampaigns();
     }
 
+    emitDataChanged({
+      entity: 'promotion_campaign',
+      action: 'approved',
+      campaignId: Number(campaignId),
+      adminUserId,
+      status: nextStatus,
+    });
+
     return res.status(200).json({
       message: shouldSchedule
         ? 'Đã duyệt và lên lịch gửi ưu đãi'
@@ -880,6 +901,13 @@ exports.rejectPromotionCampaign = async (req, res) => {
       `,
       [rejectedReason, campaignId]
     );
+
+    emitDataChanged({
+      entity: 'promotion_campaign',
+      action: 'rejected',
+      campaignId: Number(campaignId),
+      adminUserId,
+    });
 
     return res.status(200).json({
       message: 'Đã từ chối chiến dịch quảng bá',

@@ -62,6 +62,14 @@ function emitNotification(userId, payload) {
   io.to(`user:${userId}`).emit('notification:new', payload);
 }
 
+function emitDataChanged(payload) {
+  if (!io) return;
+  io.emit('data:changed', {
+    at: new Date().toISOString(),
+    ...payload,
+  });
+}
+
 module.exports = {
   initSocket,
   emitConversationCreated,
@@ -69,4 +77,5 @@ module.exports = {
   emitThreadUpdated,
   emitMessagesRead,
   emitNotification,
+  emitDataChanged,
 };
