@@ -10,6 +10,43 @@ const query = (sql, params = []) =>
     });
   });
 
+const PACKAGE_CATALOG = {
+  FREE: {
+    name: 'FREE',
+    label: 'Miễn phí',
+    price: 0,
+    jobDelayMinutes: 60,
+    monthlyPromotionLimit: 0,
+    rank: 3,
+  },
+  VERIFIED: {
+    name: 'VERIFIED',
+    label: 'Cửa hàng Uy tín',
+    price: 300000,
+    jobDelayMinutes: 30,
+    monthlyPromotionLimit: 0,
+    rank: 2,
+  },
+  PREMIUM: {
+    name: 'PREMIUM',
+    label: 'Premium Partner',
+    price: 500000,
+    jobDelayMinutes: 0,
+    monthlyPromotionLimit: 10,
+    rank: 1,
+  },
+};
+
+const normalizePackageName = (value) => {
+  const packageName = String(value || '').trim().toUpperCase();
+
+  if (packageName === 'PREMIUM' || packageName === 'PRO') return 'PREMIUM';
+  if (packageName === 'VERIFIED') return 'VERIFIED';
+  return 'FREE';
+};
+
+const getPackageMeta = (value) => PACKAGE_CATALOG[normalizePackageName(value)] || PACKAGE_CATALOG.FREE;
+
 // =============================================================================
 // 1. PHÊ DUYỆT CỬA HÀNG (STORES)
 // =============================================================================
@@ -145,7 +182,13 @@ const getUsersAndPartners = async (req, res) => {
         (SELECT COUNT(*) FROM users) AS totalUsers,
         (SELECT COUNT(*) FROM users WHERE role = 'STORE') AS totalPartners,
         (SELECT COUNT(*) FROM stores WHERE status = 'approved') AS activeStores,
-        (SELECT COUNT(*) FROM store_subscriptions WHERE end_date IS NULL OR end_date >= CURDATE()) AS premiumSubscriptions
+        (
+          SELECT COUNT(DISTINCT ss.store_id)
+          FROM store_subscriptions ss
+          INNER JOIN subscriptions sub ON sub.id = ss.subscription_id
+          WHERE (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+            AND UPPER(sub.name) IN ('VERIFIED', 'PREMIUM', 'PRO')
+        ) AS premiumSubscriptions
     `);
 
     const storeRows = await query(`
@@ -154,11 +197,40 @@ const getUsersAndPartners = async (req, res) => {
         u.name AS owner, u.email, u.phone,
         (SELECT COUNT(*) FROM reviews WHERE store_id = s.id) AS reviews,
         (SELECT COUNT(*) FROM orders WHERE store_id = s.id) AS total_orders,
-        sub.name AS packageName, ss.end_date AS packageExpiry
+        (
+          SELECT sub2.name
+          FROM store_subscriptions ss2
+          INNER JOIN subscriptions sub2 ON sub2.id = ss2.subscription_id
+          WHERE ss2.store_id = s.id
+            AND (ss2.end_date IS NULL OR ss2.end_date >= CURDATE())
+          ORDER BY
+            CASE
+              WHEN UPPER(sub2.name) IN ('PREMIUM', 'PRO') THEN 0
+              WHEN UPPER(sub2.name) = 'VERIFIED' THEN 1
+              ELSE 2
+            END,
+            COALESCE(ss2.end_date, '9999-12-31') DESC,
+            ss2.id DESC
+          LIMIT 1
+        ) AS packageName,
+        (
+          SELECT ss2.end_date
+          FROM store_subscriptions ss2
+          INNER JOIN subscriptions sub2 ON sub2.id = ss2.subscription_id
+          WHERE ss2.store_id = s.id
+            AND (ss2.end_date IS NULL OR ss2.end_date >= CURDATE())
+          ORDER BY
+            CASE
+              WHEN UPPER(sub2.name) IN ('PREMIUM', 'PRO') THEN 0
+              WHEN UPPER(sub2.name) = 'VERIFIED' THEN 1
+              ELSE 2
+            END,
+            COALESCE(ss2.end_date, '9999-12-31') DESC,
+            ss2.id DESC
+          LIMIT 1
+        ) AS packageExpiry
       FROM stores s
       JOIN users u ON s.user_id = u.id
-      LEFT JOIN store_subscriptions ss ON ss.store_id = s.id AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
-      LEFT JOIN subscriptions sub ON ss.subscription_id = sub.id
       WHERE s.status IN ('approved')
       ORDER BY s.created_at DESC
     `);
@@ -172,7 +244,10 @@ const getUsersAndPartners = async (req, res) => {
       ORDER BY u.created_at DESC
     `);
 
-    const storesList = storeRows.map(store => ({
+    const storesList = storeRows.map(store => {
+      const packageMeta = getPackageMeta(store.packageName);
+
+      return {
       id: `ST-${String(store.storeId).padStart(3, '0')}`,
       name: store.name,
       owner: store.owner,
@@ -181,11 +256,14 @@ const getUsersAndPartners = async (req, res) => {
       rating: Number(store.rating) || 5.0,
       reviews: Number(store.reviews) || 0,
       totalOrders: Number(store.total_orders) || 0,
-      package: store.packageName || "Miễn Phí (Cơ Bản)",
+      package: packageMeta.name,
+      packageLabel: packageMeta.label,
+      packagePrice: packageMeta.price,
       packageExpiry: store.packageExpiry ? new Date(store.packageExpiry).toLocaleDateString('vi-VN') : "Vô hạn",
       status: store.status === 'approved' ? 'Active' : 'Pending',
       joinedAt: new Date(store.created_at).toLocaleDateString('vi-VN')
-    }));
+      };
+    });
 
     const usersList = userRows.map(user => ({
       id: `US-${String(user.id).padStart(3, '0')}`,
@@ -218,28 +296,39 @@ const getRevenueStats = async (req, res) => {
     const paymentsRows = paymentsResult[0] || { totalPremium: 0 };
 
     const weekRows = await query(`
-      SELECT DATE_FORMAT(revenue_date, '%d/%m') AS name, count, premium
-      FROM (
-        SELECT DATE(created_at) AS revenue_date,
-               COUNT(id) AS count,
-               COALESCE(SUM(amount), 0) AS premium
-        FROM payments
-        WHERE status = 'PAID'
-          AND order_id IS NULL
-          AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-        GROUP BY DATE(created_at)
-      ) daily_revenue
+      SELECT
+        DATE(created_at) AS revenue_date,
+        COUNT(id) AS count,
+        COALESCE(SUM(amount), 0) AS premium
+      FROM payments
+      WHERE status = 'PAID'
+        AND order_id IS NULL
+        AND DATE(created_at) BETWEEN DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND CURDATE()
+      GROUP BY DATE(created_at)
       ORDER BY revenue_date ASC;
     `);
 
-    const chartData = weekRows.length > 0 ? weekRows.map(r => ({
-      name: r.name,
-      premium: Number(r.premium)
-    })) : [
-      { name: 'T2', premium: 0 },
-      { name: 'T3', premium: 0 },
-      { name: 'T4', premium: 0 }
-    ];
+    const revenueByDate = weekRows.reduce((acc, row) => {
+      const key = new Date(row.revenue_date).toISOString().slice(0, 10);
+      acc[key] = {
+        count: Number(row.count || 0),
+        premium: Number(row.premium || 0),
+      };
+      return acc;
+    }, {});
+
+    const chartData = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - index));
+      const key = date.toISOString().slice(0, 10);
+
+      return {
+        name: date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+        date: key,
+        count: revenueByDate[key]?.count || 0,
+        premium: revenueByDate[key]?.premium || 0,
+      };
+    });
 
     res.status(200).json({
       totalPremium: Number(paymentsRows.totalPremium),
@@ -258,20 +347,41 @@ const getRevenueStats = async (req, res) => {
 const getPackages = async (req, res) => {
   try {
     const rows = await query(`
-      SELECT id, name, price, job_delay_minutes,
-      (SELECT COUNT(*) FROM store_subscriptions WHERE subscription_id = subscriptions.id AND (end_date IS NULL OR end_date >= CURDATE())) AS activeStores
-      FROM subscriptions
+      SELECT
+        CASE
+          WHEN UPPER(sub.name) IN ('PREMIUM', 'PRO') THEN 'PREMIUM'
+          WHEN UPPER(sub.name) = 'VERIFIED' THEN 'VERIFIED'
+          ELSE 'FREE'
+        END AS packageName,
+        COUNT(DISTINCT ss.store_id) AS activeStores
+      FROM subscriptions sub
+      LEFT JOIN store_subscriptions ss
+        ON ss.subscription_id = sub.id
+       AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
+      GROUP BY packageName
     `);
-    
-    const formatData = rows.map(pkg => ({
-      id: pkg.id,
-      name: pkg.name,
-      price: pkg.price == 0 ? "Miễn phí" : `${Number(pkg.price).toLocaleString()}đ`,
-      jobDelayMinutes: pkg.job_delay_minutes,
-      delayLabel: pkg.job_delay_minutes == 0 ? "Nhận việc lập tức" : `Độ trễ AI ${pkg.job_delay_minutes} phút`,
-      isPremium: pkg.price > 0,
-      activeStores: Number(pkg.activeStores) || 0
-    }));
+
+    const activeStoreCounts = rows.reduce((acc, row) => {
+      acc[row.packageName] = Number(row.activeStores) || 0;
+      return acc;
+    }, {});
+
+    const formatData = ['FREE', 'VERIFIED', 'PREMIUM'].map((packageName) => {
+      const pkg = PACKAGE_CATALOG[packageName];
+
+      return {
+        id: packageName,
+        name: pkg.name,
+        label: pkg.label,
+        price: pkg.price === 0 ? "Miễn phí" : `${Number(pkg.price).toLocaleString()}đ`,
+        priceValue: pkg.price,
+        jobDelayMinutes: pkg.jobDelayMinutes,
+        monthlyPromotionLimit: pkg.monthlyPromotionLimit,
+        delayLabel: pkg.jobDelayMinutes === 0 ? "Nhận việc lập tức" : `Độ trễ AI ${pkg.jobDelayMinutes} phút`,
+        isPremium: pkg.price > 0,
+        activeStores: activeStoreCounts[packageName] || 0
+      };
+    });
 
     res.status(200).json(formatData);
   } catch (error) { res.status(500).json({ error: error.message }); }

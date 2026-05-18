@@ -293,10 +293,58 @@ const openCampaignDetail = (campaign) => {
   setShowCampaignDetailModal(true);
 };
 
+const normalizePackageName = (value) => {
+  const packageName = String(value || "").trim().toUpperCase();
+
+  if (packageName === "PREMIUM" || packageName === "PRO") return "PREMIUM";
+  if (packageName === "VERIFIED") return "VERIFIED";
+  return "FREE";
+};
+
 const getPackagePrice = (packageName) => {
-  if (packageName === "VERIFIED") return 500000;
-  if (packageName === "PREMIUM") return 1000000;
+  const normalizedPackageName = normalizePackageName(packageName);
+
+  if (normalizedPackageName === "VERIFIED") return 300000;
+  if (normalizedPackageName === "PREMIUM") return 500000;
   return 0;
+};
+
+const getStoreRegistrationMeta = (status) => {
+  const normalizedStatus = String(status || "").toLowerCase();
+
+  if (!normalizedStatus) {
+    return {
+      title: "Hoàn tất hồ sơ đăng ký cửa hàng",
+      description: "Nhập đầy đủ thông tin cửa hàng rồi gửi hồ sơ để admin kiểm duyệt trước khi nhận yêu cầu sửa chữa.",
+      buttonLabel: "Gửi hồ sơ đăng ký",
+      tone: ["#eff6ff", "#2563eb", "#dbeafe"],
+    };
+  }
+
+  if (normalizedStatus === "pending") {
+    return {
+      title: "Hồ sơ đang chờ admin duyệt",
+      description: "Bạn vẫn có thể chỉnh sửa thông tin. Mỗi lần cập nhật sẽ giúp admin có dữ liệu mới nhất để xét duyệt.",
+      buttonLabel: "Cập nhật hồ sơ chờ duyệt",
+      tone: ["#fff7ed", "#ea580c", "#fed7aa"],
+    };
+  }
+
+  if (normalizedStatus === "rejected") {
+    return {
+      title: "Hồ sơ cửa hàng cần bổ sung",
+      description: "Cập nhật lại thông tin cửa hàng rồi gửi lại để admin xét duyệt lần nữa.",
+      buttonLabel: "Gửi lại hồ sơ xét duyệt",
+      tone: ["#fef2f2", "#dc2626", "#fecaca"],
+    };
+  }
+
+  return {
+    title: "Cửa hàng đã được duyệt",
+    description: "Thông tin bên dưới đang hiển thị với khách hàng. Cập nhật khi có thay đổi về hotline, địa chỉ hoặc giờ làm việc.",
+    buttonLabel: "Cập nhật thông tin cửa hàng",
+    tone: ["#ecfdf5", "#059669", "#bbf7d0"],
+  };
 };
 
 const loadCurrentSubscription = async () => {
@@ -308,7 +356,7 @@ const loadCurrentSubscription = async () => {
     const data = await res.json();
 
     if (data && data.package_name) {
-      setCurrentPackage(data.package_name);
+      setCurrentPackage(normalizePackageName(data.package_name));
     } else {
       setCurrentPackage("FREE");
     }
@@ -335,7 +383,7 @@ const loadPromotionOverview = async () => {
     }
 
     setPromotionOverview({
-      packageName: data.packageName || "FREE",
+      packageName: normalizePackageName(data.packageName),
       monthlyLimit: Number(data.monthlyLimit || 0),
       usedThisMonth: Number(data.usedThisMonth || 0),
       remainingThisMonth: Number(data.remainingThisMonth || 0),
@@ -349,7 +397,7 @@ const loadPromotionOverview = async () => {
     });
 
     if (data.packageName) {
-      setCurrentPackage(data.packageName);
+      setCurrentPackage(normalizePackageName(data.packageName));
     }
   } catch (error) {
     console.error("Lỗi tải overview quảng bá:", error);
@@ -601,12 +649,15 @@ loadCurrentSubscription();
       const data = await response.json();
 
       if (response.ok) {
-        alert("✅ Đã lưu hồ sơ cửa hàng thành công!");
+        const nextStatus = data.status || storeStatus || "pending";
+        alert(`✅ ${data.message || "Đã gửi hồ sơ cửa hàng thành công!"}`);
         localStorage.removeItem(`rejection_shown_${userData.id}`);
-        setStoreInfo((prev) => ({ ...prev, userId: userData.id }));
-        if (!storeStatus) {
-          setStoreStatus("pending");
-        }
+        setStoreInfo((prev) => ({
+          ...prev,
+          id: data.storeId || prev.id,
+          userId: userData.id,
+        }));
+        setStoreStatus(nextStatus);
       } else {
         alert("❌ Lỗi từ Database: " + (data.error || "Không rõ nguyên nhân"));
       }
@@ -1473,6 +1524,49 @@ const handleBroadcastPromotion = async () => {
                   boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                 }}
               >
+                {(() => {
+                  const registrationMeta = getStoreRegistrationMeta(storeStatus);
+
+                  return (
+                    <div
+                      style={{
+                        backgroundColor: registrationMeta.tone[0],
+                        border: `1px solid ${registrationMeta.tone[2]}`,
+                        borderRadius: "14px",
+                        padding: "16px 18px",
+                        display: "flex",
+                        gap: "14px",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "34px",
+                          height: "34px",
+                          borderRadius: "50%",
+                          backgroundColor: "white",
+                          color: registrationMeta.tone[1],
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 900,
+                          flexShrink: 0,
+                        }}
+                      >
+                        i
+                      </div>
+                      <div>
+                        <div style={{ color: "#0f172a", fontWeight: 800, marginBottom: "4px" }}>
+                          {registrationMeta.title}
+                        </div>
+                        <div style={{ color: "#475569", fontSize: "14px", lineHeight: 1.55 }}>
+                          {registrationMeta.description}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                   <div>
                     <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>
@@ -1545,6 +1639,7 @@ const handleBroadcastPromotion = async () => {
 
                   <button
                     type="submit"
+                    disabled={loadingLocation}
                     style={{
                       alignSelf: "flex-end",
                       backgroundColor: "#2563eb",
@@ -1553,10 +1648,11 @@ const handleBroadcastPromotion = async () => {
                       padding: "12px 24px",
                       borderRadius: "8px",
                       fontWeight: "bold",
-                      cursor: "pointer",
+                      cursor: loadingLocation ? "not-allowed" : "pointer",
+                      opacity: loadingLocation ? 0.7 : 1,
                     }}
                   >
-                    Lưu thay đổi
+                    {loadingLocation ? "Đang xử lý..." : getStoreRegistrationMeta(storeStatus).buttonLabel}
                   </button>
                 </form>
 
@@ -2296,7 +2392,7 @@ const handleBroadcastPromotion = async () => {
                   Verified Store
                 </h3>
                 <div style={{ fontSize: "24px", fontWeight: "bold", color: "#0f172a", marginBottom: "24px" }}>
-                  Cửa hàng Uy tín <span style={{ fontSize: "14px", color: "#64748b", fontWeight: "normal" }}>(500,000 vnd)</span>
+                  Cửa hàng Uy tín <span style={{ fontSize: "14px", color: "#64748b", fontWeight: "normal" }}>(300,000 vnd)</span>
                 </div>
                 <div style={{ height: "1px", backgroundColor: "#f1f5f9", margin: "20px 0" }} />
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px", color: "#475569", fontSize: "15px" }}>
@@ -2323,7 +2419,7 @@ const handleBroadcastPromotion = async () => {
                   Premium Partner
                 </h3>
                 <div style={{ fontSize: "24px", fontWeight: "bold", color: "#0f172a", marginBottom: "24px" }}>
-                  Đối tác Chiến lược <span style={{ fontSize: "14px", color: "#64748b", fontWeight: "normal" }}>(1,000,000 vnd)</span>
+                  Đối tác Chiến lược <span style={{ fontSize: "14px", color: "#64748b", fontWeight: "normal" }}>(500,000 vnd)</span>
                 </div>
                 <div style={{ height: "1px", backgroundColor: "#fde68a", margin: "20px 0" }} />
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px", color: "#475569", fontSize: "15px" }}>
@@ -3332,3 +3428,4 @@ const handleBroadcastPromotion = async () => {
     </div>
   );
 }
+

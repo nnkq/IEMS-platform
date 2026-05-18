@@ -45,22 +45,53 @@ exports.updateStoreProfile = (req, res) => {
             // Đã có hồ sơ -> CẬP NHẬT (UPDATE)
             const sql = `
                 UPDATE stores
-                SET store_name=?, phone=?, address=?, description=?, open_time=?, close_time=?, latitude=?, longitude=?
+                SET
+                    store_name=?,
+                    phone=?,
+                    address=?,
+                    description=?,
+                    open_time=?,
+                    close_time=?,
+                    latitude=?,
+                    longitude=?,
+                    status = CASE WHEN status = 'rejected' THEN 'pending' ELSE status END
                 WHERE user_id=?
             `;
             db.query(sql, [storeName, phone, address, description, openTime, closeTime, lat, lng, userId], (err) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.status(200).json({ message: 'Cập nhật hồ sơ thành công!' });
+                emitDataChanged({
+                    entity: 'store',
+                    action: 'profile_updated',
+                    userId,
+                    storeId: results[0].id,
+                });
+                res.status(200).json({
+                    message: results[0].status === 'rejected'
+                        ? 'Đã gửi lại hồ sơ để admin duyệt!'
+                        : 'Cập nhật hồ sơ thành công!',
+                    status: results[0].status === 'rejected' ? 'pending' : results[0].status,
+                    storeId: results[0].id,
+                });
             });
         } else {
             // Chưa có hồ sơ -> TẠO MỚI (INSERT)
             const sql = `
-                INSERT INTO stores (user_id, store_name, phone, address, description, open_time, close_time, latitude, longitude)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO stores (user_id, store_name, phone, address, description, open_time, close_time, latitude, longitude, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             `;
-            db.query(sql, [userId, storeName, phone, address, description, openTime, closeTime, lat, lng], (err) => {
+            db.query(sql, [userId, storeName, phone, address, description, openTime, closeTime, lat, lng], (err, result) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.status(201).json({ message: 'Tạo hồ sơ mới thành công!' });
+                emitDataChanged({
+                    entity: 'store',
+                    action: 'profile_submitted',
+                    userId,
+                    storeId: result.insertId,
+                });
+                res.status(201).json({
+                    message: 'Đã gửi hồ sơ đăng ký cửa hàng để admin duyệt!',
+                    status: 'pending',
+                    storeId: result.insertId,
+                });
             });
         }
     });

@@ -6,13 +6,13 @@ const promiseDb = db.promise();
 const PACKAGE_MAP = {
   VERIFIED: {
     name: 'VERIFIED',
-    price: 500000,
+    price: 300000,
     job_delay_minutes: 30,
     monthly_promotion_limit: 0,
   },
   PREMIUM: {
     name: 'PREMIUM',
-    price: 1000000,
+    price: 500000,
     job_delay_minutes: 0,
     monthly_promotion_limit: 10,
   },
@@ -34,6 +34,14 @@ const normalizeString = (value) => {
   return String(value).trim();
 };
 
+const normalizePackageName = (value) => {
+  const packageName = normalizeString(value).toUpperCase();
+
+  if (packageName === 'PREMIUM' || packageName === 'PRO') return 'PREMIUM';
+  if (packageName === 'VERIFIED') return 'VERIFIED';
+  return 'FREE';
+};
+
 const normalizeDateTime = (value) => {
   if (!value) return null;
 
@@ -51,7 +59,7 @@ const normalizeDateTime = (value) => {
 };
 
 const getPromotionLimitByPackage = (packageName) => {
-  const pkg = PACKAGE_MAP[packageName] || PACKAGE_MAP.FREE;
+  const pkg = PACKAGE_MAP[normalizePackageName(packageName)] || PACKAGE_MAP.FREE;
   return Number(pkg.monthly_promotion_limit || 0);
 };
 
@@ -131,7 +139,8 @@ const ensurePromotionSchema = async () => {
 };
 
 const getOrCreateSubscriptionId = async (packageName) => {
-  const pkg = PACKAGE_MAP[packageName] || PACKAGE_MAP.FREE;
+  const normalizedPackageName = normalizePackageName(packageName);
+  const pkg = PACKAGE_MAP[normalizedPackageName] || PACKAGE_MAP.FREE;
   const [rows] = await promiseDb.query(
     'SELECT id FROM subscriptions WHERE name = ? LIMIT 1',
     [pkg.name]
@@ -170,7 +179,14 @@ const getActivePackageByStoreId = async (storeId) => {
     INNER JOIN subscriptions s ON s.id = ss.subscription_id
     WHERE ss.store_id = ?
       AND (ss.end_date IS NULL OR ss.end_date >= CURDATE())
-    ORDER BY COALESCE(ss.end_date, '9999-12-31') DESC, ss.id DESC
+    ORDER BY
+      CASE
+        WHEN UPPER(s.name) IN ('PREMIUM', 'PRO') THEN 0
+        WHEN UPPER(s.name) = 'VERIFIED' THEN 1
+        ELSE 2
+      END,
+      COALESCE(ss.end_date, '9999-12-31') DESC,
+      ss.id DESC
     LIMIT 1
     `,
     [storeId]
@@ -231,7 +247,7 @@ const getStorePromotionOverviewData = async (userId) => {
   if (!store) return null;
 
   const activePackage = await getActivePackageByStoreId(store.id);
-  const packageName = activePackage?.package_name || 'FREE';
+  const packageName = normalizePackageName(activePackage?.package_name);
   const monthlyLimit = getPromotionLimitByPackage(packageName);
   const usedThisMonth = await getCampaignUsageThisMonth(store.id);
 
@@ -501,14 +517,16 @@ exports.upgradeSubscription = async (req, res) => {
   try {
     const {
       userId,
-      packageName,
+      packageName: requestedPackageName,
       durationDays,
       paymentMethod,
       paymentType,
       isMockPayment,
     } = req.body;
 
-    if (!userId || !packageName) {
+    const packageName = normalizePackageName(requestedPackageName);
+
+    if (!userId || !requestedPackageName) {
       return res.status(400).json({ error: 'Thiếu userId hoặc packageName' });
     }
 
@@ -647,7 +665,7 @@ exports.broadcastPromotion = async (req, res) => {
     }
 
     const activePackage = await getActivePackageByStoreId(store.id);
-    const packageName = activePackage?.package_name || 'FREE';
+    const packageName = normalizePackageName(activePackage?.package_name);
 
     if (packageName !== 'PREMIUM') {
       return res.status(403).json({

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 
 const adminTabIds = new Set(['approval', 'orders', 'users', 'revenue', 'packages']);
 
@@ -351,11 +351,21 @@ export default function AdminDashboard() {
         if (!data || data.length === 0) return null;
         const maxVal = Math.max(1, ...data.map(d => Number(d.premium) || 0));
         return (
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 120, padding: '0 4px', overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', alignItems: 'end', gap: 12, height: 150, padding: '8px 4px 0' }}>
                 {data.map((d, i) => (
-                    <div key={i} style={{ flex: 1, minWidth: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 90 }}>
-                            <div style={{ width: 14, height: `${((Number(d.premium) || 0) / maxVal) * 90}px`, backgroundColor: '#f97316', borderRadius: '3px 3px 0 0', transition: 'height 0.4s' }} title={`Doanh thu gói: ${Number(d.premium || 0).toLocaleString()}đ`} />
+                    <div key={i} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: 100, width: '100%', borderBottom: '1px solid #e2e8f0' }}>
+                            <div
+                                style={{
+                                    width: 18,
+                                    minHeight: Number(d.premium || 0) > 0 ? 4 : 0,
+                                    height: `${((Number(d.premium) || 0) / maxVal) * 100}px`,
+                                    backgroundColor: Number(d.premium || 0) > 0 ? '#f97316' : '#e2e8f0',
+                                    borderRadius: '4px 4px 0 0',
+                                    transition: 'height 0.4s',
+                                }}
+                                title={`Doanh thu gói: ${Number(d.premium || 0).toLocaleString()}đ`}
+                            />
                         </div>
                         <span style={{ fontSize: 11, color: '#94a3b8' }}>{d.name}</span>
                     </div>
@@ -815,11 +825,13 @@ export default function AdminDashboard() {
                                 {packages.map((pkg) => {
                                     const isFree = pkg.price === 'Miễn phí';
                                     const accentColor = pkg.name === 'PREMIUM' ? '#d97706' : pkg.name === 'VERIFIED' ? '#2563eb' : '#64748b';
+                                    const broadcastLimitText = pkg.monthlyPromotionLimit > 0 ? `${pkg.monthlyPromotionLimit} lượt broadcast / tháng` : 'Không có broadcast hàng loạt';
                                     const monthlyLimitLabel = pkg.name === 'PREMIUM' ? '10 lượt broadcast / tháng' : 'Không có broadcast hàng loạt';
 
                                     return (
                                         <div key={pkg.id} style={{ backgroundColor: 'white', borderRadius: 20, padding: 24, border: `2px solid ${isFree ? '#e2e8f0' : accentColor}` }}>
                                             <div style={{ color: accentColor, fontSize: 13, fontWeight: 800, letterSpacing: 1, marginBottom: 10 }}>{pkg.name}</div>
+                                            <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{pkg.label || pkg.name}</div>
                                             <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{pkg.price}</div>
                                             <div style={{ color: '#64748b', fontSize: 14, marginBottom: 18 }}>{pkg.delayLabel}</div>
                                             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 18 }}>
@@ -829,7 +841,7 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#64748b' }}>
                                                     <span>Quảng bá hàng loạt</span>
-                                                    <strong style={{ color: pkg.name === 'PREMIUM' ? '#059669' : '#94a3b8' }}>{monthlyLimitLabel}</strong>
+                                                    <strong style={{ color: pkg.name === 'PREMIUM' ? '#059669' : '#94a3b8' }}>{broadcastLimitText || monthlyLimitLabel}</strong>
                                                 </div>
                                             </div>
                                             <div style={{ color: '#475569', fontSize: 14, lineHeight: 1.8 }}>
@@ -851,8 +863,18 @@ export default function AdminDashboard() {
                                     <span style={s.badge('#ea580c', '#fff7ed')}>{promotionAdminData.summary?.pendingApprovals || 0} chiến dịch chờ duyệt</span>
                                 </div>
 
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ ...s.table, minWidth: 1100 }}>
+                                <div style={{ overflowX: 'hidden' }}>
+                                    <table style={{ ...s.table, tableLayout: 'fixed' }}>
+                                        <colgroup>
+                                            <col style={{ width: '13%' }} />
+                                            <col style={{ width: '25%' }} />
+                                            <col style={{ width: '10%' }} />
+                                            <col style={{ width: '12%' }} />
+                                            <col style={{ width: '7%' }} />
+                                            <col style={{ width: '7%' }} />
+                                            <col style={{ width: '7%' }} />
+                                            <col style={{ width: '19%' }} />
+                                        </colgroup>
                                         <thead>
                                             <tr>
                                                 <th style={s.th}>Cửa hàng</th>
@@ -862,7 +884,7 @@ export default function AdminDashboard() {
                                                 <th style={s.th}>Người nhận</th>
                                                 <th style={s.th}>Mở / xem</th>
                                                 <th style={s.th}>Click</th>
-                                                <th style={{ ...s.th, textAlign: 'right' }}>Hành động</th>
+                                                <th style={{ ...s.th, paddingLeft: 0, paddingRight: 0, textAlign: 'center' }}>Hành động</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -902,16 +924,16 @@ export default function AdminDashboard() {
                                                             <td style={s.td}><strong>{campaign.recipients || 0}</strong></td>
                                                             <td style={s.td}><strong>{campaign.opened || 0}</strong><div style={{ fontSize: 11, color: '#94a3b8' }}>{campaign.openRate || 0}%</div></td>
                                                             <td style={s.td}><strong>{campaign.clicked || 0}</strong><div style={{ fontSize: 11, color: '#94a3b8' }}>{campaign.clickRate || 0}%</div></td>
-                                                            <td style={{ ...s.td, textAlign: 'right' }}>
-                                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-                                                                    <button onClick={() => openCampaignDetail(campaign)} style={{ ...s.btn('#f8fafc', '#0f172a', '1px solid #cbd5e1'), padding: '8px 12px' }}>Xem chi tiết</button>
+                                                            <td style={{ ...s.td, paddingLeft: 0, paddingRight: 0, textAlign: 'center' }}>
+                                                                <div style={{ width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                                                    <button onClick={() => openCampaignDetail(campaign)} style={{ ...s.btn('#f8fafc', '#0f172a', '1px solid #cbd5e1'), width: 150, boxSizing: 'border-box', padding: '8px 10px' }}>Xem chi tiết</button>
                                                                     {campaign.status === 'PENDING_APPROVAL' ? (
-                                                                        <>
-                                                                            <button onClick={() => handleApprovePromotion(campaign.id)} style={{ ...s.btn('#2563eb', 'white'), padding: '8px 12px' }}>Duyệt</button>
-                                                                            <button onClick={() => handleRejectPromotion(campaign.id)} style={{ ...s.btn('#fee2e2', '#dc2626', '1px solid #fecaca'), padding: '8px 12px' }}>Từ chối</button>
-                                                                        </>
+                                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: 150 }}>
+                                                                            <button onClick={() => handleApprovePromotion(campaign.id)} style={{ ...s.btn('#2563eb', 'white'), boxSizing: 'border-box', padding: '8px 8px', fontSize: 12 }}>Duyệt</button>
+                                                                            <button onClick={() => handleRejectPromotion(campaign.id)} style={{ ...s.btn('#fee2e2', '#dc2626', '1px solid #fecaca'), boxSizing: 'border-box', padding: '8px 8px', fontSize: 12 }}>Từ chối</button>
+                                                                        </div>
                                                                     ) : (
-                                                                        <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>{campaign.approvedByName ? `Admin: ${campaign.approvedByName}` : 'Đã xử lý'}</span>
+                                                                        <span style={{ display: 'block', width: 150, fontSize: 12, color: '#64748b', lineHeight: 1.4, textAlign: 'center' }}>{campaign.approvedByName ? `Admin: ${campaign.approvedByName}` : 'Đã xử lý'}</span>
                                                                     )}
                                                                 </div>
                                                             </td>
@@ -940,13 +962,12 @@ export default function AdminDashboard() {
                                             <th style={s.th}>Gói Quảng Bá</th>
                                             <th style={s.th}>Hiệu Lực</th>
                                             <th style={s.th}>Doanh Thu Thu Được</th>
-                                            <th style={{ ...s.th, textAlign: 'right' }}>Hành Động</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {usersData.storesList.length === 0 ? (
                                             <tr>
-                                                <td colSpan={5} style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>Chưa có cửa hàng nào đăng ký.</td>
+                                                <td colSpan={4} style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>Chưa có cửa hàng nào đăng ký.</td>
                                             </tr>
                                         ) : (
                                             usersData.storesList.map(store => {
@@ -958,21 +979,15 @@ export default function AdminDashboard() {
                                                             <div style={{ fontSize: 12, color: '#94a3b8' }}>ID: {store.id} • {store.owner}</div>
                                                         </td>
                                                         <td style={s.td}>
-                                                            <span style={{ ...s.badge(isPremium ? '#d97706' : '#64748b', isPremium ? '#fffbeb' : '#f1f5f9'), border: isPremium ? '1px solid #fde68a' : 'none' }}>{store.package}</span>
+                                                            <span style={{ ...s.badge(store.package === 'PREMIUM' ? '#d97706' : store.package === 'VERIFIED' ? '#2563eb' : '#64748b', store.package === 'PREMIUM' ? '#fffbeb' : store.package === 'VERIFIED' ? '#eff6ff' : '#f1f5f9'), border: store.package === 'PREMIUM' ? '1px solid #fde68a' : store.package === 'VERIFIED' ? '1px solid #bfdbfe' : 'none' }}>{store.packageLabel || store.package}</span>
                                                         </td>
                                                         <td style={s.td}>
                                                             <div style={{ fontWeight: 600 }}>Hết hạn: {store.packageExpiry}</div>
                                                             <div style={{ fontSize: 11, color: '#94a3b8' }}>Ngày ĐK: {store.joinedAt}</div>
                                                         </td>
                                                         <td style={s.td}>
-                                                            <div style={{ fontWeight: 800, color: '#059669' }}>{isPremium ? (store.package?.includes('Chiến lược') || store.package?.includes('PREMIUM') ? '1,000,000đ' : '500,000đ') : '0đ'}</div>
+                                                            <div style={{ fontWeight: 800, color: '#059669' }}>{Number(store.packagePrice || 0).toLocaleString()}đ</div>
                                                             <div style={{ fontSize: 11, color: '#94a3b8' }}>Đã thanh toán</div>
-                                                        </td>
-                                                        <td style={{ ...s.td, textAlign: 'right' }}>
-                                                            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                                                                <button style={{ ...s.btn('#f1f5f9', '#475569'), padding: '6px 12px', fontSize: 12 }}>Gia hạn</button>
-                                                                <button style={{ ...s.btn('#eff6ff', '#2563eb'), padding: '6px 12px', fontSize: 12 }}>Sửa</button>
-                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );

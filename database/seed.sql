@@ -226,9 +226,9 @@ INSERT INTO quotes (request_id, store_id, price, message, estimated_time, status
 --  12. SUBSCRIPTIONS - Sample data
 -- ============================================================
 INSERT INTO subscriptions (name, price, job_delay_minutes) VALUES
-('Basic', 50000, 60),
-('Premium', 150000, 15),
-('Pro', 300000, 5);
+('FREE', 0, 60),
+('VERIFIED', 300000, 30),
+('PREMIUM', 500000, 0);
 
 -- ============================================================
 --  13. STORE SUBSCRIPTIONS - Sample data
