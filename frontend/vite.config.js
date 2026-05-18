@@ -6,9 +6,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    allowedHosts: [
-      'procedure-snowbound-seclusion.ngrok-free.dev',
-    ],
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
