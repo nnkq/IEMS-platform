@@ -774,114 +774,6 @@
     color: #1e293b;
   }
 
-  .iems-root .request-image-panel {
-    display: grid;
-    gap: 10px;
-  }
-
-  .iems-root .request-image-grid,
-  .iems-root .summary-image-strip,
-  .iems-root .tracked-image-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .iems-root .request-image-preview {
-    position: relative;
-    aspect-ratio: 4 / 3;
-    overflow: visible;
-    border: 1px solid #dbe3ef;
-    border-radius: 8px;
-    background: #f8fafc;
-  }
-
-  .iems-root .request-image-preview img,
-  .iems-root .summary-image-strip img,
-  .iems-root .tracked-image-grid img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-    border-radius: 8px;
-  }
-
-  .iems-root .summary-image-strip {
-    width: min(230px, 100%);
-  }
-
-  .iems-root .summary-image-strip img {
-    height: 60px;
-    border: 1px solid #e2e8f0;
-  }
-
-  .iems-root .tracked-image-grid img {
-    height: 180px;
-    border: 1px solid #e2e8f0;
-  }
-
-  .iems-root .request-image-remove {
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 999px;
-    background: #ef4444;
-    color: #fff;
-    cursor: pointer;
-    font-weight: 800;
-    font-size: 20px;
-    line-height: 1;
-    padding: 0;
-    box-shadow: 0 8px 18px rgba(239, 68, 68, 0.28);
-  }
-
-  .iems-root .image-upload-box {
-    min-height: 96px;
-    display: grid;
-    place-items: center;
-    gap: 3px;
-    padding: 14px;
-    border: 2px dashed #cbd5e1;
-    border-radius: 8px;
-    background: #f8fafc;
-    color: #0f172a;
-    cursor: pointer;
-    text-align: center;
-    transition: border-color 0.2s ease, background 0.2s ease;
-  }
-
-  .iems-root .image-upload-box:hover {
-    border-color: #2563eb;
-    background: #eff6ff;
-  }
-
-  .iems-root .image-upload-icon {
-    width: 28px;
-    height: 28px;
-    display: inline-grid;
-    place-items: center;
-    border-radius: 999px;
-    background: #2563eb;
-    color: #fff;
-    font-size: 20px;
-    font-weight: 800;
-  }
-
-  .iems-root .image-upload-title {
-    font-weight: 800;
-  }
-
-  .iems-root .image-upload-note {
-    color: #64748b;
-    font-size: 0.82rem;
-  }
-
   .iems-root input,
   .iems-root select,
   .iems-root textarea {
@@ -2384,4 +2276,25 @@
     display: flex;
     flex-direction: column;
     margin-top: -6px;
+  }
+
+  .iems-root .main-area.main-area--ai-chat .main-topbar {
+    padding: 10px 16px;
+    margin-bottom: 10px;
+    border-radius: 16px;
+  }
+
+  .iems-root .main-area.main-area--ai-chat .topbar-copy h1 {
+    font-size: 1.08rem;
+  }
+
+  .iems-root .main-area.main-area--ai-chat .search-shell.compact {
+    height: 42px;
+    min-height: 42px;
+  }
+
+  .iems-root .main-area.main-area--ai-chat .notification-button {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
   }

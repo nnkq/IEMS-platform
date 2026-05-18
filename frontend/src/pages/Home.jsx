@@ -13,8 +13,14 @@ import {
 import StoreChatPanel from "../components/StoreChatPanel";
 import AiDiagnosisWorkspace from "../components/AiDiagnosisWorkspace";
 import { createOrGetConversationByRequest } from "../api/chatApi";
-import { diagnoseDevice } from "../api/aiApi";
-import { changeMyPassword } from "../api/authApi";
+import {
+  createAiChatSession,
+  diagnoseDevice,
+  getAiChatSession,
+  listAiChatSessions,
+  updateAiChatSession,
+  uploadAiChatImage,
+} from "../api/aiApi";
 
 const pageMeta = {
   home: {
@@ -52,49 +58,12 @@ const navItems = [
   { key: "profile", icon: "☺", title: "Hồ sơ", subtitle: "Tài khoản cá nhân" },
 ];
 
-const validHomePages = new Set(Object.keys(pageMeta));
-
-function getInitialActivePage() {
-  const page = new URLSearchParams(window.location.search).get("page");
-  return validHomePages.has(page) ? page : "home";
-}
-
-function syncHomePageUrl(page) {
-  const nextUrl = page === "home" ? "/home" : `/home?page=${encodeURIComponent(page)}`;
-  if (window.location.pathname + window.location.search !== nextUrl) {
-    window.history.pushState({ page }, "", nextUrl);
-  }
-}
-
 const quickPrompts = [
   "Màn hình iPhone bị sọc xanh và cảm ứng chập chờn",
   "Laptop nóng, quạt quay to rồi tự tắt",
   "Điện thoại vào nước, loa nhỏ và mic rè",
   "Robot hút bụi không sạc được và dừng sau 5 phút",
 ];
-
-const MAX_REQUEST_IMAGES = 3;
-
-function parseRequestImages(value) {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.filter(Boolean).slice(0, MAX_REQUEST_IMAGES);
-
-  if (typeof value !== "string") return [];
-
-  const cleanValue = value.trim();
-  if (!cleanValue) return [];
-
-  try {
-    const parsed = JSON.parse(cleanValue);
-    if (Array.isArray(parsed)) {
-      return parsed.filter(Boolean).slice(0, MAX_REQUEST_IMAGES);
-    }
-  } catch (error) {
-    // Old requests store a single image directly in this field.
-  }
-
-  return [cleanValue];
-}
 
 function formatVND(value) {
   return new Intl.NumberFormat("vi-VN", {
@@ -162,6 +131,56 @@ function getAiReply(text) {
 
 function formatChatTimeLabel() {
   return new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+}
+
+function buildWelcomeChatMessages() {
+  return [
+    {
+      role: "ai",
+      title: "Trợ lý IEMS",
+      time: formatChatTimeLabel(),
+      text: "Xin chào, tôi có thể giúp bạn sơ bộ chẩn đoán lỗi thiết bị và gợi ý hướng xử lý phù hợp.",
+    },
+  ];
+}
+
+function serializeChatMessagesForSave(messages = []) {
+  return messages
+    .filter((msg) => !msg?.pending)
+    .map((msg) => {
+      const base = {
+        role: msg.role,
+        title: msg.title,
+        time: msg.time,
+        text: msg.text || "",
+        diagnosisCard: msg.diagnosisCard || null,
+        showRepairCta: Boolean(msg.showRepairCta),
+      };
+      if (Array.isArray(msg.images) && msg.images.length > 0) {
+        base.images = msg.images.map((img) => ({
+          url: img.url,
+          name: img.name || "",
+        }));
+      }
+      return base;
+    });
+}
+
+function estimatePriceFromDiagnosis(diagnosis) {
+  const prices = [];
+  if (Array.isArray(diagnosis?.price_sources)) {
+    diagnosis.price_sources.forEach((item) => {
+      const value = Number(item?.price);
+      if (Number.isFinite(value) && value > 0) prices.push(value);
+    });
+  }
+  if (Array.isArray(diagnosis?.recommended_stores)) {
+    diagnosis.recommended_stores.forEach((item) => {
+      const value = Number(item?.estimated_price);
+      if (Number.isFinite(value) && value > 0) prices.push(value);
+    });
+  }
+  return prices.length ? Math.min(...prices) : null;
 }
 
 /**
@@ -665,20 +684,8 @@ export default function Home() {
   const [nearbyStores, setNearbyStores] = useState([]);
   const [nearbyStoresLoading, setNearbyStoresLoading] = useState(false);
 
-  const [activePage, setActivePage] = useState(() => getInitialActivePage());
+  const [activePage, setActivePage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setActivePage(getInitialActivePage());
-      setSidebarOpen(false);
-      setSelectedStoreDetail(null);
-      setNotificationOpen(false);
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
 
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(false);
@@ -698,13 +705,6 @@ export default function Home() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordMessage, setPasswordMessage] = useState("");
 
   const [userLocation, setUserLocation] = useState({
     lat: null,
@@ -740,30 +740,17 @@ export default function Home() {
   const [trackingError, setTrackingError] = useState("");
 
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState([
-    {
-      role: "ai",
-      title: "Trợ lý IEMS",
-      time: "08:30",
-      text: "Xin chào, tôi có thể giúp bạn sơ bộ chẩn đoán lỗi thiết bị và gợi ý hướng xử lý phù hợp.",
-    },
-    {
-      role: "user",
-      title: "Bạn",
-      time: "08:31",
-      text: "iPhone 12 của tôi bị sọc xanh ở mép trái và cảm ứng lúc được lúc không.",
-    },
-    {
-      role: "ai",
-      title: "Trợ lý IEMS",
-      time: "08:31",
-      text: "Tình trạng này thường liên quan đến màn hình OLED hoặc cáp kết nối bị lỏng sau va đập. Bạn nên sao lưu dữ liệu và tránh tiếp tục đè nén màn hình trước khi mang đi kiểm tra.",
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState(() => buildWelcomeChatMessages());
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatSessions, setChatSessions] = useState([]);
+  const [activeChatSessionId, setActiveChatSessionId] = useState(null);
+  const [chatSessionsLoading, setChatSessionsLoading] = useState(false);
+  const [chatSessionLoading, setChatSessionLoading] = useState(false);
+  const [chatSessionsError, setChatSessionsError] = useState("");
+  const [chatPendingImages, setChatPendingImages] = useState([]);
+  const [chatImageUploading, setChatImageUploading] = useState(false);
 
-  const [imageFiles, setImageFiles] = useState([]);
-  const [imageViewer, setImageViewer] = useState(null);
+  const [imageFile, setImageFile] = useState("");
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   const searchTimeout = useRef(null);
@@ -901,6 +888,156 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [activePage]);
 
+  const activeChatSessionIdRef = useRef(null);
+  useEffect(() => {
+    activeChatSessionIdRef.current = activeChatSessionId;
+  }, [activeChatSessionId]);
+
+  const loadChatSessions = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setChatSessions([]);
+      setChatSessionsError("Đăng nhập để xem và lưu lịch sử chat AI.");
+      return;
+    }
+
+    try {
+      setChatSessionsLoading(true);
+      setChatSessionsError("");
+      const sessions = await listAiChatSessions();
+      setChatSessions(sessions);
+    } catch (error) {
+      console.error("Lỗi tải lịch sử chat AI:", error);
+      setChatSessionsError(
+        error.response?.data?.message || "Không thể tải lịch sử chat. Thử tải lại trang."
+      );
+    } finally {
+      setChatSessionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activePage === "chatbot") {
+      loadChatSessions();
+    }
+  }, [activePage]);
+
+  const persistChatSession = async (messages, diagnosis = null) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const payload = serializeChatMessagesForSave(messages);
+    if (!payload.length) return;
+
+    const estimatedPrice = diagnosis ? estimatePriceFromDiagnosis(diagnosis) : null;
+    const sessionId = activeChatSessionIdRef.current;
+
+    try {
+      const session = sessionId
+        ? await updateAiChatSession(sessionId, payload, estimatedPrice)
+        : await createAiChatSession(payload, estimatedPrice);
+
+      if (!sessionId) {
+        setActiveChatSessionId(session.id);
+        activeChatSessionIdRef.current = session.id;
+      }
+
+      const summary = {
+        id: session.id,
+        title: session.title,
+        preview: session.preview,
+        messageCount: session.messageCount,
+        estimatedPrice: session.estimatedPrice,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+      };
+
+      setChatSessions((prev) => {
+        const others = prev.filter((item) => item.id !== summary.id);
+        return [summary, ...others];
+      });
+      await loadChatSessions();
+    } catch (error) {
+      console.error("Lỗi lưu phiên chat AI:", error);
+      setChatSessionsError(
+        error.response?.data?.message || "Không thể lưu phiên chat. Vui lòng thử lại."
+      );
+    }
+  };
+
+  const handleNewChatSession = () => {
+    if (chatLoading) return;
+    setActiveChatSessionId(null);
+    activeChatSessionIdRef.current = null;
+    setChatMessages(buildWelcomeChatMessages());
+    setChatInput("");
+    setChatPendingImages([]);
+  };
+
+  const handleAddChatImages = async (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/"));
+    if (!files.length) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setChatSessionsError("Đăng nhập để tải ảnh lên chat AI.");
+      return;
+    }
+
+    const remaining = Math.max(0, 3 - chatPendingImages.length);
+    if (remaining <= 0) {
+      setChatSessionsError("Tối đa 3 ảnh mỗi tin nhắn.");
+      return;
+    }
+
+    const batch = files.slice(0, remaining);
+
+    try {
+      setChatImageUploading(true);
+      setChatSessionsError("");
+      const uploaded = [];
+      for (const file of batch) {
+        if (file.size > 6 * 1024 * 1024) {
+          throw new Error(`Ảnh "${file.name}" vượt quá 6MB`);
+        }
+        uploaded.push(await uploadAiChatImage(file));
+      }
+      setChatPendingImages((prev) => [...prev, ...uploaded]);
+    } catch (error) {
+      console.error("Lỗi tải ảnh chat AI:", error);
+      setChatSessionsError(
+        error.response?.data?.message || error.message || "Không thể tải ảnh lên"
+      );
+    } finally {
+      setChatImageUploading(false);
+    }
+  };
+
+  const handleRemoveChatPendingImage = (index) => {
+    setChatPendingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSelectChatSession = async (sessionId) => {
+    if (chatLoading || Number(sessionId) === Number(activeChatSessionId)) return;
+
+    try {
+      setChatSessionLoading(true);
+      const session = await getAiChatSession(sessionId);
+      setActiveChatSessionId(session.id);
+      activeChatSessionIdRef.current = session.id;
+      setChatMessages(
+        session.messages?.length
+          ? session.messages.map((msg) => ({ ...msg, typewriter: false }))
+          : buildWelcomeChatMessages()
+      );
+      setChatInput("");
+      setChatPendingImages([]);
+    } catch (error) {
+      console.error("Lỗi tải phiên chat AI:", error);
+    } finally {
+      setChatSessionLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!pendingTrackedRequestId || !Array.isArray(trackingRequests) || !trackingRequests.length) {
@@ -994,7 +1131,6 @@ export default function Home() {
   };
 
   const openPage = (page) => {
-    syncHomePageUrl(page);
     setActivePage(page);
     setSidebarOpen(false);
     setSelectedStoreDetail(null);
@@ -1069,7 +1205,7 @@ export default function Home() {
     if (!token || !notificationId) return null;
 
     const res = await fetch(
-      `/api/users/notifications/${notificationId}/read`,
+      `http://localhost:5000/api/users/notifications/${notificationId}/read`,
       {
         method: "POST",
         headers: {
@@ -1092,7 +1228,7 @@ export default function Home() {
     if (!token || !notificationId) return null;
 
     const res = await fetch(
-      `/api/users/notifications/${notificationId}/click`,
+      `http://localhost:5000/api/users/notifications/${notificationId}/click`,
       {
         method: "POST",
         headers: {
@@ -1115,7 +1251,7 @@ export default function Home() {
 
     setNotificationActionLoading(true);
     try {
-      const res = await fetch("/api/users/notifications/read-all", {
+      const res = await fetch("http://localhost:5000/api/users/notifications/read-all", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1193,7 +1329,7 @@ export default function Home() {
     try {
       setNotificationLoading(true);
 
-      const res = await fetch("/api/users/me", {
+      const res = await fetch("http://localhost:5000/api/users/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -1239,19 +1375,24 @@ export default function Home() {
   };
 
   const sendChatMessage = async (text) => {
-    const clean = text.trim();
-    if (!clean) return;
-    if (chatLoading) return;
+    const clean = (text || "").trim();
+    const images = [...chatPendingImages];
+    if (!clean && !images.length) return;
+    if (chatLoading || chatImageUploading) return;
 
     const sentAt = formatChatTimeLabel();
+    const userMessage = {
+      role: "user",
+      title: "Bạn",
+      time: sentAt,
+      text: clean,
+      ...(images.length ? { images } : {}),
+    };
 
-    setChatMessages((prev) => [
-      ...prev,
-      { role: "user", title: "Bạn", time: sentAt, text: clean },
-    ]);
+    setChatMessages((prev) => [...prev, userMessage]);
     setChatInput("");
+    setChatPendingImages([]);
 
-    // Pending bubble: workspace renders “thinking steps” while chatLoading is true
     setChatMessages((prev) => [
       ...prev,
       { role: "ai", title: "Trợ lý IEMS", time: "Đang xử lý…", pending: true },
@@ -1259,42 +1400,57 @@ export default function Home() {
 
     setChatLoading(true);
 
-    try {
-      const diagnosis = await diagnoseDevice(clean, "laptop");
-      const { diagnosisCard, plainText, showRepairCta } = buildChatDiagnosisPayload(diagnosis);
+    const symptomForAi =
+      clean ||
+      "Người dùng gửi ảnh thiết bị cần chẩn đoán sơ bộ. Hãy gợi ý hướng kiểm tra phù hợp.";
+    const symptomWithImages =
+      images.length > 0
+        ? `${symptomForAi}\n[Đính kèm ${images.length} ảnh thiết bị]`
+        : symptomForAi;
 
+    try {
+      const diagnosis = await diagnoseDevice(symptomWithImages, "laptop");
+      const { diagnosisCard, plainText, showRepairCta } = buildChatDiagnosisPayload(diagnosis);
+      const aiMessage = {
+        role: "ai",
+        title: "Trợ lý IEMS",
+        time: formatChatTimeLabel(),
+        text: plainText || "",
+        diagnosisCard,
+        showRepairCta: Boolean(showRepairCta && diagnosisCard),
+        typewriter: true,
+      };
+
+      let nextMessages = null;
       setChatMessages((prev) => {
         const withoutLoading = prev.slice(0, -1);
-        return [
-          ...withoutLoading,
-          {
-            role: "ai",
-            title: "Trợ lý IEMS",
-            time: formatChatTimeLabel(),
-            text: plainText || "",
-            diagnosisCard,
-            showRepairCta: Boolean(showRepairCta && diagnosisCard),
-            typewriter: true,
-          },
-        ];
+        nextMessages = [...withoutLoading, aiMessage];
+        return nextMessages;
       });
+      if (nextMessages) {
+        await persistChatSession(nextMessages, diagnosis);
+      }
     } catch (error) {
       console.error("Lỗi gọi AI API:", error);
 
+      const errorMessage = {
+        role: "ai",
+        title: "Trợ lý IEMS",
+        time: formatChatTimeLabel(),
+        text: "Xin lỗi, không thể kết nối đến dịch vụ AI diagnosis. Vui lòng kiểm tra kết nối mạng và thử lại.",
+        typewriter: true,
+        showRepairCta: false,
+      };
+
+      let nextMessages = null;
       setChatMessages((prev) => {
         const withoutLoading = prev.slice(0, -1);
-        return [
-          ...withoutLoading,
-          {
-            role: "ai",
-            title: "Trợ lý IEMS",
-            time: formatChatTimeLabel(),
-            text: "Xin lỗi, không thể kết nối đến dịch vụ AI diagnosis. Vui lòng kiểm tra kết nối mạng và thử lại.",
-            typewriter: true,
-            showRepairCta: false,
-          },
-        ];
+        nextMessages = [...withoutLoading, errorMessage];
+        return nextMessages;
       });
+      if (nextMessages) {
+        await persistChatSession(nextMessages);
+      }
     } finally {
       setChatLoading(false);
     }
@@ -1308,49 +1464,6 @@ export default function Home() {
     }));
   };
 
-  const handlePasswordInputChange = (e) => {
-    const { name, value } = e.target;
-    setPasswordForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleChangePassword = async () => {
-    try {
-      setPasswordSaving(true);
-      setPasswordMessage("");
-
-      if (!passwordForm.currentPassword || !passwordForm.newPassword) {
-        throw new Error("Vui lòng nhập mật khẩu hiện tại và mật khẩu mới");
-      }
-
-      if (passwordForm.newPassword.length < 6) {
-        throw new Error("Mật khẩu mới phải có ít nhất 6 ký tự");
-      }
-
-      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-        throw new Error("Mật khẩu xác nhận không khớp");
-      }
-
-      const res = await changeMyPassword({
-        currentPassword: passwordForm.currentPassword,
-        newPassword: passwordForm.newPassword,
-      });
-
-      setPasswordMessage(res.data?.message || "Đổi mật khẩu thành công");
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    } catch (error) {
-      setPasswordMessage(error.response?.data?.message || error.message || "Không thể đổi mật khẩu");
-    } finally {
-      setPasswordSaving(false);
-    }
-  };
-
   const handleSaveProfile = async () => {
     try {
       setProfileSaving(true);
@@ -1362,7 +1475,7 @@ export default function Home() {
         throw new Error("Bạn chưa đăng nhập");
       }
 
-      const response = await fetch("/api/users/me", {
+      const response = await fetch("http://localhost:5000/api/users/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -1555,7 +1668,7 @@ export default function Home() {
     setAddress("");
     setServiceMode("Mang đến cửa hàng");
     setSymptoms(["Màn hình", "Cảm ứng"]);
-    setImageFiles([]);
+    setImageFile("");
     setUserLocation({ lat: null, lng: null });
     setLocationMeta({ source: "", accuracy: null });
     setAddressSuggestions([]);
@@ -1708,7 +1821,7 @@ export default function Home() {
       nearbyStoresAbortRef.current?.abort();
       nearbyStoresAbortRef.current = controller;
 
-      const res = await fetch("/api/map/stores/nearby", {
+      const res = await fetch("http://localhost:5000/api/map/stores/nearby", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2151,46 +2264,17 @@ export default function Home() {
   }, [activePage]);
 
   const handleImageUpload = (e) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    if (!selectedFiles.length) return;
-
-    const remainingSlots = MAX_REQUEST_IMAGES - imageFiles.length;
-    if (remainingSlots <= 0) {
-      alert(`Bạn chỉ có thể tải tối đa ${MAX_REQUEST_IMAGES} ảnh.`);
-      e.target.value = "";
-      return;
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageFile(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
-
-    const filesToRead = selectedFiles.slice(0, remainingSlots);
-    if (selectedFiles.length > remainingSlots) {
-      alert(`Chỉ nhận thêm ${remainingSlots} ảnh. Tối đa ${MAX_REQUEST_IMAGES} ảnh cho mỗi yêu cầu.`);
-    }
-
-    Promise.all(
-      filesToRead.map(
-        (file) =>
-          new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          })
-      )
-    )
-      .then((images) => {
-        setImageFiles((prev) => [...prev, ...images].slice(0, MAX_REQUEST_IMAGES));
-      })
-      .catch(() => {
-        alert("Không thể đọc ảnh đã chọn. Vui lòng thử lại.");
-      })
-      .finally(() => {
-        e.target.value = "";
-      });
   };
 
-  const removeImage = (index) => {
-    setImageFiles((prev) => prev.filter((_, imageIndex) => imageIndex !== index));
-  };
+  const removeImage = () => setImageFile("");
 
   const loadTrackingRequests = async (isBackground = false) => {
     try {
@@ -2210,17 +2294,6 @@ export default function Home() {
       if (!isBackground) setTrackingLoading(false);
     }
   };
-
-  useEffect(() => {
-    const handleRealtimeDataChanged = () => {
-      loadTrackingRequests(true);
-    };
-
-    window.addEventListener("realtime:data-changed", handleRealtimeDataChanged);
-    return () => {
-      window.removeEventListener("realtime:data-changed", handleRealtimeDataChanged);
-    };
-  }, []);
 
   const handleAcceptQuote = async (requestId) => {
     try {
@@ -2344,7 +2417,7 @@ export default function Home() {
     setLoadingProducts(true);
     try {
       const storeOwnerId = store.user_id || store.id;
-      const res = await fetch(`/api/products/${storeOwnerId}`);
+      const res = await fetch(`http://localhost:5000/api/products/${storeOwnerId}`);
       const data = await res.json();
       setStoreProducts(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -2405,7 +2478,7 @@ export default function Home() {
         brand: brand || null,
         model: model || null,
         symptoms: symptoms.join(", "),
-        image: imageFiles.length ? JSON.stringify(imageFiles) : null,
+        image: imageFile || null,
       };
 
       const res = await createRepairRequest(payload);
@@ -2534,13 +2607,17 @@ export default function Home() {
                 <h1>
                   {activePage === "home"
                     ? header.title || "Trang chủ"
-                    : pageMeta[activePage].title}
+                    : activePage === "chatbot"
+                      ? "Trợ lý AI · Chẩn đoán thiết bị"
+                      : pageMeta[activePage].title}
                 </h1>
-                <p>
-                  {activePage === "home"
-                    ? header.subtitle || "Tổng quan nhanh"
-                    : pageMeta[activePage].subtitle || ""}
-                </p>
+                {activePage !== "chatbot" ? (
+                  <p>
+                    {activePage === "home"
+                      ? header.subtitle || "Tổng quan nhanh"
+                      : pageMeta[activePage].subtitle || ""}
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -3266,50 +3343,101 @@ export default function Home() {
 
                       <div className="form-group" style={{ margin: 0 }}>
                         <label>Hình ảnh thiết bị (Không bắt buộc)</label>
-                        <div className="request-image-panel">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleImageUpload}
-                            style={{ display: "none" }}
-                            id="file-upload"
-                            disabled={imageFiles.length >= MAX_REQUEST_IMAGES}
-                          />
-
-                          {imageFiles.length > 0 && (
-                            <div className="request-image-grid">
-                              {imageFiles.map((image, index) => (
-                                <div className="request-image-preview" key={`request-image-${index}`}>
-                                  <img
-                                    src={image}
-                                    alt={`Ảnh thiết bị ${index + 1}`}
-                                    onClick={() => setImageViewer(image)}
-                                    style={{ cursor: "zoom-in" }}
-                                  />
-                                  <button
-                                    type="button"
-                                    className="request-image-remove"
-                                    onClick={() => removeImage(index)}
-                                    aria-label={`Xóa ảnh ${index + 1}`}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {imageFiles.length < MAX_REQUEST_IMAGES && (
-                            <label htmlFor="file-upload" className="image-upload-box">
-                              <span className="image-upload-icon">+</span>
-                              <span className="image-upload-title">Tải ảnh lên</span>
-                              <span className="image-upload-note">
-                                {imageFiles.length}/{MAX_REQUEST_IMAGES} ảnh
+                        {!imageFile ? (
+                          <div
+                            className="image-upload-box"
+                            style={{
+                              border: "2px dashed #cbd5e1",
+                              padding: "16px",
+                              textAlign: "center",
+                              borderRadius: "12px",
+                              cursor: "pointer",
+                              backgroundColor: "#f8fafc",
+                              transition: "all 0.2s",
+                              height: "100px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyItems: "center",
+                            }}
+                            onMouseOver={(e) =>
+                              (e.currentTarget.style.borderColor = "#3b82f6")
+                            }
+                            onMouseOut={(e) =>
+                              (e.currentTarget.style.borderColor = "#cbd5e1")
+                            }
+                          >
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              style={{ display: "none" }}
+                              id="file-upload"
+                            />
+                            <label
+                              htmlFor="file-upload"
+                              style={{ cursor: "pointer", display: "block", width: "100%" }}
+                            >
+                              <div style={{ fontSize: "24px", marginBottom: "4px" }}>📸</div>
+                              <span
+                                style={{
+                                  fontWeight: "500",
+                                  color: "#0f172a",
+                                  fontSize: "13px",
+                                }}
+                              >
+                                Tải ảnh lên
                               </span>
                             </label>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              position: "relative",
+                              display: "inline-block",
+                              padding: "4px",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              backgroundColor: "#f8fafc",
+                              height: "100px",
+                              width: "100%",
+                            }}
+                          >
+                            <img
+                              src={imageFile}
+                              alt="Preview"
+                              style={{
+                                height: "100%",
+                                width: "100%",
+                                borderRadius: "8px",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={removeImage}
+                              style={{
+                                position: "absolute",
+                                top: "-8px",
+                                right: "-8px",
+                                background: "#ef4444",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "50%",
+                                width: "24px",
+                                height: "24px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                                fontSize: "12px",
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -3610,20 +3738,19 @@ export default function Home() {
                           {address}
                         </strong>
                       </div>
-                      {imageFiles.length > 0 && (
+                      {imageFile && (
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <span style={{ color: "#64748b", minWidth: "100px" }}>Ảnh báo lỗi:</span>
-                          <div className="summary-image-strip">
-                            {imageFiles.map((image, index) => (
-                              <img
-                                src={image}
-                                alt={`Attached ${index + 1}`}
-                                key={`summary-image-${index}`}
-                                onClick={() => setImageViewer(image)}
-                                style={{ cursor: "zoom-in" }}
-                              />
-                            ))}
-                          </div>
+                          <img
+                            src={imageFile}
+                            alt="Attached"
+                            style={{
+                              height: "60px",
+                              borderRadius: "6px",
+                              border: "1px solid #e2e8f0",
+                              objectFit: "cover",
+                            }}
+                          />
                         </div>
                       )}
                     </div>
@@ -4348,20 +4475,20 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {parseRequestImages(selectedTrackedRequest.images?.length ? selectedTrackedRequest.images : selectedTrackedRequest.image).length > 0 && (
+                    {selectedTrackedRequest.image && (
                       <div style={{ marginTop: 20 }}>
                         <h4 style={{ marginBottom: 12 }}>Ảnh đính kèm</h4>
-                        <div className="tracked-image-grid">
-                          {parseRequestImages(selectedTrackedRequest.images?.length ? selectedTrackedRequest.images : selectedTrackedRequest.image).map((image, index) => (
-                            <img
-                              src={image}
-                              alt={`Yêu cầu sửa chữa ${index + 1}`}
-                              key={`tracked-request-image-${index}`}
-                              onClick={() => setImageViewer(image)}
-                              style={{ cursor: "zoom-in" }}
-                            />
-                          ))}
-                        </div>
+                        <img
+                          src={selectedTrackedRequest.image}
+                          alt="Yêu cầu sửa chữa"
+                          style={{
+                            width: "100%",
+                            maxHeight: 260,
+                            objectFit: "cover",
+                            borderRadius: 16,
+                            border: "1px solid #e2e8f0",
+                          }}
+                        />
                       </div>
                     )}
 
@@ -4536,9 +4663,24 @@ export default function Home() {
                 setChatInput={setChatInput}
                 chatLoading={chatLoading}
                 onSend={sendChatMessage}
-                onClearInput={() => setChatInput("")}
+                onClearInput={() => {
+                  setChatInput("");
+                  setChatPendingImages([]);
+                }}
                 quickPrompts={quickPrompts}
                 onOpenRepairRequest={() => openPage("request")}
+                chatSessions={chatSessions}
+                activeChatSessionId={activeChatSessionId}
+                chatSessionsLoading={chatSessionsLoading}
+                chatSessionLoading={chatSessionLoading}
+                onNewChatSession={handleNewChatSession}
+                onSelectChatSession={handleSelectChatSession}
+                chatSessionsError={chatSessionsError}
+                onReloadChatSessions={loadChatSessions}
+                pendingImages={chatPendingImages}
+                chatImageUploading={chatImageUploading}
+                onAddChatImages={handleAddChatImages}
+                onRemovePendingImage={handleRemoveChatPendingImage}
               />
             </section>
           )}
@@ -4644,69 +4786,6 @@ export default function Home() {
                     <div className="setting-card">
                       <div className="section-head">
                         <div>
-                          <span className="eyebrow">BẢO MẬT</span>
-                          <h3 className="section-title">Đổi mật khẩu</h3>
-                        </div>
-                      </div>
-
-                      <div className="form-grid">
-                        <div className="form-group">
-                          <label>Mật khẩu hiện tại</label>
-                          <input
-                            type="password"
-                            name="currentPassword"
-                            value={passwordForm.currentPassword}
-                            onChange={handlePasswordInputChange}
-                            autoComplete="current-password"
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label>Mật khẩu mới</label>
-                          <input
-                            type="password"
-                            name="newPassword"
-                            value={passwordForm.newPassword}
-                            onChange={handlePasswordInputChange}
-                            autoComplete="new-password"
-                          />
-                        </div>
-
-                        <div className="form-group full">
-                          <label>Xác nhận mật khẩu mới</label>
-                          <input
-                            type="password"
-                            name="confirmPassword"
-                            value={passwordForm.confirmPassword}
-                            onChange={handlePasswordInputChange}
-                            autoComplete="new-password"
-                          />
-                        </div>
-                      </div>
-
-                      {passwordMessage && (
-                        <div
-                          className={passwordMessage.toLowerCase().includes("thành công") ? "note-banner success" : "note-banner"}
-                          style={{ marginTop: 16 }}
-                        >
-                          {passwordMessage}
-                        </div>
-                      )}
-
-                      <div style={{ marginTop: 16, textAlign: "right" }}>
-                        <button
-                          className="btn btn-primary"
-                          onClick={handleChangePassword}
-                          disabled={passwordSaving}
-                        >
-                          {passwordSaving ? "Đang đổi..." : "Đổi mật khẩu"}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="setting-card">
-                      <div className="section-head">
-                        <div>
                           <span className="eyebrow">THIẾT BỊ ĐÃ LƯU</span>
                           <h3 className="section-title">Thiết bị từng gửi sửa</h3>
                         </div>
@@ -4764,60 +4843,6 @@ export default function Home() {
         </main>
 
         {activePage !== "chatbot" && <StoreChatPanel />}
-
-        {imageViewer && (
-          <div
-            onClick={() => setImageViewer(null)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 300,
-              backgroundColor: "rgba(15, 23, 42, 0.86)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 24,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setImageViewer(null)}
-              style={{
-                position: "absolute",
-                top: 20,
-                right: 24,
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                border: "none",
-                background: "white",
-                color: "#0f172a",
-                fontSize: 26,
-                cursor: "pointer",
-                padding: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                lineHeight: 1,
-                boxSizing: "border-box",
-              }}
-            >
-              ×
-            </button>
-            <img
-              src={imageViewer}
-              alt="Ảnh phóng to"
-              onClick={(event) => event.stopPropagation()}
-              style={{
-                maxWidth: "94vw",
-                maxHeight: "88vh",
-                objectFit: "contain",
-                borderRadius: 14,
-                background: "white",
-              }}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

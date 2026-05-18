@@ -39,6 +39,22 @@ export default function Profile() {
     return date.toLocaleString("vi-VN");
   };
 
+  const formatAiDiagnosisPreview = (value) => {
+    if (!value) return "Chưa có kết quả";
+    const trimmed = String(value).trim();
+    if (!trimmed.startsWith("{")) return trimmed;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed?.kind === "chat_session" && Array.isArray(parsed.messages)) {
+        const count = parsed.messages.length;
+        return `Phiên chat AI (${count} tin nhắn). Mở Trợ lý AI để xem chi tiết.`;
+      }
+    } catch {
+      return trimmed;
+    }
+    return trimmed;
+  };
+
   const getStatusClass = (status) => {
     switch (status) {
       case "OPEN":
@@ -76,7 +92,7 @@ export default function Profile() {
       }
       setError("");
 
-      const res = await fetch("/api/users/me", {
+      const res = await fetch("http://localhost:5000/api/users/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -309,7 +325,7 @@ export default function Profile() {
 
                       <div className="diagnosis-row">
                         <label>Kết quả AI dự đoán</label>
-                        <p>{item.aiDiagnosis || "Chưa có kết quả"}</p>
+                        <p>{formatAiDiagnosisPreview(item.aiDiagnosis)}</p>
                       </div>
 
                       <div className="diagnosis-row">
