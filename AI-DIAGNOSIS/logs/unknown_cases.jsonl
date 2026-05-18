@@ -1,5 +1,27 @@
 {"timestamp": "2026-04-24T20:36:53.028367", "symptom": "máy giặt đang chạy thì tự ngắt", "predicted_issue": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "message": "Không xác định được thiết bị. Bạn có thể nói rõ là laptop không?"}
 {"timestamp": "2026-04-24T20:41:39.587464", "symptom": "máy giặt bị nhiễm điện", "predicted_issue": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "message": "Không xác định được thiết bị. Bạn có thể nói rõ là laptop không?"}
 {"timestamp": "2026-04-24T20:50:09.639539", "symptom": "máy giặt bị nhiễm điện", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+<<<<<<< Updated upstream
 {"timestamp": "2026-05-06T19:36:21.614259", "symptom": "jkfaskldf àdko", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
 {"timestamp": "2026-05-06T22:33:16.040912", "symptom": "jkfaskldf àdko", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+=======
+{"timestamp": "2026-05-14T21:26:24.103615", "symptom": "hello", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-16T22:18:33.666384", "symptom": "asus vivobook bị giật lag khi chơi game nhẹ trước đó mượt mà", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-16T22:24:18.230943", "symptom": "asus vivobook bị giật lag khi chơi game nhẹ trước đó mượt mà", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-16T23:31:44.625838", "symptom": "asus vivobook bị giật lag khi chơi game nhẹ trước đó mượt mà", "predicted": "unknown_issue", "confidence": 0.744, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-16T23:44:00.124580", "symptom": "Asus VivoBook bị giật lag khi chơi game nhẹ, trước đó mượt mà", "predicted": "unknown_issue", "confidence": 0.744, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-16T23:44:21.568718", "symptom": "Asus VivoBook bị giật lag khi chơi game nhẹ, trước đó mượt mà", "predicted": "unknown_issue", "confidence": 0.744, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-17T14:47:24.483515", "symptom": "tai nghe bị hư một bên ko nghe đc", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "unknown", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-17T14:47:41.579809", "symptom": "tai nghe bị hư một bên không nghe được", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "unknown", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-17T15:00:13.030280", "symptom": "tai nghe của tui chỉ nghe được có một bên thui", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "unknown", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-17T15:02:36.252724", "symptom": "điện thoại của bị tui bị hư loa", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "unknown", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-17T15:02:56.006933", "symptom": "điện thoại của tui bị hư tai nghe", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "unknown", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-18T18:45:38.927288", "symptom": "thế còn điện thoại t thì sao", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "unknown", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-18T18:45:45.647997", "symptom": "sao m gà thế", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "unknown", "correct_label": null, "needs_labeling": true}
+>>>>>>> Stashed changes
+{"timestamp": "2026-05-18T21:32:22.568926", "symptom": "cc", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-18T21:32:48.084047", "symptom": "máy tính sập", "predicted": "unknown_issue", "confidence": 0.9476, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-18T21:40:17.599743", "symptom": "xx", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-18T21:46:00.129762", "symptom": "màn hình sập", "predicted": "system_error", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-18T21:46:25.796622", "symptom": "lap tôi nóng", "predicted": "system_error", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-18T21:49:11.244587", "symptom": "con các", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}

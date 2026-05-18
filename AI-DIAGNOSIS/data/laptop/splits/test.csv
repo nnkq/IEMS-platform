@@ -1,4 +1,5 @@
 id,device_type,symptom_text,image_path,label,severity,recommendation,labels
+<<<<<<< Updated upstream
 lap_0133,laptop,laptop bị nóng nhiều ở khu vực cạnh trái,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
 lap_0023,laptop,chữ trên màn hình bị bóng mờ như có hai lớp chồng lên nhau,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị",0
 unk_0042,phone,không lên nguồn mặc dù có sạc,,unknown,medium,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn,6
@@ -52,3 +53,103 @@ lap_0058,laptop,máy chỉ chạy được khi em cắm điện trực tiếp,,b
 lap_0237,laptop,sau khi nhấn nút nguồn máy không boot tiếp bước nào,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
 lap_0067,laptop,em đổi ổ điện khác rồi mà máy vẫn không nhận sạc,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
 lap_0107,laptop,laptop vừa bật một lúc đã nóng ở chỗ thoát gió,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
+=======
+lap_0204,laptop,máy cứ khởi động lại liên tục mà không vào được windows,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
+lap_0475,laptop,usb port bị cháy mùi khét khi cắm thiết bị vào,,usb_port_issue,medium,"Kiểm tra cổng USB, driver chipset và mainboard",8
+lap_0516,laptop,webcam có nhiều đốm sáng và sọc nhiễu trên hình,,webcam_issue,low,"Kiểm tra quyền camera, driver webcam hoặc thay module camera",9
+lap_0161,laptop,hàng số phía trên không gõ ra được bình thường,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng",3
+lap_0199,laptop,phím enter và space đều hoạt động không ổn định,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng",3
+lap_0094,laptop,laptop không nạp pin dù bộ sạc vẫn bình thường,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
+lap_0368,laptop,laptop kết nối wifi xong vài phút là tự mất mạng,,wifi_network_issue,medium,"Kiểm tra driver Wi-Fi, reset mạng hoặc cập nhật firmware card mạng",6
+lap_0298,laptop,laptop không phát tiếng dù thanh âm lượng vẫn tăng giảm được,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối",5
+lap_0180,laptop,phím chữ cái trên máy bị cứng và khó sử dụng,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng",3
+lap_0276,laptop,máy không có âm thanh ở cả loa ngoài lẫn tai nghe,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối",5
+lap_0266,laptop,âm thanh bị méo khi em mở file nhạc,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối",5
+lap_0498,laptop,cổng usb bị cong chân nên không cắm chặt được,,usb_port_issue,medium,"Kiểm tra cổng USB, driver chipset và mainboard",8
+lap_0012,laptop,"màn hình hiển thị chập chờn, có lúc rõ có lúc mất hình",,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị",0
+lap_0642,laptop,máy báo reboot and select proper boot device do mất ổ boot,,storage_disk_issue,high,"Sao lưu dữ liệu, kiểm tra SMART ổ cứng và thay SSD/HDD nếu cần",11
+lap_0536,laptop,webcam laptop có vệt sọc ngang trên hình video,,webcam_issue,low,"Kiểm tra quyền camera, driver webcam hoặc thay module camera",9
+lap_0021,laptop,mỗi lần chỉnh góc nghiêng thì hình ảnh bị mất đột ngột,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị",0
+lap_0446,laptop,máy em phải bấm cứng touchpad mới nhận click,,touchpad_issue,medium,"Cập nhật driver touchpad, kiểm tra cài đặt hoặc thay module cảm ứng",7
+lap_0645,laptop,laptop không nhận ổ thứ hai sau khi thay ổ chính,,storage_disk_issue,high,"Sao lưu dữ liệu, kiểm tra SMART ổ cứng và thay SSD/HDD nếu cần",11
+lap_0060,laptop,đang cắm sạc nhưng biểu tượng pin vẫn báo yếu,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
+lap_0432,laptop,vùng cảm ứng không nhận thao tác tap to click,,touchpad_issue,medium,"Cập nhật driver touchpad, kiểm tra cài đặt hoặc thay module cảm ứng",7
+lap_0560,laptop,máy em chạy fan to nhưng hiệu năng vẫn rất chậm,,performance_slow_issue,medium,"Kiểm tra RAM, ổ đĩa, malware và tối ưu phần mềm nền",10
+lap_0255,laptop,âm lượng phát ra rất nhỏ dù đã tăng tối đa,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối",5
+lap_0651,laptop,máy không defrag được vì ổ báo lỗi phần cứng,,storage_disk_issue,high,"Sao lưu dữ liệu, kiểm tra SMART ổ cứng và thay SSD/HDD nếu cần",11
+lap_0542,laptop,webcam không hoạt động khi kết nối màn hình ngoài,,webcam_issue,low,"Kiểm tra quyền camera, driver webcam hoặc thay module camera",9
+unk_0049,laptop,máy có dấu hiệu bất thường khi sử dụng,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn,12
+lap_0415,laptop,gesture ba ngón trên touchpad không hoạt động nữa,,touchpad_issue,medium,"Cập nhật driver touchpad, kiểm tra cài đặt hoặc thay module cảm ứng",7
+lap_0251,laptop,loa laptop bị rè khi em mở nhạc,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối",5
+unk_0034,laptop,"máy em từng lỏng nhưng giờ chặt lại, có vấn đề",,unknown,low,"Kiểm tra vít, cơ khí máy tính",12
+lap_0511,laptop,máy em bật camera trong teams nhưng không hiện video,,webcam_issue,low,"Kiểm tra quyền camera, driver webcam hoặc thay module camera",9
+lap_0170,laptop,phím enter bị kẹt cứng khó nhấn xuống,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng",3
+lap_0386,laptop,wifi laptop bị tắt xám và không bật lại được từ phím tắt,,wifi_network_issue,medium,"Kiểm tra driver Wi-Fi, reset mạng hoặc cập nhật firmware card mạng",6
+lap_0262,laptop,âm thanh lúc to lúc nhỏ không ổn định,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối",5
+unk_0013,laptop,sau khi cập nhật hệ thống thì máy không ổn định,,unknown,low,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn,12
+lap_0122,laptop,sau khoảng mười phút là laptop nóng ran và chậm hẳn,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
+lap_0200,laptop,bàn phím không nhận thao tác ở một vùng khá lớn,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng",3
+lap_0124,laptop,máy em nóng quá nên hay tắt ngang giữa chừng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
+lap_0585,laptop,máy em cài thêm ram nhưng laptop vẫn chậm như cũ,,performance_slow_issue,medium,"Kiểm tra RAM, ổ đĩa, malware và tối ưu phần mềm nền",10
+lap_0567,laptop,máy em thấy disk usage 100 phần trăm liên tục trong task manager,,performance_slow_issue,medium,"Kiểm tra RAM, ổ đĩa, malware và tối ưu phần mềm nền",10
+lap_0065,laptop,cắm sạc qua đêm mà sáng dậy pin vẫn chưa đầy,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
+lap_0178,laptop,khi em gõ nhanh thì bàn phím bỏ sót rất nhiều ký tự,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng",3
+lap_0219,laptop,máy vào boot rất lâu rồi đứng luôn,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
+lap_0529,laptop,webcam laptop nhận nhưng hình bị crop chỉ thấy nửa mặt,,webcam_issue,low,"Kiểm tra quyền camera, driver webcam hoặc thay module camera",9
+lap_0378,laptop,máy nhận wifi nhưng chrome báo dns probe finished no internet,,wifi_network_issue,medium,"Kiểm tra driver Wi-Fi, reset mạng hoặc cập nhật firmware card mạng",6
+lap_0563,laptop,"máy mở ứng dụng office rất lâu, icon quay mãi không vào",,performance_slow_issue,medium,"Kiểm tra RAM, ổ đĩa, malware và tối ưu phần mềm nền",10
+lap_0086,laptop,máy cứ báo đang dùng pin dù em đã cắm sạc rồi,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
+lap_0486,laptop,usb port bị oxi hóa nên tiếp xúc kém,,usb_port_issue,medium,"Kiểm tra cổng USB, driver chipset và mainboard",8
+lap_0337,laptop,máy chạy nhưng có cảm giác bất bình thường,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác,12
+lap_0582,laptop,laptop lag khi chạy excel có file lớn,,performance_slow_issue,medium,"Kiểm tra RAM, ổ đĩa, malware và tối ưu phần mềm nền",10
+lap_0252,laptop,máy mất tiếng hoàn toàn dù video vẫn chạy,,audio_issue,medium,"Kiểm tra driver âm thanh, loa và cổng kết nối",5
+lap_0064,laptop,máy đang dùng thì pin rớt phần trăm bất thường,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
+lap_0135,laptop,sau khi mở máy ít phút thì thân máy đã rất nóng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
+lap_0033,laptop,máy không bị tắt nguồn nhưng màn hình không hiện desktop,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị",0
+lap_0401,laptop,máy em dùng usb wifi dongle thì được còn wifi tích hợp thì không,,wifi_network_issue,medium,"Kiểm tra driver Wi-Fi, reset mạng hoặc cập nhật firmware card mạng",6
+lap_0025,laptop,laptop vẫn phát tiếng nhưng không thấy hình ảnh nào trên màn hình,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị",0
+lap_0044,laptop,màn hình laptop có vùng bị tối như bóng đen che lại,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị",0
+lap_0140,laptop,phần quạt kêu to và luồng khí ra rất nóng,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
+lap_0194,laptop,một số nút chỉ hoạt động khi em nhấn rất mạnh,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng",3
+lap_0244,laptop,quá trình mở máy bị đơ từ đầu và không tiếp tục,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
+lap_0408,laptop,con trỏ trên touchpad nhảy lung tung khi em không chạm,,touchpad_issue,medium,"Cập nhật driver touchpad, kiểm tra cài đặt hoặc thay module cảm ứng",7
+lap_0597,laptop,máy em thấy memory compression chiếm nhiều ram,,performance_slow_issue,medium,"Kiểm tra RAM, ổ đĩa, malware và tối ưu phần mềm nền",10
+lap_0144,laptop,quạt gào lớn mà máy vẫn nóng bất thường,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
+lap_0137,laptop,laptop có dấu hiệu quá nhiệt mỗi khi bật lâu,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
+lap_0175,laptop,phím alt bên phải bị liệt hoàn toàn,,keyboard_issue,medium,"Kiểm tra bàn phím, vệ sinh phím và test phần cứng",3
+lap_0206,laptop,ấn nút nguồn nhiều lần mà laptop vẫn im hoàn toàn,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
+lap_0472,laptop,cắm usb vào máy nghe tiếng ting nhưng không thấy ổ đĩa,,usb_port_issue,medium,"Kiểm tra cổng USB, driver chipset và mainboard",8
+lap_0629,laptop,ssd laptop tụt tốc độ đọc ghi xuống rất thấp,,storage_disk_issue,high,"Sao lưu dữ liệu, kiểm tra SMART ổ cứng và thay SSD/HDD nếu cần",11
+lap_0394,laptop,wifi trên máy tính xách tay không bật được dù đã bật airplane mode off,,wifi_network_issue,medium,"Kiểm tra driver Wi-Fi, reset mạng hoặc cập nhật firmware card mạng",6
+unk_0027,other,máy em có vấn đề gì đó,,unknown,high,Cần kiểm tra kỹ lưỡng hoặc yêu cầu thông tin chi tiết hơn,12
+lap_0084,laptop,sạc qua cổng nguồn nhưng máy không có phản ứng gì,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
+lap_0590,laptop,laptop phản hồi chậm khi có nhiều thông báo windows popup,,performance_slow_issue,medium,"Kiểm tra RAM, ổ đĩa, malware và tối ưu phần mềm nền",10
+lap_0202,laptop,máy chớp đèn nguồn rồi tắt luôn ngay sau đó,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
+lap_0491,laptop,usb controller trong device manager báo lỗi code 43,,usb_port_issue,medium,"Kiểm tra cổng USB, driver chipset và mainboard",8
+lap_0127,laptop,máy vừa sạc vừa dùng là nhiệt độ tăng rất cao,,overheating_issue,medium,Vệ sinh quạt tản nhiệt và kiểm tra khe thoát nhiệt,2
+lap_0364,laptop,máy báo limited access dù đã kết nối đúng wifi nhà,,wifi_network_issue,medium,"Kiểm tra driver Wi-Fi, reset mạng hoặc cập nhật firmware card mạng",6
+lap_0627,laptop,ổ cứng nóng bất thường khi chỉ đọc file nhẹ,,storage_disk_issue,high,"Sao lưu dữ liệu, kiểm tra SMART ổ cứng và thay SSD/HDD nếu cần",11
+lap_0226,laptop,laptop tự khởi động lại nhiều lần liên tiếp,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
+unk_0047,other,"cáp hdmi bị hỏng, màn hình không hiện",,unknown,medium,Thay cáp HDMI hoặc sử dụng chuẩn khác,12
+lap_0312,laptop,"máy em vừa cùi bắp, vừa nóng, vừa chạy chậm",,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác,12
+lap_0405,laptop,wifi trên máy tính xách tay chỉ hoạt động khi khởi động lại liên tục,,wifi_network_issue,medium,"Kiểm tra driver Wi-Fi, reset mạng hoặc cập nhật firmware card mạng",6
+lap_0648,laptop,windows trên máy báo error 0x80070017 khi cài từ usb,,storage_disk_issue,high,"Sao lưu dữ liệu, kiểm tra SMART ổ cứng và thay SSD/HDD nếu cần",11
+lap_0445,laptop,touchpad nhạy giật khi tay em hơi ẩm,,touchpad_issue,medium,"Cập nhật driver touchpad, kiểm tra cài đặt hoặc thay module cảm ứng",7
+lap_0543,laptop,máy báo camera failed to start trong ứng dụng học online,,webcam_issue,low,"Kiểm tra quyền camera, driver webcam hoặc thay module camera",9
+lap_0423,laptop,touchpad laptop có tiếng lách cách khi bấm nhưng không di chuyển chuột,,touchpad_issue,medium,"Cập nhật driver touchpad, kiểm tra cài đặt hoặc thay module cảm ứng",7
+lap_0496,laptop,cắm usb vào máy nghe tiếng kêu lạ từ cổng,,usb_port_issue,medium,"Kiểm tra cổng USB, driver chipset và mainboard",8
+lap_0439,laptop,touchpad laptop nhận cảm ứng nhưng không click được,,touchpad_issue,medium,"Cập nhật driver touchpad, kiểm tra cài đặt hoặc thay module cảm ứng",7
+lap_0469,laptop,em cắm usb wifi dongle mà laptop không cài được driver,,usb_port_issue,medium,"Kiểm tra cổng USB, driver chipset và mainboard",8
+lap_0058,laptop,máy chỉ chạy được khi em cắm điện trực tiếp,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
+lap_0002,laptop,máy vẫn lên nguồn nhưng màn hình tối đen không thấy gì,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị",0
+lap_0402,laptop,wifi laptop hay báo authentication problem khi nhập mật khẩu,,wifi_network_issue,medium,"Kiểm tra driver Wi-Fi, reset mạng hoặc cập nhật firmware card mạng",6
+lap_0343,laptop,máy em bị lệch từng chút,,unknown,low,Cần kiểm tra kỹ lưỡng để xác định vấn đề chính xác,12
+lap_0449,laptop,touchpad tự bật lại sau khi em tắt trong settings,,touchpad_issue,medium,"Cập nhật driver touchpad, kiểm tra cài đặt hoặc thay module cảm ứng",7
+lap_0622,laptop,ssd laptop mất partition sau khi mất điện đột ngột,,storage_disk_issue,high,"Sao lưu dữ liệu, kiểm tra SMART ổ cứng và thay SSD/HDD nếu cần",11
+lap_0232,laptop,em không thể khởi động vào hệ điều hành như bình thường,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
+lap_0566,laptop,laptop chạy chậm dù ổ ssd còn nhiều dung lượng trống,,performance_slow_issue,medium,"Kiểm tra RAM, ổ đĩa, malware và tối ưu phần mềm nền",10
+lap_0539,laptop,máy em không thấy tùy chọn camera khi gọi messenger,,webcam_issue,low,"Kiểm tra quyền camera, driver webcam hoặc thay module camera",9
+lap_0081,laptop,máy nhận sạc lúc đầu rồi vài phút sau tự ngắt,,battery_charging_issue,medium,"Kiểm tra bộ sạc, cổng sạc và tình trạng pin",1
+lap_0246,laptop,máy bị lỗi khởi động nên không vào được windows,,boot_issue,high,"Kiểm tra nguồn, RAM, ổ cứng và quá trình khởi động",4
+lap_0022,laptop,màn hình laptop thỉnh thoảng trắng xoá rồi mới trở lại bình thường,,screen_issue,medium,"Kiểm tra cáp màn hình, card đồ họa hoặc tấm nền hiển thị",0
+>>>>>>> Stashed changes
