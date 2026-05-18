@@ -3,8 +3,8 @@ import csv
 import pandas as pd
 from datetime import datetime
 
-INPUT_CSV = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_300_samples.csv"
-OUTPUT_CSV = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_with_unknown.csv"
+INPUT_CSV = "D:/CAPSTONE2/dev3/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_300_samples.csv"
+OUTPUT_CSV = "D:/CAPSTONE2/dev3/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_with_unknown.csv"
 
 # Unknown data samples to add - ambiguous, out-of-scope, or generic issues
 UNKNOWN_SAMPLES = [

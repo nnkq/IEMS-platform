@@ -1,4 +1,5 @@
 import json
+# <<<<<<< Updated upstream
 import pandas as pd
 
 LOG_PATH = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/logs/unknown_cases.jsonl"
@@ -29,3 +30,21 @@ df.to_csv(
 )
 
 print("DONE")
+# =======
+import csv
+
+INPUT_FILE = "unknown_cases.jsonl"
+OUTPUT_FILE = "new_training_data.csv"
+
+with open(INPUT_FILE, "r", encoding="utf-8") as f, \
+     open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as out:
+
+    writer = csv.writer(out)
+    writer.writerow(["text", "label"])
+
+    for line in f:
+        item = json.loads(line)
+
+        if item["correct_label"]:   # chỉ lấy cái đã label
+            writer.writerow([item["symptom"], item["correct_label"]])
+# >>>>>>> Stashed changes

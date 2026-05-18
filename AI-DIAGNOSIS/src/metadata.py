@@ -92,6 +92,105 @@ ISSUE_METADATA = {
         "need_technician": False
     },
 
+# <<<<<<< Updated upstream
+# =======
+    "wifi_network_issue": {
+        "severity": "medium",
+        "causes": [
+            "driver Wi-Fi lỗi",
+            "card mạng hỏng",
+            "cấu hình IP/DNS sai"
+        ],
+        "suggestions": [
+            "reset mạng Windows",
+            "cập nhật driver Wi-Fi",
+            "thử mạng khác để loại trừ router"
+        ],
+        "estimated_price": "100k - 600k",
+        "need_technician": True
+    },
+
+    "touchpad_issue": {
+        "severity": "medium",
+        "causes": [
+            "driver touchpad lỗi",
+            "module cảm ứng hỏng",
+            "cài đặt gesture sai"
+        ],
+        "suggestions": [
+            "cập nhật driver touchpad",
+            "kiểm tra phím tắt bật/tắt touchpad",
+            "dùng chuột ngoài tạm thời"
+        ],
+        "estimated_price": "200k - 900k",
+        "need_technician": True
+    },
+
+    "usb_port_issue": {
+        "severity": "medium",
+        "causes": [
+            "cổng USB lỏng/hỏng",
+            "driver chipset lỗi",
+            "mainboard lỗi cổng"
+        ],
+        "suggestions": [
+            "thử cổng/cáp USB khác",
+            "cập nhật driver chipset",
+            "mang kiểm tra mainboard"
+        ],
+        "estimated_price": "200k - 1.2 triệu",
+        "need_technician": True
+    },
+
+    "webcam_issue": {
+        "severity": "low",
+        "causes": [
+            "driver camera lỗi",
+            "ống kính bẩn",
+            "module webcam hỏng"
+        ],
+        "suggestions": [
+            "kiểm tra quyền camera",
+            "cài lại driver webcam",
+            "lau ống kính hoặc thay module"
+        ],
+        "estimated_price": "150k - 700k",
+        "need_technician": True
+    },
+
+    "performance_slow_issue": {
+        "severity": "medium",
+        "causes": [
+            "RAM không đủ",
+            "ổ đĩa chậm hoặc gần đầy",
+            "phần mềm nền chiếm tài nguyên"
+        ],
+        "suggestions": [
+            "tắt startup không cần thiết",
+            "nâng RAM hoặc thay SSD",
+            "quét malware và dọn ổ đĩa"
+        ],
+        "estimated_price": "300k - 2 triệu",
+        "need_technician": False
+    },
+
+    "storage_disk_issue": {
+        "severity": "high",
+        "causes": [
+            "bad sector ổ cứng",
+            "SSD hỏng firmware",
+            "cáp ổ lỏng"
+        ],
+        "suggestions": [
+            "sao lưu dữ liệu ngay",
+            "chạy kiểm tra SMART",
+            "thay SSD/HDD nếu ổ báo lỗi"
+        ],
+        "estimated_price": "500k - 2.5 triệu",
+        "need_technician": True
+    },
+
+# >>>>>>> Stashed changes
     "unknown": {
         "severity": "unknown",
         "causes": [

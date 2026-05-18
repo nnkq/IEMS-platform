@@ -36,7 +36,8 @@ def is_laptop_related(text):
     strong = any(k in text for k in LAPTOP_KEYWORDS)
     weak = "máy" in text
 
-    issue_keywords = ["nóng", "sập", "không lên", "đen", "treo"]
+    # Cập nhật thêm các từ khóa lỗi phổ biến để bắt diện rộng
+    issue_keywords = ["nóng", "sập", "sập nguồn", "không lên", "đen", "treo", "tự tắt"]
 
     if strong:
         return True
@@ -64,22 +65,24 @@ def keyword_boost(text, label, confidence):
     ]
 
     if any(k in text for k in overheating_keywords):
-        if confidence < 0.8:
+        if label == "unknown" or confidence < 0.8:
             return "overheating_issue", 0.85
 
     # =========================
-    # BATTERY
+    # BATTERY / POWER
     # =========================
     battery_keywords = [
         "sạc không vào",
         "không nhận sạc",
         "pin tụt",
         "sập nguồn",
+        "sập",          
+        "tự tắt",        
         "chai pin"
     ]
 
     if any(k in text for k in battery_keywords):
-        if confidence < 0.8:
+        if label == "unknown" or confidence < 0.8:
             return "battery_charging_issue", 0.85
 
     # =========================
@@ -93,11 +96,11 @@ def keyword_boost(text, label, confidence):
     ]
 
     if any(k in text for k in screen_keywords):
-        if confidence < 0.8:
+        if label == "unknown" or confidence < 0.8:
             return "screen_issue", 0.85
 
+    # 🔥 SỬA TẠI ĐÂY: Đưa dòng này ra ngoài cùng của hàm, không lồng trong `if any(k in text for k in screen_keywords):`
     return label, confidence
-
 
 # ==============================
 # Main diagnose function
@@ -200,29 +203,20 @@ def diagnose(text, device_type="laptop", user_id="default"):
         label, confidence = predict_issue(text)
 
         # ===== rule boost =====
+        # Gọi hàm này trước để kịp thời cứu những ca model bị "unknown" hoặc độ tự tin thấp
         label, confidence = keyword_boost(text, label, confidence)
 
-        # ===== unknown label =====
-        if label == "unknown":
-            result = {
-                "issue": "unknown_issue",
-                "confidence": confidence,
-                "device_type": device_type,
-                "message": "Không nhận diện được lỗi."
-            }
-            log_unknown_case(raw_text, result)
-            return result
-
-        # ===== low confidence =====
-        if confidence < THRESHOLD:
+        # ===== low confidence or fallback detect =====
+        # Di chuyển logic kiểm tra độ tự tin và từ khóa fallback lên TRƯỚC khi từ chối nhận diện lỗi
+        if label == "unknown" or confidence < THRESHOLD:
 
             possible_issue = label
 
-            # fallback detect
+            # fallback detect bằng từ khóa cứng
             if "nóng" in text:
                 possible_issue = "overheating_issue"
 
-            elif "sạc" in text:
+            elif "sạc" in text or "sập" in text or "tắt" in text: # 🔥 SỬA: Thêm bẫy từ khóa tại đây
                 possible_issue = "battery_charging_issue"
 
             elif "màn hình" in text:
@@ -231,7 +225,6 @@ def diagnose(text, device_type="laptop", user_id="default"):
             flow = DIAGNOSTIC_FLOWS.get(possible_issue)
 
             if flow:
-
                 first_question = flow[0]["question"]
 
                 save_context(
@@ -245,6 +238,17 @@ def diagnose(text, device_type="laptop", user_id="default"):
                     "device_type": device_type,
                     "message": first_question
                 }
+
+        # ===== unknown label (Khi cả model lẫn bộ lọc từ khóa đều chịu thua) =====
+        if label == "unknown":
+            result = {
+                "issue": "unknown_issue",
+                "confidence": confidence,
+                "device_type": device_type,
+                "message": "Không nhận diện được lỗi."
+            }
+            log_unknown_case(raw_text, result)
+            return result
 
         # ===== metadata safe =====
         meta = ISSUE_METADATA.get(label)
@@ -288,7 +292,6 @@ def diagnose(text, device_type="laptop", user_id="default"):
             """
         }
 
-        # 🔥 debug log (giữ lại cho demo)
         print(f"[DEBUG] raw='{raw_text}' | norm='{text}' | label={label} | conf={confidence}")
 
         clear_context(user_id)
@@ -296,7 +299,6 @@ def diagnose(text, device_type="laptop", user_id="default"):
         return result
 
     except Exception as e:
-        # 🔥 catch toàn bộ lỗi tránh crash 500
         result = {
             "issue": "system_error",
             "confidence": 0.0,

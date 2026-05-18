@@ -1,8 +1,14 @@
 import pandas as pd
 import os
 
+# <<<<<<< Updated upstream
 INPUT_CSV = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_with_unknown.csv"
 OUTPUT_CSV = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_balanced.csv"
+# =======
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# INPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_with_unknown.csv")
+# OUTPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_balanced.csv")
+# >>>>>>> Stashed changes
 
 def balance_dataset():
     """
@@ -17,12 +23,19 @@ def balance_dataset():
     
     # Danh sách các specific categories
     specific_categories = [
+# <<<<<<< Updated upstream
         "screen_issue", 
         "battery_charging_issue",
         "overheating_issue",
         "keyboard_issue",
         "boot_issue",
-        "audio_issue"
+        "audio_issue",
+        "wifi_network_issue",
+        "touchpad_issue",
+        "usb_port_issue",
+        "webcam_issue",
+        "performance_slow_issue",
+        "storage_disk_issue",
     ]
     
     # Giữ 50 samples cho mỗi specific category
