@@ -25,3 +25,4 @@
 {"timestamp": "2026-05-18T21:46:00.129762", "symptom": "màn hình sập", "predicted": "system_error", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
 {"timestamp": "2026-05-18T21:46:25.796622", "symptom": "lap tôi nóng", "predicted": "system_error", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
 {"timestamp": "2026-05-18T21:49:11.244587", "symptom": "con các", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}
+{"timestamp": "2026-05-18T23:38:21.031295", "symptom": "Điện thoại vào nước, loa nhỏ và mic rè", "predicted": "unknown_issue", "confidence": 0.0, "device_type": "laptop", "correct_label": null, "needs_labeling": true}

@@ -2,13 +2,10 @@ import pandas as pd
 import os
 
 # <<<<<<< Updated upstream
-INPUT_CSV = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_with_unknown.csv"
-OUTPUT_CSV = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_balanced.csv"
-# =======
-# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# INPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_with_unknown.csv")
-# OUTPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_balanced.csv")
-# >>>>>>> Stashed changes
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_with_unknown.csv")
+OUTPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_balanced.csv")
+
 
 def balance_dataset():
     """

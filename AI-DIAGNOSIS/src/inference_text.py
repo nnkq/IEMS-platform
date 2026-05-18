@@ -2,8 +2,13 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from text_preprocessing import normalize_text
+import os
 
-MODEL_PATH = "D:/CAPSTONE2/new/IEMS-platform/AI-DIAGNOSIS/models/text_baseline"
+# Lấy đường dẫn thư mục gốc của dự án (AI-DIAGNOSIS)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Ghép nối đường dẫn đến thư mục chứa model
+MODEL_PATH = os.path.join(BASE_DIR, "models", "text_baseline")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

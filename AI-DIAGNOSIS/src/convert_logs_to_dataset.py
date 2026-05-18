@@ -2,7 +2,13 @@ import json
 # <<<<<<< Updated upstream
 import pandas as pd
 
-LOG_PATH = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/logs/unknown_cases.jsonl"
+import os
+
+# 1. Lấy đường dẫn thư mục gốc (AI-DIAGNOSIS)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 2. Trỏ tới file trong thư mục logs
+LOG_PATH = os.path.join(BASE_DIR, "logs", "unknown_cases.jsonl")
 
 rows = []
 

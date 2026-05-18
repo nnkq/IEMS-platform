@@ -2,9 +2,9 @@ import os
 import csv
 import pandas as pd
 from datetime import datetime
-
-INPUT_CSV = "D:/CAPSTONE2/dev3/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_300_samples.csv"
-OUTPUT_CSV = "D:/CAPSTONE2/dev3/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_with_unknown.csv"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_300_samples.csv")
+OUTPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_with_unknown.csv")
 
 # Unknown data samples to add - ambiguous, out-of-scope, or generic issues
 UNKNOWN_SAMPLES = [

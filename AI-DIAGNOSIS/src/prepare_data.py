@@ -6,14 +6,15 @@ from label_map import label2id
 
 # <<<<<<< Updated upstream
 # Use balanced dataset (350 samples, 50 per category)
-INPUT_CSV = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/processed/laptop_dataset_balanced.csv"
-OUTPUT_DIR = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/splits"
-# =======
-# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# # Balanced dataset: 50 samples per category
-# INPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_balanced.csv")
-# OUTPUT_DIR = os.path.join(BASE_DIR, "data", "laptop", "splits")
-# >>>>>>> Stashed changes
+import os
+
+# 1. Lấy đường dẫn thư mục gốc (AI-DIAGNOSIS)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 2. Ghép nối đường dẫn linh hoạt
+INPUT_CSV = os.path.join(BASE_DIR, "data", "laptop", "processed", "laptop_dataset_balanced.csv")
+OUTPUT_DIR = os.path.join(BASE_DIR, "data", "laptop", "splits")
+
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
