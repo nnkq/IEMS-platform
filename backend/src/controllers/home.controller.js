@@ -147,6 +147,7 @@ const getHomeDashboard = async (req, res) => {
       `
       SELECT
         s.id,
+        s.user_id,
         s.store_name,
         s.address,
         s.google_rating,
@@ -269,6 +270,7 @@ const searchHome = async (req, res) => {
       `
       SELECT
         s.id,
+        s.user_id,
         s.store_name,
         s.address,
         s.google_rating,

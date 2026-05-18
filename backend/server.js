@@ -389,6 +389,42 @@ app.post('/api/technician/login', (req, res) => {
   );
 });
 
+app.put('/api/technician/change-password', async (req, res) => {
+  const { employeeId, currentPassword, newPassword } = req.body;
+
+  if (!employeeId || !currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Thiếu thông tin đổi mật khẩu' });
+  }
+
+  if (String(newPassword).trim().length < 6) {
+    return res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+  }
+
+  try {
+    const [rows] = await db.promise().query(
+      'SELECT id, password FROM employees WHERE id = ? LIMIT 1',
+      [employeeId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: 'Không tìm thấy kỹ thuật viên' });
+    }
+
+    if (String(rows[0].password || '') !== String(currentPassword)) {
+      return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    await db.promise().query('UPDATE employees SET password = ? WHERE id = ?', [
+      String(newPassword).trim(),
+      employeeId,
+    ]);
+
+    return res.json({ message: 'Đổi mật khẩu thành công' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Lỗi server khi đổi mật khẩu', error: err.message });
+  }
+});
+
 // ==========================================
 // SOCKET REALTIME CHAT
 // ==========================================

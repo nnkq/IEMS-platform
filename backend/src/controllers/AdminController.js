@@ -92,6 +92,7 @@ const getAllOrders = async (req, res) => {
       SELECT
         r.id AS request_id, r.title AS request_title, r.status AS request_status, r.created_at AS request_date,
         u.name AS customer, d.name AS device,
+        r.device_type, r.brand, r.model,
         ai.ai_diagnosis AS aiAnalysis, ai.estimated_price AS aiEstimatedPrice,
         s.store_name AS store,
         o.id AS order_id, o.status AS order_status, o.final_price AS total
@@ -104,10 +105,17 @@ const getAllOrders = async (req, res) => {
       ORDER BY r.created_at DESC
     `);
 
-    const formatData = rows.map(row => ({
+    const formatData = rows.map(row => {
+      const requestedDevice = [row.brand, row.model]
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+        .join(' ');
+      const deviceName = requestedDevice || String(row.model || '').trim() || row.device || row.device_type || 'Không rõ thiết bị';
+
+      return {
       id: row.order_id ? `ORD-${String(row.order_id).padStart(4, '0')}` : `REQ-${String(row.request_id).padStart(4, '0')}`,
       customer: row.customer || 'Khách vãng lai',
-      device: row.device || 'Không rõ thiết bị',
+      device: deviceName,
       title: row.request_title,
       date: new Date(row.request_date).toLocaleString('vi-VN'),
       aiAnalysis: row.aiAnalysis || 'Hệ thống đang phân tích...',
@@ -121,7 +129,8 @@ const getAllOrders = async (req, res) => {
         { step: 'Đang Sửa Chữa', time: '---', detail: 'Thợ đang nhận việc', completed: row.order_status === 'IN_PROGRESS' || row.order_status === 'COMPLETED' },
         { step: 'Hoàn Thành', time: '---', detail: 'Bàn giao cho khách', completed: row.order_status === 'COMPLETED' }
       ]
-    }));
+      };
+    });
     res.status(200).json(formatData);
   } catch (error) { res.status(500).json({ error: error.message }); }
 };

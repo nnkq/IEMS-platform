@@ -128,6 +128,13 @@ const [promotionOverview, setPromotionOverview] = useState({
 const [selectedCampaignDetail, setSelectedCampaignDetail] = useState(null);
 const [showCampaignDetailModal, setShowCampaignDetailModal] = useState(false);
 const [imageViewer, setImageViewer] = useState(null);
+const [passwordForm, setPasswordForm] = useState({
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+});
+const [passwordSaving, setPasswordSaving] = useState(false);
+const [passwordMessage, setPasswordMessage] = useState("");
 
   const [employees, setEmployees] = useState([]);
   const [showAddEmployeeForm, setShowAddEmployeeForm] = useState(false);
@@ -485,6 +492,56 @@ loadCurrentSubscription();
 
   const handleInputChange = (e) => {
     setStoreInfo({ ...storeInfo, [e.target.name]: e.target.value });
+  };
+
+  const handlePasswordInputChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordSaving(true);
+    setPasswordMessage("");
+
+    try {
+      if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+        throw new Error("Vui lòng nhập mật khẩu hiện tại và mật khẩu mới");
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        throw new Error("Mật khẩu mới phải có ít nhất 6 ký tự");
+      }
+
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        throw new Error("Mật khẩu xác nhận không khớp");
+      }
+
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Bạn chưa đăng nhập");
+
+      const response = await fetch("http://localhost:5000/api/users/me/change-password", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Không thể đổi mật khẩu");
+
+      setPasswordMessage(data.message || "Đổi mật khẩu thành công");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error) {
+      setPasswordMessage(error.message || "Không thể đổi mật khẩu");
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const handleSaveProfile = async (e) => {
@@ -1095,6 +1152,8 @@ const handleBroadcastPromotion = async () => {
     },
   ];
 
+  const isStoreApproved = String(storeStatus || "").toLowerCase() === "approved";
+
   return (
     <div
       style={{
@@ -1478,6 +1537,101 @@ const handleBroadcastPromotion = async () => {
                     Lưu thay đổi
                   </button>
                 </form>
+
+                {isStoreApproved && (
+                  <form
+                    onSubmit={handleChangePassword}
+                    style={{
+                      marginTop: "28px",
+                      paddingTop: "24px",
+                      borderTop: "1px solid #e2e8f0",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "16px",
+                    }}
+                  >
+                  <div>
+                    <h3 style={{ margin: "0 0 6px", color: "#0f172a", fontSize: "18px" }}>Đổi mật khẩu</h3>
+                    <p style={{ margin: 0, color: "#64748b", fontSize: "14px" }}>
+                      Cập nhật mật khẩu đăng nhập tài khoản cửa hàng.
+                    </p>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px" }}>
+                    <div>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>
+                        Mật khẩu hiện tại
+                      </label>
+                      <input
+                        type="password"
+                        name="currentPassword"
+                        value={passwordForm.currentPassword}
+                        onChange={handlePasswordInputChange}
+                        style={inputStyle}
+                        autoComplete="current-password"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>
+                        Mật khẩu mới
+                      </label>
+                      <input
+                        type="password"
+                        name="newPassword"
+                        value={passwordForm.newPassword}
+                        onChange={handlePasswordInputChange}
+                        style={inputStyle}
+                        autoComplete="new-password"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", marginBottom: "8px", fontWeight: "600", color: "#334155", fontSize: "14px" }}>
+                        Xác nhận mật khẩu
+                      </label>
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        value={passwordForm.confirmPassword}
+                        onChange={handlePasswordInputChange}
+                        style={inputStyle}
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </div>
+
+                  {passwordMessage && (
+                    <div
+                      style={{
+                        padding: "12px 14px",
+                        borderRadius: "8px",
+                        backgroundColor: passwordMessage.toLowerCase().includes("thành công") ? "#ecfdf5" : "#fff7ed",
+                        color: passwordMessage.toLowerCase().includes("thành công") ? "#047857" : "#b45309",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {passwordMessage}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={passwordSaving}
+                    style={{
+                      alignSelf: "flex-end",
+                      backgroundColor: "#2563eb",
+                      color: "white",
+                      border: "none",
+                      padding: "12px 24px",
+                      borderRadius: "8px",
+                      fontWeight: "bold",
+                      cursor: passwordSaving ? "not-allowed" : "pointer",
+                      opacity: passwordSaving ? 0.7 : 1,
+                    }}
+                  >
+                    {passwordSaving ? "Đang đổi..." : "Đổi mật khẩu"}
+                  </button>
+                  </form>
+                )}
               </div>
             </div>
           </div>
@@ -3135,6 +3289,12 @@ const handleBroadcastPromotion = async () => {
               color: "#0f172a",
               fontSize: 26,
               cursor: "pointer",
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 1,
+              boxSizing: "border-box",
             }}
           >
             ×

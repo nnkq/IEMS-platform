@@ -14,6 +14,7 @@ import StoreChatPanel from "../components/StoreChatPanel";
 import AiDiagnosisWorkspace from "../components/AiDiagnosisWorkspace";
 import { createOrGetConversationByRequest } from "../api/chatApi";
 import { diagnoseDevice } from "../api/aiApi";
+import { changeMyPassword } from "../api/authApi";
 
 const pageMeta = {
   home: {
@@ -671,6 +672,13 @@ export default function Home() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
 
   const [userLocation, setUserLocation] = useState({
     lat: null,
@@ -1271,6 +1279,49 @@ export default function Home() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handlePasswordInputChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      setPasswordSaving(true);
+      setPasswordMessage("");
+
+      if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+        throw new Error("Vui lòng nhập mật khẩu hiện tại và mật khẩu mới");
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        throw new Error("Mật khẩu mới phải có ít nhất 6 ký tự");
+      }
+
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        throw new Error("Mật khẩu xác nhận không khớp");
+      }
+
+      const res = await changeMyPassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      setPasswordMessage(res.data?.message || "Đổi mật khẩu thành công");
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      setPasswordMessage(error.response?.data?.message || error.message || "Không thể đổi mật khẩu");
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -4566,6 +4617,69 @@ export default function Home() {
                     <div className="setting-card">
                       <div className="section-head">
                         <div>
+                          <span className="eyebrow">BẢO MẬT</span>
+                          <h3 className="section-title">Đổi mật khẩu</h3>
+                        </div>
+                      </div>
+
+                      <div className="form-grid">
+                        <div className="form-group">
+                          <label>Mật khẩu hiện tại</label>
+                          <input
+                            type="password"
+                            name="currentPassword"
+                            value={passwordForm.currentPassword}
+                            onChange={handlePasswordInputChange}
+                            autoComplete="current-password"
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Mật khẩu mới</label>
+                          <input
+                            type="password"
+                            name="newPassword"
+                            value={passwordForm.newPassword}
+                            onChange={handlePasswordInputChange}
+                            autoComplete="new-password"
+                          />
+                        </div>
+
+                        <div className="form-group full">
+                          <label>Xác nhận mật khẩu mới</label>
+                          <input
+                            type="password"
+                            name="confirmPassword"
+                            value={passwordForm.confirmPassword}
+                            onChange={handlePasswordInputChange}
+                            autoComplete="new-password"
+                          />
+                        </div>
+                      </div>
+
+                      {passwordMessage && (
+                        <div
+                          className={passwordMessage.toLowerCase().includes("thành công") ? "note-banner success" : "note-banner"}
+                          style={{ marginTop: 16 }}
+                        >
+                          {passwordMessage}
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: 16, textAlign: "right" }}>
+                        <button
+                          className="btn btn-primary"
+                          onClick={handleChangePassword}
+                          disabled={passwordSaving}
+                        >
+                          {passwordSaving ? "Đang đổi..." : "Đổi mật khẩu"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="setting-card">
+                      <div className="section-head">
+                        <div>
                           <span className="eyebrow">THIẾT BỊ ĐÃ LƯU</span>
                           <h3 className="section-title">Thiết bị từng gửi sửa</h3>
                         </div>
@@ -4653,6 +4767,12 @@ export default function Home() {
                 color: "#0f172a",
                 fontSize: 26,
                 cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                lineHeight: 1,
+                boxSizing: "border-box",
               }}
             >
               ×

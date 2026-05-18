@@ -3,11 +3,19 @@ const { emitDataChanged } = require('../socket');
 
 // 1. Lấy danh sách sản phẩm
 exports.getProducts = (req, res) => {
-    const userId = req.params.userId;
-    db.query('SELECT * FROM products WHERE user_id = ? ORDER BY id DESC', [userId], (err, results) => {
+    const ownerOrStoreId = req.params.userId;
+    db.query(
+        `SELECT DISTINCT p.*
+         FROM products p
+         LEFT JOIN stores s ON s.user_id = p.user_id
+         WHERE p.user_id = ? OR s.id = ?
+         ORDER BY p.id DESC`,
+        [ownerOrStoreId, ownerOrStoreId],
+        (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.status(200).json(results);
-    });
+        }
+    );
 };
 
 // 2. Thêm sản phẩm mới

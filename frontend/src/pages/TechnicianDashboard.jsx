@@ -51,6 +51,13 @@ export default function TechnicianDashboard() {
   const [quoteEta, setQuoteEta] = useState("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [imageViewer, setImageViewer] = useState(null);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
   const selectedRequestImages = parseRequestImages(
     selectedRequest?.images?.length ? selectedRequest.images : selectedRequest?.image
   );
@@ -108,6 +115,53 @@ export default function TechnicianDashboard() {
   const handleLogout = () => {
     localStorage.removeItem("techUser");
     navigate("/tech-login");
+  };
+
+  const handlePasswordInputChange = (event) => {
+    const { name, value } = event.target;
+    setPasswordForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    if (!techUser?.id) return;
+
+    try {
+      setPasswordSaving(true);
+      setPasswordMessage("");
+
+      if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+        throw new Error("Vui lòng nhập mật khẩu hiện tại và mật khẩu mới");
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        throw new Error("Mật khẩu mới phải có ít nhất 6 ký tự");
+      }
+
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        throw new Error("Mật khẩu xác nhận không khớp");
+      }
+
+      const res = await fetch("http://localhost:5000/api/technician/change-password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employeeId: techUser.id,
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể đổi mật khẩu");
+
+      setPasswordMessage(data.message || "Đổi mật khẩu thành công");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error) {
+      setPasswordMessage(error.message || "Không thể đổi mật khẩu");
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const openDetail = (req) => {
@@ -267,6 +321,48 @@ export default function TechnicianDashboard() {
 
         {loading && <div style={{ ...cardStyle, textAlign: "center" }}>Đang tải đơn được giao...</div>}
 
+        <form
+          onSubmit={handleChangePassword}
+          style={{
+            ...cardStyle,
+            marginBottom: "24px",
+            display: "none",
+            gap: "16px",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: "0 0 6px", color: "#0f172a" }}>Đổi mật khẩu kỹ thuật viên</h3>
+            <p style={{ margin: 0, color: "#64748b" }}>Cập nhật mật khẩu đăng nhập bằng số điện thoại.</p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px" }}>
+            <div>
+              <label style={{ display: "block", marginBottom: "8px", color: "#334155", fontWeight: 700 }}>Mật khẩu hiện tại</label>
+              <input type="password" name="currentPassword" value={passwordForm.currentPassword} onChange={handlePasswordInputChange} autoComplete="current-password" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: "8px", color: "#334155", fontWeight: 700 }}>Mật khẩu mới</label>
+              <input type="password" name="newPassword" value={passwordForm.newPassword} onChange={handlePasswordInputChange} autoComplete="new-password" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: "8px", color: "#334155", fontWeight: 700 }}>Xác nhận mật khẩu</label>
+              <input type="password" name="confirmPassword" value={passwordForm.confirmPassword} onChange={handlePasswordInputChange} autoComplete="new-password" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", boxSizing: "border-box" }} />
+            </div>
+          </div>
+
+          {passwordMessage && (
+            <div style={{ padding: "12px 14px", borderRadius: "8px", background: passwordMessage.toLowerCase().includes("thành công") ? "#ecfdf5" : "#fff7ed", color: passwordMessage.toLowerCase().includes("thành công") ? "#047857" : "#b45309", fontWeight: 700 }}>
+              {passwordMessage}
+            </div>
+          )}
+
+          <div style={{ textAlign: "right" }}>
+            <button type="submit" disabled={passwordSaving} style={{ padding: "10px 18px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: passwordSaving ? "not-allowed" : "pointer", opacity: passwordSaving ? 0.7 : 1 }}>
+              {passwordSaving ? "Đang đổi..." : "Đổi mật khẩu"}
+            </button>
+          </div>
+        </form>
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "24px" }}>
           {assignedRequests.map((req) => (
             <div key={req.id} style={{ ...cardStyle, display: "flex", flexDirection: "column" }}>
@@ -317,6 +413,48 @@ export default function TechnicianDashboard() {
             </div>
           )}
         </div>
+
+        <form
+          onSubmit={handleChangePassword}
+          style={{
+            ...cardStyle,
+            marginTop: "24px",
+            display: "grid",
+            gap: "16px",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: "0 0 6px", color: "#0f172a" }}>Đổi mật khẩu kỹ thuật viên</h3>
+            <p style={{ margin: 0, color: "#64748b" }}>Cập nhật mật khẩu đăng nhập bằng số điện thoại.</p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px" }}>
+            <div>
+              <label style={{ display: "block", marginBottom: "8px", color: "#334155", fontWeight: 700 }}>Mật khẩu hiện tại</label>
+              <input type="password" name="currentPassword" value={passwordForm.currentPassword} onChange={handlePasswordInputChange} autoComplete="current-password" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: "8px", color: "#334155", fontWeight: 700 }}>Mật khẩu mới</label>
+              <input type="password" name="newPassword" value={passwordForm.newPassword} onChange={handlePasswordInputChange} autoComplete="new-password" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", marginBottom: "8px", color: "#334155", fontWeight: 700 }}>Xác nhận mật khẩu</label>
+              <input type="password" name="confirmPassword" value={passwordForm.confirmPassword} onChange={handlePasswordInputChange} autoComplete="new-password" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", boxSizing: "border-box" }} />
+            </div>
+          </div>
+
+          {passwordMessage && (
+            <div style={{ padding: "12px 14px", borderRadius: "8px", background: passwordMessage.toLowerCase().includes("thành công") ? "#ecfdf5" : "#fff7ed", color: passwordMessage.toLowerCase().includes("thành công") ? "#047857" : "#b45309", fontWeight: 700 }}>
+              {passwordMessage}
+            </div>
+          )}
+
+          <div style={{ textAlign: "right" }}>
+            <button type="submit" disabled={passwordSaving} style={{ padding: "10px 18px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: passwordSaving ? "not-allowed" : "pointer", opacity: passwordSaving ? 0.7 : 1 }}>
+              {passwordSaving ? "Đang đổi..." : "Đổi mật khẩu"}
+            </button>
+          </div>
+        </form>
       </div>
 
       {selectedRequest && (
@@ -493,7 +631,7 @@ export default function TechnicianDashboard() {
           <button
             type="button"
             onClick={() => setImageViewer(null)}
-            style={{ position: "absolute", top: 20, right: 24, width: 42, height: 42, borderRadius: "50%", border: "none", background: "white", color: "#0f172a", fontSize: 26, cursor: "pointer" }}
+            style={{ position: "absolute", top: 20, right: 24, width: 42, height: 42, borderRadius: "50%", border: "none", background: "white", color: "#0f172a", fontSize: 26, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, boxSizing: "border-box" }}
           >
             ×
           </button>
