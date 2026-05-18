@@ -1,2 +1,5 @@
 backend/.env
 node_modules/
+AI-DIAGNOSIS/models/text_baseline/
+*.safetensors
+*.pt
