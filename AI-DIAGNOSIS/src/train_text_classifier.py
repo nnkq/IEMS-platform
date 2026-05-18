@@ -13,8 +13,13 @@ from transformers import (
 from label_map import label2id, id2label
 
 MODEL_NAME = "xlm-roberta-base"
+# <<<<<<< Updated upstream
 DATA_DIR = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/data/laptop/splits"
 OUTPUT_DIR = "D:/CAPSTONE2/new/IEMS-PLATFORM/AI-DIAGNOSIS/models/text_baseline"
+# =======
+# DATA_DIR = "D:/CAPSTONE2/dev3/AI-DIAGNOSIS/data/laptop/splits"
+# OUTPUT_DIR = "D:/CAPSTONE2/dev3/AI-DIAGNOSIS/models/text_baseline"
+# >>>>>>> Stashed changes
 MAX_LENGTH = 128
 
 
