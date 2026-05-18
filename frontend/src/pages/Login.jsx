@@ -16,6 +16,10 @@ export default function Login() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const goAfterLogin = (path, token, user) => {
+    navigate(path);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
@@ -25,19 +29,20 @@ export default function Login() {
 
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
+      sessionStorage.setItem("activeAuthToken", res.data.token);
 
       setMessage("Đăng nhập thành công");
 
       const userRole = res.data.user?.role?.toLowerCase();
 
       if (userRole === "store") {
-        navigate("/store");
+        goAfterLogin("/store", res.data.token, res.data.user);
       } else if (userRole === "admin") {
-        navigate("/admin");
+        goAfterLogin("/admin", res.data.token, res.data.user);
       } else if (userRole === "user") {
-        navigate("/home");
+        goAfterLogin("/home", res.data.token, res.data.user);
       } else {
-        navigate("/choose-role");
+        goAfterLogin("/choose-role", res.data.token, res.data.user);
       }
     } catch (error) {
       setMessage(error.response?.data?.message || "Đăng nhập thất bại");
@@ -45,7 +50,11 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:5000/api/auth/google";
+    const origin = String(window.location.origin || '').replace(/\/$/, '');
+    const params = new URLSearchParams({
+      origin,
+    });
+    window.location.href = `/api/auth/google?${params.toString()}`;
   };
 
   return (

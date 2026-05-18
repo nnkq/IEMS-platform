@@ -8,6 +8,7 @@ export default function GoogleSuccess() {
   useEffect(() => {
     const token = searchParams.get("token");
     const userString = searchParams.get("user");
+    const nextPath = searchParams.get("next");
 
     if (!token) {
       navigate("/login");
@@ -15,6 +16,7 @@ export default function GoogleSuccess() {
     }
 
     localStorage.setItem("token", token);
+    sessionStorage.setItem("activeAuthToken", token);
 
     let userData = null;
 
@@ -29,19 +31,28 @@ export default function GoogleSuccess() {
 
     // ===== FLOW MỚI =====
     // Nếu chưa có role => xem như đăng ký lần đầu bằng Google
+    const goNext = (path) => {
+      navigate(path);
+    };
+
     if (!userData?.role || userData.role.trim() === "") {
-      navigate("/choose-role");
+      goNext("/choose-role");
       return;
     }
 
     const userRole = userData.role.toLowerCase();
 
+    if (nextPath) {
+      goNext(nextPath);
+      return;
+    }
+
     if (userRole === "store") {
-      navigate("/store");
+      goNext("/store");
     } else if (userRole === "admin") {
-      navigate("/admin");
+      goNext("/admin");
     } else {
-      navigate("/home");
+      goNext("/home");
     }
   }, [searchParams, navigate]);
 

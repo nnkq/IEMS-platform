@@ -52,6 +52,20 @@ const navItems = [
   { key: "profile", icon: "☺", title: "Hồ sơ", subtitle: "Tài khoản cá nhân" },
 ];
 
+const validHomePages = new Set(Object.keys(pageMeta));
+
+function getInitialActivePage() {
+  const page = new URLSearchParams(window.location.search).get("page");
+  return validHomePages.has(page) ? page : "home";
+}
+
+function syncHomePageUrl(page) {
+  const nextUrl = page === "home" ? "/home" : `/home?page=${encodeURIComponent(page)}`;
+  if (window.location.pathname + window.location.search !== nextUrl) {
+    window.history.pushState({ page }, "", nextUrl);
+  }
+}
+
 const quickPrompts = [
   "Màn hình iPhone bị sọc xanh và cảm ứng chập chờn",
   "Laptop nóng, quạt quay to rồi tự tắt",
@@ -651,8 +665,20 @@ export default function Home() {
   const [nearbyStores, setNearbyStores] = useState([]);
   const [nearbyStoresLoading, setNearbyStoresLoading] = useState(false);
 
-  const [activePage, setActivePage] = useState("home");
+  const [activePage, setActivePage] = useState(() => getInitialActivePage());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActivePage(getInitialActivePage());
+      setSidebarOpen(false);
+      setSelectedStoreDetail(null);
+      setNotificationOpen(false);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(false);
@@ -968,6 +994,7 @@ export default function Home() {
   };
 
   const openPage = (page) => {
+    syncHomePageUrl(page);
     setActivePage(page);
     setSidebarOpen(false);
     setSelectedStoreDetail(null);
@@ -1042,7 +1069,7 @@ export default function Home() {
     if (!token || !notificationId) return null;
 
     const res = await fetch(
-      `http://localhost:5000/api/users/notifications/${notificationId}/read`,
+      `/api/users/notifications/${notificationId}/read`,
       {
         method: "POST",
         headers: {
@@ -1065,7 +1092,7 @@ export default function Home() {
     if (!token || !notificationId) return null;
 
     const res = await fetch(
-      `http://localhost:5000/api/users/notifications/${notificationId}/click`,
+      `/api/users/notifications/${notificationId}/click`,
       {
         method: "POST",
         headers: {
@@ -1088,7 +1115,7 @@ export default function Home() {
 
     setNotificationActionLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/users/notifications/read-all", {
+      const res = await fetch("/api/users/notifications/read-all", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1166,7 +1193,7 @@ export default function Home() {
     try {
       setNotificationLoading(true);
 
-      const res = await fetch("http://localhost:5000/api/users/me", {
+      const res = await fetch("/api/users/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -1335,7 +1362,7 @@ export default function Home() {
         throw new Error("Bạn chưa đăng nhập");
       }
 
-      const response = await fetch("http://localhost:5000/api/users/me", {
+      const response = await fetch("/api/users/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -1681,7 +1708,7 @@ export default function Home() {
       nearbyStoresAbortRef.current?.abort();
       nearbyStoresAbortRef.current = controller;
 
-      const res = await fetch("http://localhost:5000/api/map/stores/nearby", {
+      const res = await fetch("/api/map/stores/nearby", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2317,7 +2344,7 @@ export default function Home() {
     setLoadingProducts(true);
     try {
       const storeOwnerId = store.user_id || store.id;
-      const res = await fetch(`http://localhost:5000/api/products/${storeOwnerId}`);
+      const res = await fetch(`/api/products/${storeOwnerId}`);
       const data = await res.json();
       setStoreProducts(Array.isArray(data) ? data : []);
     } catch (error) {

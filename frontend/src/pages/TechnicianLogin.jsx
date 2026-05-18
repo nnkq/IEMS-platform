@@ -14,7 +14,7 @@ export default function TechnicianLogin() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/technician/login', {
+      const res = await fetch('/api/technician/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, password })
@@ -24,6 +24,8 @@ export default function TechnicianLogin() {
 
       if (res.ok) {
         localStorage.setItem('techUser', JSON.stringify(data.tech));
+        localStorage.setItem('techToken', data.token);
+        sessionStorage.setItem('activeTechToken', data.token);
         alert(`👋 Đăng nhập thành công! Xin chào Kỹ thuật viên: ${data.tech.name}`);
         navigate('/technician');
       } else {

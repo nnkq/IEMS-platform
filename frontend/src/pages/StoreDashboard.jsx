@@ -31,6 +31,7 @@ export default function StoreDashboard() {
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi cửa hàng?")) {
       localStorage.clear();
+      sessionStorage.clear();
       navigate("/login");
     }
   };
@@ -303,7 +304,7 @@ const loadCurrentSubscription = async () => {
   if (!userData?.id) return;
 
   try {
-    const res = await fetch(`http://localhost:5000/api/subscriptions/${userData.id}`);
+    const res = await fetch(`/api/subscriptions/${userData.id}`);
     const data = await res.json();
 
     if (data && data.package_name) {
@@ -322,7 +323,7 @@ const loadPromotionOverview = async () => {
 
   try {
     setPromotionOverviewLoading(true);
-    const res = await fetch("http://localhost:5000/api/subscriptions/promotion-overview", {
+    const res = await fetch("/api/subscriptions/promotion-overview", {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -419,7 +420,7 @@ const loadPromotionOverview = async () => {
     const userData = JSON.parse(localStorage.getItem("user"));
     if (!userData || !userData.id) return;
 
-    fetch(`http://localhost:5000/api/stores/profile/${userData.id}`)
+    fetch(`/api/stores/profile/${userData.id}`)
       .then((res) => res.json())
       .then((data) => {
         if (!data) return;
@@ -460,7 +461,7 @@ const loadPromotionOverview = async () => {
       })
       .catch((err) => console.error("Lỗi tải hồ sơ:", err));
 
-    fetch(`http://localhost:5000/api/products/${userData.id}`)
+    fetch(`/api/products/${userData.id}`)
       .then((res) => res.json())
       .then((data) => setProducts(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Lỗi tải sản phẩm:", err));
@@ -473,7 +474,7 @@ loadCurrentSubscription();
     if (!storeInfo?.id) return;
 
     const loadData = () => {
-      fetch(`http://localhost:5000/api/employees/${storeInfo.id}`)
+      fetch(`/api/employees/${storeInfo.id}`)
         .then((res) => res.json())
         .then((data) => setEmployees(Array.isArray(data) ? data : []))
         .catch((err) => console.error("Lỗi tải nhân viên:", err));
@@ -520,7 +521,7 @@ loadCurrentSubscription();
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Bạn chưa đăng nhập");
 
-      const response = await fetch("http://localhost:5000/api/users/me/change-password", {
+      const response = await fetch("/api/users/me/change-password", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -591,7 +592,7 @@ loadCurrentSubscription();
         longitude: nextStoreLocation.lng,
       };
 
-      const response = await fetch("http://localhost:5000/api/stores/profile", {
+      const response = await fetch("/api/stores/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -664,7 +665,7 @@ loadCurrentSubscription();
   const loadStoreRequests = async (realStoreId) => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/repair-requests/store-orders/${realStoreId}?storeId=${realStoreId}`
+        `/api/repair-requests/store-orders/${realStoreId}?storeId=${realStoreId}`
       );
       const data = await res.json();
       setRequests(Array.isArray(data) ? data.map(mapStoreRequest) : []);
@@ -681,7 +682,7 @@ loadCurrentSubscription();
 
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `http://localhost:5000/api/repair-requests/store/${realStoreId}/reviews`,
+        `/api/repair-requests/store/${realStoreId}/reviews`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -711,7 +712,7 @@ loadCurrentSubscription();
       const userData = JSON.parse(localStorage.getItem("user"));
       const token = localStorage.getItem("token") || (userData ? userData.token : "");
 
-      const res = await fetch(`http://localhost:5000/api/repair-requests/${id}`, {
+      const res = await fetch(`/api/repair-requests/${id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -784,7 +785,7 @@ loadCurrentSubscription();
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/repair-requests/store-orders/${requestToAssign}/status`,
+        `/api/repair-requests/store-orders/${requestToAssign}/status`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -826,7 +827,7 @@ loadCurrentSubscription();
     if (window.confirm("Bạn có chắc chắn muốn từ chối yêu cầu này?")) {
       try {
         await fetch(
-          `http://localhost:5000/api/repair-requests/store-orders/${id}/status`,
+          `/api/repair-requests/store-orders/${id}/status`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -844,7 +845,7 @@ loadCurrentSubscription();
   const handleComplete = async (id) => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/repair-requests/store-orders/${id}/status`,
+        `/api/repair-requests/store-orders/${id}/status`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -884,7 +885,7 @@ loadCurrentSubscription();
     if (!newProduct.name || !newProduct.price) return alert("Vui lòng nhập Tên và Giá!");
 
     try {
-      const res = await fetch("http://localhost:5000/api/products", {
+      const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: userData.id, ...newProduct }),
@@ -906,7 +907,7 @@ loadCurrentSubscription();
   const handleDeleteProduct = async (id) => {
     if (window.confirm("Bạn có chắc muốn xóa mặt hàng này khỏi cửa hàng?")) {
       try {
-        const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+        const res = await fetch(`/api/products/${id}`, {
           method: "DELETE",
         });
         if (res.ok) setProducts(products.filter((p) => p.id !== id));
@@ -926,7 +927,7 @@ loadCurrentSubscription();
       return alert("Vui lòng nhập Tên và Chuyên môn!");
 
     try {
-      const res = await fetch("http://localhost:5000/api/employees", {
+      const res = await fetch("/api/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storeId: storeInfo.id, ...newEmployee }),
@@ -948,7 +949,7 @@ loadCurrentSubscription();
   const handleDeleteEmployee = async (id) => {
     if (window.confirm("Bạn có chắc muốn xóa nhân viên này khỏi hệ thống?")) {
       try {
-        const res = await fetch(`http://localhost:5000/api/employees/${id}`, {
+        const res = await fetch(`/api/employees/${id}`, {
           method: "DELETE",
         });
         if (res.ok) setEmployees(employees.filter((e) => e.id !== id));
@@ -977,7 +978,7 @@ const handleConfirmPayment = () => {
     const userData = JSON.parse(localStorage.getItem("user") || "{}");
 
     try {
-      const res = await fetch("http://localhost:5000/api/subscriptions/upgrade", {
+      const res = await fetch("/api/subscriptions/upgrade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1033,7 +1034,7 @@ const handleBroadcastPromotion = async () => {
     setSendingPromotion(true);
     setPromotionResult(null);
 
-    const res = await fetch("http://localhost:5000/api/subscriptions/broadcast-promotion", {
+    const res = await fetch("/api/subscriptions/broadcast-promotion", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1152,6 +1153,27 @@ const handleBroadcastPromotion = async () => {
     },
   ];
 
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      if (tab && menuItems.some((item) => item.id === tab)) {
+        setActiveTab(tab);
+      }
+    };
+
+    syncTabFromUrl();
+    window.addEventListener("popstate", syncTabFromUrl);
+    return () => window.removeEventListener("popstate", syncTabFromUrl);
+  }, []);
+
+  const openStoreTab = (tab) => {
+    const nextUrl = tab === menuItems[0]?.id ? "/store" : `/store?tab=${encodeURIComponent(tab)}`;
+    if (window.location.pathname + window.location.search !== nextUrl) {
+      window.history.pushState({ tab }, "", nextUrl);
+    }
+    setActiveTab(tab);
+  };
+
   const isStoreApproved = String(storeStatus || "").toLowerCase() === "approved";
 
   return (
@@ -1231,7 +1253,7 @@ const handleBroadcastPromotion = async () => {
             return (
               <div
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => openStoreTab(item.id)}
                 style={{
                   display: "flex",
                   alignItems: "center",

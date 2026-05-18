@@ -4,8 +4,10 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const http = require('http');
+const jwt = require('jsonwebtoken');
+const path = require('path');
 
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Khai báo db MỘT LẦN DUY NHẤT ở đầu file
 const db = require('./src/config/db');
@@ -52,13 +54,35 @@ const withImageFields = (row) => {
 };
 
 const PORT = Number(process.env.PORT || 5000);
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const normalizeOrigin = (value) => {
+  if (!value) return '';
+  return String(value).trim().replace(/\/$/, '');
+};
+
+const configuredClientOrigins = [
+  process.env.NGROK_URL,
+  process.env.PUBLIC_CLIENT_URL,
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+]
+  .filter(Boolean)
+  .flatMap((value) => String(value).split(','))
+  .map((origin) => normalizeOrigin(origin))
+  .filter(Boolean);
+const allowedOrigins = [...new Set(configuredClientOrigins)];
 const SESSION_SECRET =
   process.env.SESSION_SECRET || process.env.JWT_SECRET || 'iems_secret_key';
 
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin(origin, callback) {
+        const normalizedIncoming = normalizeOrigin(origin);
+        if (!origin || allowedOrigins.includes(normalizedIncoming)) {
+          return callback(null, true);
+        }
+
+        return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
   })
 );
@@ -374,9 +398,19 @@ app.post('/api/technician/login', (req, res) => {
       }
 
       const tech = results[0];
+      const techToken = jwt.sign(
+        {
+          id: tech.id,
+          role: 'TECHNICIAN',
+          store_id: tech.store_id,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
 
       res.status(200).json({
         message: 'Đăng nhập thành công',
+        token: techToken,
         tech: {
           id: tech.id,
           name: tech.name,
@@ -387,6 +421,39 @@ app.post('/api/technician/login', (req, res) => {
       });
     }
   );
+});
+
+app.get('/api/technician/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Chua dang nhap ky thuat vien' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== 'TECHNICIAN' || !decoded.id) {
+      return res.status(403).json({ message: 'Phien ky thuat vien khong hop le' });
+    }
+
+    const [rows] = await db.promise().query(
+      'SELECT id, name, specialty, store_id, phone FROM employees WHERE id = ? LIMIT 1',
+      [decoded.id]
+    );
+
+    if (!rows.length) {
+      return res.status(401).json({ message: 'Khong tim thay ky thuat vien' });
+    }
+
+    return res.json({
+      success: true,
+      tech: rows[0],
+    });
+  } catch (error) {
+    return res.status(401).json({ message: 'Phien dang nhap ky thuat vien khong hop le' });
+  }
 });
 
 app.put('/api/technician/change-password', async (req, res) => {
@@ -425,10 +492,17 @@ app.put('/api/technician/change-password', async (req, res) => {
   }
 });
 
+const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendDistPath));
+
+app.get(/^(?!\/api\/).*/, (req, res) => {
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
+
 // ==========================================
 // SOCKET REALTIME CHAT
 // ==========================================
-initSocket(server, CLIENT_URL);
+initSocket(server, allowedOrigins);
 
 // ==========================================
 // SERVER LISTEN

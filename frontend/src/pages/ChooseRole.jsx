@@ -33,7 +33,7 @@ export default function ChooseRole() {
 
     try {
       // Đổi endpoint này theo backend của bạn
-      const response = await fetch("http://localhost:5000/api/auth/select-role", {
+      const response = await fetch("/api/auth/select-role", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

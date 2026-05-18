@@ -21,7 +21,13 @@ router.post("/select-role", protect, selectRole);
 
 router.get(
   "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
+  (req, res, next) => {
+    const origin = String(req.query.origin || "").trim();
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      state: origin,
+    })(req, res, next);
+  }
 );
 
 router.get(

@@ -4,7 +4,46 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const sendMail = require('../utils/sendMail');
 
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const rawAllowedOrigins = [
+  process.env.NGROK_URL,
+  process.env.PUBLIC_CLIENT_URL,
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+]
+  .filter(Boolean)
+  .flatMap((value) => String(value).split(','))
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const normalizeOrigin = (value) => {
+  if (!value) return '';
+  try {
+    // remove trailing slash and lowercase host
+    return String(value).trim().replace(/\/$/, '');
+  } catch (e) {
+    return String(value).trim();
+  }
+};
+
+const ALLOWED_CLIENT_ORIGINS = Array.from(new Set(rawAllowedOrigins.map(normalizeOrigin))).filter(Boolean);
+
+const CLIENT_URL = ALLOWED_CLIENT_ORIGINS[0] || 'http://localhost:5173';
+
+const getOAuthRedirectOrigin = (req) => {
+  const stateOriginRaw = String(req.query?.state || '').trim();
+  const stateOrigin = normalizeOrigin(stateOriginRaw);
+  if (stateOrigin && ALLOWED_CLIENT_ORIGINS.includes(stateOrigin)) {
+    return stateOriginRaw || stateOrigin;
+  }
+
+  const headerOriginRaw = String(req.get?.('origin') || '').trim();
+  const headerOrigin = normalizeOrigin(headerOriginRaw);
+  if (headerOrigin && ALLOWED_CLIENT_ORIGINS.includes(headerOrigin)) {
+    return headerOriginRaw || headerOrigin;
+  }
+
+  return CLIENT_URL;
+};
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -201,19 +240,20 @@ const resetPassword = async (req, res) => {
 };
 
 const googleSuccess = (req, res) => {
+  const redirectOrigin = getOAuthRedirectOrigin(req);
   if (!req.user) {
     return res.status(401).json({ message: 'Google login thất bại' });
   }
 
   db.query('SELECT * FROM users WHERE email = ?', [req.user.email], (err, results) => {
     if (err || results.length === 0) {
-      return res.redirect(`${CLIENT_URL}/login?error=true`);
+      return res.redirect(`${redirectOrigin}/login?error=true`);
     }
 
     const dbUser = results[0];
 
     if (dbUser.status === 'BLOCKED') {
-      return res.redirect(`${CLIENT_URL}/login?blocked=true`);
+      return res.redirect(`${redirectOrigin}/login?blocked=true`);
     }
 
     const token = generateToken(dbUser);
@@ -227,7 +267,7 @@ const googleSuccess = (req, res) => {
     };
 
     const encodedUser = encodeURIComponent(JSON.stringify(userData));
-    return res.redirect(`${CLIENT_URL}/google-success?token=${token}&user=${encodedUser}`);
+    return res.redirect(`${redirectOrigin}/google-success?token=${token}&user=${encodedUser}`);
   });
 };
 

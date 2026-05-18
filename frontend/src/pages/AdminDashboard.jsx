@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
 
+const adminTabIds = new Set(['approval', 'orders', 'users', 'revenue', 'packages']);
+
+function getInitialAdminTab() {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    return adminTabIds.has(tab) ? tab : 'approval';
+}
+
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState('approval');
+    const [activeTab, setActiveTab] = useState(() => getInitialAdminTab());
     const [expandedOrder, setExpandedOrder] = useState(null);
 
     const [pendingStores, setPendingStores] = useState([]);
@@ -31,7 +38,26 @@ export default function AdminDashboard() {
     const [revenueData, setRevenueData] = useState([]);
     const [revenueStats, setRevenueStats] = useState({ totalPremium: 0, totalProfit: 0 });
 
-    const API_BASE = 'http://localhost:5000/api/admin';
+    const API_BASE = '/api/admin';
+
+    useEffect(() => {
+        const handlePopState = () => {
+            setActiveTab(getInitialAdminTab());
+            setExpandedOrder(null);
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    const openAdminTab = (tab) => {
+        const nextUrl = tab === 'approval' ? '/admin' : `/admin?tab=${encodeURIComponent(tab)}`;
+        if (window.location.pathname + window.location.search !== nextUrl) {
+            window.history.pushState({ tab }, '', nextUrl);
+        }
+        setExpandedOrder(null);
+        setActiveTab(tab);
+    };
 
     useEffect(() => {
         const loadAllData = () => {
@@ -288,19 +314,19 @@ export default function AdminDashboard() {
 
     // ======= STYLES =======
     const s = {
-        page: { display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily: "'Inter', sans-serif" },
-        sidebar: { width: 260, backgroundColor: '#0f172a', color: 'white', display: 'flex', flexDirection: 'column', flexShrink: 0 },
+        page: { display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#f1f5f9', fontFamily: "'Inter', sans-serif" },
+        sidebar: { width: 260, height: '100vh', backgroundColor: '#0f172a', color: 'white', display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0 },
         sidebarLogo: { padding: '24px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 12 },
         logoBox: { width: 40, height: 40, background: 'linear-gradient(135deg, #3b82f6, #2563eb)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 },
-        nav: { flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 },
+        nav: { flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 },
         navLabel: { fontSize: 10, fontWeight: 700, color: '#475569', letterSpacing: 1.5, textTransform: 'uppercase', padding: '12px 12px 6px' },
         navItem: (active) => ({ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, cursor: 'pointer', backgroundColor: active ? 'rgba(59,130,246,0.15)' : 'transparent', color: active ? '#60a5fa' : '#94a3b8', border: active ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent', transition: 'all 0.15s' }),
         navDot: (count) => ({ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 999, display: count > 0 ? 'inline' : 'none' }),
         sidebarFooter: { padding: '16px 20px', borderTop: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 12 },
         avatar: { width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 },
-        main: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-        topbar: { backgroundColor: 'white', height: 60, padding: '0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0' },
-        content: { flex: 1, overflowY: 'auto', padding: 32 },
+        main: { flex: 1, minWidth: 0, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+        topbar: { backgroundColor: 'white', height: 60, flexShrink: 0, padding: '0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0' },
+        content: { flex: 1, minHeight: 0, overflowY: 'auto', padding: 32 },
         card: { backgroundColor: 'white', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
         statCard: { backgroundColor: 'white', borderRadius: 14, padding: 20, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16 },
         iconBox: (bg, color) => ({ width: 48, height: 48, borderRadius: 12, backgroundColor: bg, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }),
@@ -363,7 +389,7 @@ export default function AdminDashboard() {
                 <nav style={s.nav}>
                     <div style={s.navLabel}>Quản lý cốt lõi</div>
                     {menuItems.filter(m => m.group === 'core').map(m => (
-                        <div key={m.id} style={s.navItem(activeTab === m.id)} onClick={() => setActiveTab(m.id)}>
+                        <div key={m.id} style={s.navItem(activeTab === m.id)} onClick={() => openAdminTab(m.id)}>
                             {m.icon}
                             <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{m.label}</span>
                             {m.count > 0 && <span style={{ backgroundColor: '#ef4444', color: 'white', fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 999 }}>{m.count}</span>}
@@ -371,7 +397,7 @@ export default function AdminDashboard() {
                     ))}
                     <div style={{ ...s.navLabel, marginTop: 8 }}>Hệ thống mở rộng</div>
                     {menuItems.filter(m => m.group === 'ext').map(m => (
-                        <div key={m.id} style={s.navItem(activeTab === m.id)} onClick={() => setActiveTab(m.id)}>
+                        <div key={m.id} style={s.navItem(activeTab === m.id)} onClick={() => openAdminTab(m.id)}>
                             {m.icon}
                             <span style={{ fontSize: 14, fontWeight: 500 }}>{m.label}</span>
                         </div>

@@ -74,7 +74,7 @@ export default function TechnicianDashboard() {
   const loadOrders = async (employeeId) => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:5000/api/technician/orders/${employeeId}`);
+      const res = await fetch(`/api/technician/orders/${employeeId}`);
       const data = await res.json();
       setAssignedRequests(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -114,6 +114,7 @@ export default function TechnicianDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("techUser");
+    localStorage.removeItem("techToken");
     navigate("/tech-login");
   };
 
@@ -142,7 +143,7 @@ export default function TechnicianDashboard() {
         throw new Error("Mật khẩu xác nhận không khớp");
       }
 
-      const res = await fetch("http://localhost:5000/api/technician/change-password", {
+      const res = await fetch("/api/technician/change-password", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -189,7 +190,7 @@ export default function TechnicianDashboard() {
 
     try {
       setSaving(true);
-      const res = await fetch(`http://localhost:5000/api/technician/orders/${selectedRequest.id}`, {
+      const res = await fetch(`/api/technician/orders/${selectedRequest.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

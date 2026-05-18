@@ -3,7 +3,7 @@ import axios from "axios";
 export const createRepairRequest = (data) => {
   const token = localStorage.getItem("token");
 
-  return axios.post("http://localhost:5000/api/repair-requests", data, {
+  return axios.post("/api/repair-requests", data, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -13,7 +13,7 @@ export const createRepairRequest = (data) => {
 export const getMyRepairRequests = () => {
   const token = localStorage.getItem("token");
 
-  return axios.get("http://localhost:5000/api/repair-requests/my", {
+  return axios.get("/api/repair-requests/my", {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -24,7 +24,7 @@ export const getOngoingRepairs = (storeId) => {
   const token = localStorage.getItem("token");
 
   return axios.get(
-    `http://localhost:5000/api/repair-requests/ongoing?storeId=${storeId}`,
+    `/api/repair-requests/ongoing?storeId=${storeId}`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -37,7 +37,7 @@ export const updateRepairProgress = (requestId, status) => {
   const token = localStorage.getItem("token");
 
   return axios.put(
-    `http://localhost:5000/api/repair-requests/${requestId}/progress`,
+    `/api/repair-requests/${requestId}/progress`,
     { status },
     {
       headers: {
@@ -51,7 +51,7 @@ export const getReviewForRequest = (requestId) => {
   const token = localStorage.getItem("token");
 
   return axios.get(
-    `http://localhost:5000/api/repair-requests/${requestId}/review`,
+    `/api/repair-requests/${requestId}/review`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -63,7 +63,7 @@ export const getStoreReviews = (storeId) => {
   const token = localStorage.getItem("token");
 
   return axios.get(
-    `http://localhost:5000/api/repair-requests/store/${storeId}/reviews`,
+    `/api/repair-requests/store/${storeId}/reviews`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -76,7 +76,7 @@ export const submitReviewForRequest = (requestId, data) => {
   const token = localStorage.getItem("token");
 
   return axios.post(
-    `http://localhost:5000/api/repair-requests/${requestId}/review`,
+    `/api/repair-requests/${requestId}/review`,
     data,
     {
       headers: {
@@ -91,7 +91,7 @@ export const acceptQuoteForRequest = (requestId) => {
   const token = localStorage.getItem("token");
 
   return axios.post(
-    `http://localhost:5000/api/repair-requests/${requestId}/quote/accept`,
+    `/api/repair-requests/${requestId}/quote/accept`,
     {},
     {
       headers: {
@@ -105,7 +105,7 @@ export const rejectQuoteForRequest = (requestId) => {
   const token = localStorage.getItem("token");
 
   return axios.post(
-    `http://localhost:5000/api/repair-requests/${requestId}/quote/reject`,
+    `/api/repair-requests/${requestId}/quote/reject`,
     {},
     {
       headers: {
@@ -119,7 +119,7 @@ export const confirmRepairCompleted = (requestId) => {
   const token = localStorage.getItem("token");
 
   return axios.post(
-    `http://localhost:5000/api/repair-requests/${requestId}/confirm-completed`,
+    `/api/repair-requests/${requestId}/confirm-completed`,
     {},
     {
       headers: {

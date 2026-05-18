@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/chat";
+const API_URL = "/api/chat";
 
 export const createOrGetConversationByRequest = (payload) =>
   axios.post(`${API_URL}/conversation/by-request`, payload);

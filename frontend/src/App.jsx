@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -17,14 +17,175 @@ import "./App.css";
 import { Toaster, toast } from 'react-hot-toast';
 import { chatSocket } from "./api/chatSocket";
 
-function PrivateRoute({ children }) {
+const safeParseJson = (value) => {
+  try {
+    return value ? JSON.parse(value) : null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const clearUserSession = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  localStorage.removeItem("role");
+  sessionStorage.removeItem("activeAuthToken");
+};
+
+const clearTechnicianSession = () => {
+  localStorage.removeItem("techUser");
+  localStorage.removeItem("techToken");
+  sessionStorage.removeItem("activeTechToken");
+};
+
+function AuthLoading() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#334155",
+        fontFamily: "Inter, system-ui, sans-serif",
+        fontWeight: 700,
+      }}
+    >
+      Đang kiểm tra đăng nhập...
+    </div>
+  );
+}
+
+function PrivateRoute({ children, allowedRoles }) {
   const token = localStorage.getItem("token");
-  return token ? children : <Navigate to="/login" replace />;
+  const activeToken = sessionStorage.getItem("activeAuthToken");
+  const cachedUser = safeParseJson(localStorage.getItem("user"));
+  const [authState, setAuthState] = useState({
+    loading: true,
+    user: null,
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    const verifyLogin = async () => {
+      if (!token || !activeToken || activeToken !== token || !cachedUser?.id) {
+        clearUserSession();
+        if (active) setAuthState({ loading: false, user: null });
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/users/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Invalid session");
+        }
+
+        const data = await response.json();
+        const verifiedUser = {
+          ...cachedUser,
+          id: data.id || cachedUser.id,
+          name: data.name || cachedUser.name,
+          email: data.email || cachedUser.email,
+          phone: data.phone ?? cachedUser.phone,
+          role: data.role || cachedUser.role,
+          status: data.status || cachedUser.status,
+        };
+
+        localStorage.setItem("user", JSON.stringify(verifiedUser));
+        if (active) setAuthState({ loading: false, user: verifiedUser });
+      } catch (error) {
+        clearUserSession();
+        if (active) setAuthState({ loading: false, user: null });
+      }
+    };
+
+    verifyLogin();
+
+    return () => {
+      active = false;
+    };
+  }, [token, activeToken, cachedUser?.id]);
+
+  if (authState.loading) return <AuthLoading />;
+
+  const user = authState.user;
+
+  if (!user?.id) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = String(user.role || "").toLowerCase();
+  const normalizedRoles = allowedRoles?.map((item) => String(item).toLowerCase());
+
+  if (normalizedRoles?.length && !normalizedRoles.includes(role)) {
+    clearUserSession();
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 }
 
 function TechnicianPrivateRoute({ children }) {
-  const techUser = localStorage.getItem("techUser");
-  return techUser ? children : <Navigate to="/tech-login" replace />;
+  const techToken = localStorage.getItem("techToken");
+  const activeTechToken = sessionStorage.getItem("activeTechToken");
+  const techUser = safeParseJson(localStorage.getItem("techUser"));
+  const [authState, setAuthState] = useState({
+    loading: true,
+    allowed: false,
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    const verifyTechnician = async () => {
+      if (!techToken || !activeTechToken || activeTechToken !== techToken || !techUser?.id) {
+        clearTechnicianSession();
+        if (active) setAuthState({ loading: false, allowed: false });
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/technician/me", {
+          headers: {
+            Authorization: `Bearer ${techToken}`,
+          },
+        });
+
+        if (!response.ok) throw new Error("Invalid technician session");
+
+        const data = await response.json();
+        if (!data.tech?.id || Number(data.tech.id) !== Number(techUser.id)) {
+          throw new Error("Technician mismatch");
+        }
+
+        localStorage.setItem("techUser", JSON.stringify(data.tech));
+        if (active) setAuthState({ loading: false, allowed: true });
+      } catch (error) {
+        clearTechnicianSession();
+        if (active) setAuthState({ loading: false, allowed: false });
+      }
+    };
+
+    verifyTechnician();
+
+    return () => {
+      active = false;
+    };
+  }, [techToken, activeTechToken, techUser?.id]);
+
+  if (authState.loading) return <AuthLoading />;
+
+  if (!authState.allowed) {
+    return <Navigate to="/tech-login" replace />;
+  }
+
+  return children;
 }
 
 function App() {
@@ -82,12 +243,19 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/google-success" element={<GoogleSuccess />} />
-        <Route path="/choose-role" element={<ChooseRole />} />
+        <Route
+          path="/choose-role"
+          element={
+            <PrivateRoute>
+              <ChooseRole />
+            </PrivateRoute>
+          }
+        />
         
         <Route
           path="/home"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={["user"]}>
               <Home />
             </PrivateRoute>
           }
@@ -102,17 +270,15 @@ function App() {
           }
         />
 
-        {/* <-- Mình đã thêm Route bảo vệ cho Store ở đây --> */}
         <Route
           path="/store"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={["store"]}>
               <StoreDashboard />
             </PrivateRoute>
           }
         />
 
-        {/* 🚀 ĐÃ THÊM: Route bảo vệ cho Không gian làm việc của Kỹ thuật viên */}
         <Route
           path="/technician"
           element={
@@ -122,11 +288,10 @@ function App() {
           }
         />
 
-        {/*  ĐÃ THÊM: Route bảo vệ cho Admin Dashboard */}
         <Route
           path="/admin"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={["admin"]}>
               <AdminDashboard />
             </PrivateRoute>
           }
