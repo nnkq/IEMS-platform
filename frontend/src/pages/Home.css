@@ -309,10 +309,11 @@
   }
 
   .iems-root .search-shell.compact {
+    position: relative;
     width: 100%;
     min-width: 0;
     height: 46px;
-    padding: 0 10px 0 14px;
+    padding: 0 46px 0 14px;
     border-radius: 999px;
     background: #f8fafc;
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
@@ -327,19 +328,29 @@
   .iems-root .search-shell.compact input {
     font-size: 0.92rem;
     min-width: 0;
+    min-height: 0;
+    height: 100%;
+    padding: 0;
+    border-radius: 0;
+    line-height: 1.2;
   }
 
   .iems-root .search-clear {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
     width: 28px;
     height: 28px;
-    flex: 0 0 28px;
-    display: grid;
-    place-items: center;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 0;
     border-radius: 50%;
     background: #e2e8f0;
     color: #475569;
-    font-size: 1.1rem;
+    font-size: 18px;
     line-height: 1;
     cursor: pointer;
   }
@@ -573,9 +584,11 @@
   .iems-root .btn {
     border: 0;
     cursor: pointer;
-    padding: 13px 18px;
-    border-radius: 16px;
-    font-weight: 800;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.35;
     transition: 0.22s ease;
   }
 
@@ -590,9 +603,9 @@
   }
 
   .iems-root .btn-secondary {
-    color: var(--text);
+    color: #0f172a;
     background: #fff;
-    border: 1px solid var(--line);
+    border: 1px solid #cbd5e1;
   }
 
   .iems-root .btn-ghost {
@@ -760,9 +773,100 @@
     gap: 16px;
   }
 
+  .iems-root .request-form-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 12px 12px;
+    align-items: start;
+  }
+
+  .iems-root .request-field {
+    margin: 0;
+  }
+
+  .iems-root .request-span-3 {
+    grid-column: span 3;
+  }
+
+  .iems-root .request-span-4 {
+    grid-column: span 4;
+  }
+
+  .iems-root .request-span-8 {
+    grid-column: span 8;
+  }
+
+  .iems-root .request-span-12 {
+    grid-column: 1 / -1;
+  }
+
+  .iems-root .request-service-row {
+    min-height: 76px;
+    align-content: flex-start;
+  }
+
+  .iems-root .request-image-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    align-items: start;
+  }
+
+  .iems-root .request-image-tile,
+  .iems-root .request-upload-box {
+    aspect-ratio: 1;
+    min-height: 112px;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    display: block;
+    background: #f8fafc;
+  }
+
+  .iems-root .request-image-tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .iems-root .request-upload-box {
+    display: grid;
+    place-items: center;
+    border: 2px dashed #cbd5e1;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .iems-root .request-upload-box:hover {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+  }
+
+  .iems-root .request-upload-box-content {
+    text-align: center;
+    color: #334155;
+  }
+
+  .iems-root .request-upload-box-icon {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .iems-root .request-upload-box-title {
+    margin-top: 6px;
+    font-weight: 700;
+  }
+
+  .iems-root .request-upload-box-count {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+  }
+
   .iems-root .form-group {
     display: grid;
-    gap: 10px;
+    gap: 8px;
+    min-width: 0;
   }
 
   .iems-root .full {
@@ -770,21 +874,34 @@
   }
 
   .iems-root .form-group label {
-    font-weight: 800;
-    color: #1e293b;
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
   }
 
   .iems-root input,
   .iems-root select,
   .iems-root textarea {
     width: 100%;
-    border-radius: 16px;
-    border: 1px solid var(--line);
+    min-height: 46px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
     background: #fff;
-    color: var(--text);
-    padding: 14px 16px;
+    color: #0f172a;
+    padding: 12px;
     outline: none;
+    font-size: 15px;
+    line-height: 1.45;
+    box-sizing: border-box;
     transition: 0.2s ease;
+  }
+
+  .iems-root input::placeholder,
+  .iems-root textarea::placeholder {
+    color: #94a3b8;
   }
 
   .iems-root textarea {
@@ -812,14 +929,41 @@
   .iems-root .pill span,
   .iems-root .filter-btn,
   .iems-root .tab-btn {
-    padding: 10px 14px;
-    border: 1px solid var(--line);
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
     background: #fff;
-    color: #334155;
+    color: #0f172a;
     cursor: pointer;
     transition: 0.2s ease;
-    border-radius: 999px;
+    border-radius: 8px;
+    font-size: 15px;
     font-weight: 700;
+  }
+
+  .iems-root label {
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .iems-root input[type="text"],
+  .iems-root input[type="date"],
+  .iems-root input[type="number"],
+  .iems-root textarea,
+  .iems-root select {
+    border: 1px solid #e6eef6;
+    background: #fff;
+    padding: 12px 14px;
+    border-radius: 12px;
+    width: 100%;
+    font-size: 14px;
+    color: #0f172a;
+    box-shadow: none;
+  }
+
+  .iems-root .pill input[type="radio"] + span {
+    padding: 6px 10px;
   }
 
   .iems-root .pill input:checked + span,
@@ -1610,6 +1754,13 @@
     .iems-root .detail-grid,
     .iems-root .form-grid {
       grid-template-columns: 1fr;
+    }
+
+    .iems-root .request-span-3,
+    .iems-root .request-span-4,
+    .iems-root .request-span-8,
+    .iems-root .request-span-12 {
+      grid-column: 1 / -1;
     }
 
     .iems-root .timeline {

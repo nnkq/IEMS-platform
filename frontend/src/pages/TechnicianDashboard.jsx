@@ -308,9 +308,7 @@ export default function TechnicianDashboard() {
       <div style={{ padding: "32px", maxWidth: "1200px", margin: "0 auto" }}>
         <div style={{ marginBottom: "24px" }}>
           <h1 style={{ color: "#0f172a", marginTop: 0, marginBottom: "8px" }}>Công việc được giao ({assignedRequests.length})</h1>
-          <p style={{ color: "#64748b", margin: 0 }}>
-            Luồng mới: xem chi tiết → báo tình trạng + báo giá → chờ khách đồng ý → mới tiến hành sửa.
-          </p>
+          
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px", marginBottom: "24px" }}>

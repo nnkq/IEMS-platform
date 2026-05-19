@@ -822,12 +822,13 @@ loadCurrentSubscription();
   };
 
   const handleAcceptClick = (id) => {
-    setRequestToAssign(id);
-    if (employees.length > 0) {
-      setSelectedEmployeeId(employees[0].id);
-    } else {
-      setSelectedEmployeeId("OWNER");
+    if (employees.length === 0) {
+      alert("Vui lòng thêm kỹ thuật viên trước khi nhận đơn.");
+      return;
     }
+
+    setRequestToAssign(id);
+    setSelectedEmployeeId(employees[0].id);
     setAssignModalOpen(true);
   };
 
@@ -842,24 +843,27 @@ loadCurrentSubscription();
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             status: "OPEN",
-            employee_id: selectedEmployeeId === "OWNER" ? null : selectedEmployeeId,
+            employee_id: selectedEmployeeId,
           }),
         }
       );
 
       if (res.ok) {
-        let assignedName = "Chủ cửa hàng tự làm";
-        if (selectedEmployeeId !== "OWNER") {
-          const emp = employees.find(
-            (e) => e.id.toString() === selectedEmployeeId.toString()
-          );
-          if (emp) assignedName = emp.name;
-        }
+        let assignedName = "";
+        const emp = employees.find(
+          (e) => e.id.toString() === selectedEmployeeId.toString()
+        );
+        if (emp) assignedName = emp.name;
 
         setRequests(
           requests.map((req) =>
             req.id === requestToAssign
-              ? { ...req, status: "OPEN", employee_name: assignedName }
+              ? {
+                  ...req,
+                  status: "OPEN",
+                  employee_id: selectedEmployeeId,
+                  employee_name: assignedName,
+                }
               : req
           )
         );
@@ -1875,14 +1879,15 @@ const handleBroadcastPromotion = async () => {
                 border: "1px solid #e2e8f0",
               }}
             >
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", tableLayout: "fixed" }}>
                 <thead>
                   <tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                    <th style={{ padding: "16px", color: "#475569" }}>Khách hàng</th>
-                    <th style={{ padding: "16px", color: "#475569" }}>Thiết bị</th>
-                    <th style={{ padding: "16px", color: "#475569" }}>Nhân viên PT</th>
-                    <th style={{ padding: "16px", color: "#475569" }}>Trạng thái</th>
-                    <th style={{ padding: "16px", color: "#475569", textAlign: "center" }}>Cập nhật</th>
+                    <th style={{ padding: "16px", color: "#475569", width: "14%" }}>{"Khách hàng"}</th>
+                    <th style={{ padding: "16px", color: "#475569", width: "10%" }}>{"Thiết bị"}</th>
+                    <th style={{ padding: "16px", color: "#475569", width: "15%" }}>{"Nhân viên PT"}</th>
+                    <th style={{ padding: "16px", color: "#475569", width: "22%" }}>{"Trạng thái"}</th>
+                    <th style={{ padding: "16px", color: "#475569", width: "21%" }}>{"Báo giá"}</th>
+                    <th style={{ padding: "16px", color: "#475569", textAlign: "center", width: "18%" }}>{"Cập nhật"}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1894,18 +1899,19 @@ const handleBroadcastPromotion = async () => {
                         req.status === "IN_PROGRESS" ||
                         req.status === "WAITING_STORE_CONFIRM" ||
                         req.status === "WAITING_CUSTOMER_CONFIRM" ||
-                        req.status === "COMPLETED"
+                        req.status === "COMPLETED" ||
+                        req.status === "CANCELLED"
                     )
                     .map((req) => (
                       <tr key={req.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                        <td style={{ padding: "16px", fontWeight: "bold", color: "#0f172a" }}>
+                        <td style={{ padding: "16px", fontWeight: "bold", color: "#0f172a", verticalAlign: "top" }}>
                           {req.customer}
                         </td>
-                        <td style={{ padding: "16px", color: "#334155" }}>{req.device}</td>
-                        <td style={{ padding: "16px", color: "#2563eb", fontWeight: "500" }}>
+                        <td style={{ padding: "16px", color: "#334155", verticalAlign: "top" }}>{req.device}</td>
+                        <td style={{ padding: "16px", color: "#2563eb", fontWeight: "500", verticalAlign: "top" }}>
                           {req.employee_name || "Chủ cửa hàng"}
                         </td>
-                        <td style={{ padding: "16px" }}>
+                        <td style={{ padding: "16px", verticalAlign: "top" }}>
                           {req.status === "OPEN" && req.employee_id ? (
                             <span
                               style={{
@@ -1971,6 +1977,19 @@ const handleBroadcastPromotion = async () => {
                             >
                               Chờ khách xác nhận hoàn thành
                             </span>
+                          ) : req.status === "CANCELLED" ? (
+                            <span
+                              style={{
+                                padding: "6px 12px",
+                                backgroundColor: "#fee2e2",
+                                color: "#dc2626",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {"Khách đã từ chối báo giá"}
+                            </span>
                           ) : (
                             <span
                               style={{
@@ -1986,7 +2005,25 @@ const handleBroadcastPromotion = async () => {
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: "16px", textAlign: "center" }}>
+                        <td style={{ padding: "16px", color: "#334155", minWidth: "170px", verticalAlign: "top" }}>
+                          {req.quote_price ? (
+                            <div style={{ display: "grid", gap: "4px" }}>
+                              <strong style={{ color: "#d97706", fontSize: "14px" }}>
+                                {formatVND(req.quote_price)}
+                              </strong>
+                              {req.quote_estimated_time ? (
+                                <span style={{ color: "#64748b", fontSize: "12px" }}>
+                                  {req.quote_estimated_time}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "13px", fontWeight: "600" }}>
+                              {"Chưa có báo giá"}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: "16px", textAlign: "center", verticalAlign: "top" }}>
                           {req.status === "WAITING_STORE_CONFIRM" ? (
                             <button
                               onClick={() => handleComplete(req.id)}
@@ -2018,6 +2055,10 @@ const handleBroadcastPromotion = async () => {
                             <span style={{ color: "#a16207", fontSize: "13px", fontWeight: "bold" }}>
                               Đã báo khách · chờ xác nhận
                             </span>
+                          ) : req.status === "CANCELLED" ? (
+                            <span style={{ color: "#dc2626", fontSize: "13px", fontWeight: "bold" }}>
+                              {"Đã hủy"}
+                            </span>
                           ) : (
                             <span style={{ color: "#059669", fontSize: "14px", fontWeight: "bold" }}>
                               Đã bàn giao xong
@@ -2026,9 +2067,9 @@ const handleBroadcastPromotion = async () => {
                         </td>
                       </tr>
                     ))}
-                  {requests.filter((req) => (req.status === "OPEN" && req.employee_id) || req.status === "QUOTED" || req.status === "IN_PROGRESS" || req.status === "WAITING_STORE_CONFIRM" || req.status === "WAITING_CUSTOMER_CONFIRM" || req.status === "COMPLETED").length === 0 && (
+                  {requests.filter((req) => (req.status === "OPEN" && req.employee_id) || req.status === "QUOTED" || req.status === "IN_PROGRESS" || req.status === "WAITING_STORE_CONFIRM" || req.status === "WAITING_CUSTOMER_CONFIRM" || req.status === "COMPLETED" || req.status === "CANCELLED").length === 0 && (
                     <tr>
-                      <td colSpan="5" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
+                      <td colSpan="6" style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
                         Chưa có máy nào đang sửa.
                       </td>
                     </tr>
@@ -2918,11 +2959,10 @@ const handleBroadcastPromotion = async () => {
                     {emp.name} - {emp.specialty}
                   </option>
                 ))}
-                <option value="OWNER">Chủ cửa hàng tự làm</option>
               </select>
             ) : (
               <p style={{ color: "#d97706", fontWeight: "500" }}>
-                Bạn chưa có thợ nào. Mặc định chủ shop sẽ nhận đơn.
+                {"Vui lòng thêm kỹ thuật viên trước khi nhận đơn."}
               </p>
             )}
 

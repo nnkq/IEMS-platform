@@ -401,16 +401,23 @@ exports.updateChatSession = async (req, res) => {
 
 exports.diagnoseWithStoreData = async (req, res) => {
   try {
-    const { symptom, device_type = "laptop" } = req.body;
+    const { symptom } = req.body;
+    const deviceType =
+      typeof req.body.device_type === "string" ? req.body.device_type.trim().toLowerCase() : "";
 
     if (!symptom || !symptom.trim()) {
       return res.status(400).json({ message: "Thiếu mô tả triệu chứng" });
     }
 
-    const aiResponse = await axios.post("http://localhost:5001/predict", {
+    const aiPayload = {
       symptom,
-      device_type,
-    });
+    };
+
+    if (deviceType) {
+      aiPayload.device_type = deviceType;
+    }
+
+    const aiResponse = await axios.post("http://localhost:5001/predict", aiPayload);
 
     const ai = aiResponse.data;
 

@@ -52,12 +52,17 @@ export const uploadAiChatImage = async (file) => {
 /**
  * Call the AI diagnosis service to predict device issue
  */
-export const diagnoseDevice = async (symptom, deviceType = "laptop") => {
+export const diagnoseDevice = async (symptom, deviceType = "") => {
   try {
-    const response = await api.post("/diagnose", {
+    const payload = {
       symptom: symptom.trim(),
-      device_type: deviceType.toLowerCase(),
-    });
+    };
+
+    if (deviceType) {
+      payload.device_type = deviceType.toLowerCase();
+    }
+
+    const response = await api.post("/diagnose", payload);
 
     return response.data;
   } catch (error) {
@@ -66,7 +71,7 @@ export const diagnoseDevice = async (symptom, deviceType = "laptop") => {
     return {
       issue: "error",
       confidence: 0,
-      device_type: deviceType,
+      device_type: deviceType || "unknown",
       severity: "unknown",
       causes: [],
       suggestions: [],

@@ -68,9 +68,11 @@ Update-Or-Append $frontendEnv 'VITE_BACKEND_URL' $publicUrl
 
 # Export NGROK_URL for AI-DIAGNOSIS process
 $env:NGROK_URL = $publicUrl
+$env:PYTHONIOENCODING = 'utf-8'
+$env:PYTHONUTF8 = '1'
 
 Write-Host "Starting AI-DIAGNOSIS (Python)"
-Start-Process -FilePath python -ArgumentList 'src/app.py' -WorkingDirectory (Join-Path $root 'AI-DIAGNOSIS\AI-DIAGNOSIS') -NoNewWindow -PassThru | Out-Null
+Start-Process -FilePath python -ArgumentList 'src/app.py' -WorkingDirectory (Join-Path $root 'AI-DIAGNOSIS') -NoNewWindow -PassThru | Out-Null
 
 Write-Host "Starting backend (node server.js)"
 Start-Process -FilePath node -ArgumentList 'server.js' -WorkingDirectory (Join-Path $root 'backend') -NoNewWindow -PassThru | Out-Null

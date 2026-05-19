@@ -295,7 +295,8 @@ exports.getMyRepairRequests = (req, res) => {
         'Thiết bị chưa rõ',
       device_category: row.device_type || 'Chưa phân loại',
       technician_note: row.technician_note || null,
-      image: row.image || null,
+      image: parseStoredImages(row.image)[0] || null,
+      images: parseStoredImages(row.image),
     }));
 
     res.json({ requests: mappedRequests });
