@@ -4,14 +4,16 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const http = require('http');
+const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
 
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config();
 
 // Khai báo db MỘT LẦN DUY NHẤT ở đầu file
 const db = require('./src/config/db');
-const { initSocket } = require('./src/socket');
+const { initSocket, emitDataChanged } = require('./src/socket');
 
 const authRoutes = require('./src/routes/auth.routes');
 const homeRoutes = require('./src/routes/home.routes');
@@ -25,18 +27,71 @@ const chatRoutes = require('./src/routes/chat.routes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
 const aiDiagnosisRoutes = require('./src/routes/aiDiagnosis.routes');
 
-
 const app = express();
 const server = http.createServer(app);
 
+// ==========================================
+// UTILS / HELPER FUNCTIONS
+// ==========================================
+const parseStoredImages = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean).slice(0, 3);
+
+  const clean = String(value).trim();
+  if (!clean) return [];
+
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean).slice(0, 3);
+  } catch (error) {
+    // Older requests stored one image directly.
+  }
+
+  return [clean];
+};
+
+const withImageFields = (row) => {
+  const images = parseStoredImages(row.image);
+  return {
+    ...row,
+    image: images[0] || null,
+    images,
+  };
+};
+
+const normalizeOrigin = (value) => {
+  if (!value) return '';
+  return String(value).trim().replace(/\/$/, '');
+};
+
+// ==========================================
+// CONFIGURATION & CORS
+// ==========================================
 const PORT = Number(process.env.PORT || 5000);
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-const SESSION_SECRET =
-  process.env.SESSION_SECRET || process.env.JWT_SECRET || 'iems_secret_key';
+
+const configuredClientOrigins = [
+  process.env.NGROK_URL,
+  process.env.PUBLIC_CLIENT_URL,
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+]
+  .filter(Boolean)
+  .flatMap((value) => String(value).split(','))
+  .map((origin) => normalizeOrigin(origin))
+  .filter(Boolean);
+
+const allowedOrigins = [...new Set(configuredClientOrigins)];
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.JWT_SECRET || 'iems_secret_key';
 
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin(origin, callback) {
+      const normalizedIncoming = normalizeOrigin(origin);
+      if (!origin || allowedOrigins.includes(normalizedIncoming)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
   })
 );
@@ -44,6 +99,7 @@ app.use(
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Serve thư mục Uploads
 const uploadsDir = path.join(__dirname, 'uploads');
 const aiChatUploadDir = path.join(uploadsDir, 'ai-chat');
 fs.mkdirSync(aiChatUploadDir, { recursive: true });
@@ -57,6 +113,9 @@ app.use(
   })
 );
 
+// ==========================================
+// PASSPORT (GOOGLE OAUTH)
+// ==========================================
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -123,12 +182,8 @@ passport.use(
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-app.get('/', (req, res) => {
-  res.send('IEMS API Running');
-});
-
 // ==========================================
-// CÁC ROUTES CÓ SẴN CỦA BẠN
+// ROUTES
 // ==========================================
 app.use('/api/auth', authRoutes);
 app.use('/api/home', homeRoutes);
@@ -163,7 +218,6 @@ app.get('/api/employees/:storeId', (req, res) => {
 // 2. Thêm nhân viên mới
 app.post('/api/employees', (req, res) => {
   const { storeId, name, specialty, phone } = req.body;
-
   const defaultPassword = 'abc123';
 
   const sql =
@@ -174,6 +228,14 @@ app.post('/api/employees', (req, res) => {
     [storeId, name, specialty, phone, defaultPassword],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
+      
+      emitDataChanged({
+        entity: 'employee',
+        action: 'created',
+        storeId,
+        employeeId: result.insertId,
+      });
+
       res.status(201).json({
         id: result.insertId,
         message: 'Thêm nhân viên và cấp tài khoản thành công',
@@ -188,15 +250,22 @@ app.delete('/api/employees/:id', (req, res) => {
 
   db.query('DELETE FROM employees WHERE id = ?', [id], (err) => {
     if (err) return res.status(500).json({ error: err.message });
+    
+    emitDataChanged({
+      entity: 'employee',
+      action: 'deleted',
+      employeeId: Number(id),
+    });
+
     res.status(200).json({ message: 'Đã xóa nhân viên' });
   });
 });
 
 // ==========================================
-// API: DÀNH RIÊNG CHO KỸ THUẬT VIÊN (TECHNICIAN)
+// API: DÀNH RIÊNG CHO KỸ THUẬT VIÊN
 // ==========================================
 
-// 1. Lấy danh sách đơn được Store giao cho Thợ này
+// 1. Lấy danh sách đơn được giao cho Thợ (với withImageFields)
 app.get('/api/technician/orders/:employeeId', (req, res) => {
   const empId = req.params.employeeId;
   const sql = `
@@ -222,15 +291,14 @@ app.get('/api/technician/orders/:employeeId', (req, res) => {
 
   db.query(sql, [empId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(200).json(results);
+    res.status(200).json(results.map(withImageFields));
   });
 });
 
 // 2. Thợ cập nhật đơn
 app.put('/api/technician/orders/:id', async (req, res) => {
   const reqId = req.params.id;
-  const { status, technician_note, quote_price, estimated_time, quote_message } =
-    req.body;
+  const { status, technician_note, quote_price, estimated_time, quote_message } = req.body;
 
   try {
     const [requestRows] = await db.promise().query(
@@ -314,6 +382,15 @@ app.put('/api/technician/orders/:id', async (req, res) => {
       }
     }
 
+    emitDataChanged({
+      entity: 'repair_request',
+      action: 'technician_updated',
+      requestId: Number(reqId),
+      status: nextStatus,
+      userId: requestRow.user_id || null,
+      storeId: requestRow.store_id || null,
+    });
+
     res.status(200).json({ message: 'Đã cập nhật đơn hàng thành công' });
   } catch (err) {
     console.error('Technician update error:', err);
@@ -338,9 +415,19 @@ app.post('/api/technician/login', (req, res) => {
       }
 
       const tech = results[0];
+      const techToken = jwt.sign(
+        {
+          id: tech.id,
+          role: 'TECHNICIAN',
+          store_id: tech.store_id,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
 
       res.status(200).json({
         message: 'Đăng nhập thành công',
+        token: techToken,
         tech: {
           id: tech.id,
           name: tech.name,
@@ -353,10 +440,92 @@ app.post('/api/technician/login', (req, res) => {
   );
 });
 
+// 4. Lấy thông tin phiên làm việc
+app.get('/api/technician/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Chưa đăng nhập kỹ thuật viên' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== 'TECHNICIAN' || !decoded.id) {
+      return res.status(403).json({ message: 'Phiên kỹ thuật viên không hợp lệ' });
+    }
+
+    const [rows] = await db.promise().query(
+      'SELECT id, name, specialty, store_id, phone FROM employees WHERE id = ? LIMIT 1',
+      [decoded.id]
+    );
+
+    if (!rows.length) {
+      return res.status(401).json({ message: 'Không tìm thấy kỹ thuật viên' });
+    }
+
+    return res.json({
+      success: true,
+      tech: rows[0],
+    });
+  } catch (error) {
+    return res.status(401).json({ message: 'Phiên đăng nhập kỹ thuật viên không hợp lệ' });
+  }
+});
+
+// 5. Đổi mật khẩu
+app.put('/api/technician/change-password', async (req, res) => {
+  const { employeeId, currentPassword, newPassword } = req.body;
+
+  if (!employeeId || !currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Thiếu thông tin đổi mật khẩu' });
+  }
+
+  if (String(newPassword).trim().length < 6) {
+    return res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+  }
+
+  try {
+    const [rows] = await db.promise().query(
+      'SELECT id, password FROM employees WHERE id = ? LIMIT 1',
+      [employeeId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: 'Không tìm thấy kỹ thuật viên' });
+    }
+
+    if (String(rows[0].password || '') !== String(currentPassword)) {
+      return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    await db.promise().query('UPDATE employees SET password = ? WHERE id = ?', [
+      String(newPassword).trim(),
+      employeeId,
+    ]);
+
+    return res.json({ message: 'Đổi mật khẩu thành công' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Lỗi server khi đổi mật khẩu', error: err.message });
+  }
+});
+
+// ==========================================
+// SERVE FRONTEND (STATIC FILES)
+// ==========================================
+const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendDistPath));
+
+app.get(/^(?!\/api\/).*/, (req, res) => {
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
+
 // ==========================================
 // SOCKET REALTIME CHAT
 // ==========================================
-initSocket(server, CLIENT_URL);
+// Sử dụng allowedOrigins thay vì string CLIENT_URL tĩnh
+initSocket(server, allowedOrigins);
 
 // ==========================================
 // SERVER LISTEN
